@@ -6,6 +6,10 @@ import { IUserContainer } from "./IUserContainer";
 export class UserContainer implements IUserContainer {
   private container: Map<string, User> = new Map<string, User>();
 
+  findAll(): User[] {
+    return [...this.container.values()];
+  }
+
   findBySection(section: string): User[] {
     throw new Error("Method not implemented.");
   }
