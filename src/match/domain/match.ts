@@ -1,8 +1,12 @@
-import { User } from "src/user/interfaces/user";
+import { SectionType, User } from "src/user/interfaces/user";
 import { CreateMatchDto } from "../dto/create-match.dto";
 import { MenuItem, TipBoundary } from "../interfaces/shop.interface";
+import { CategoryType } from "../interfaces/category.interface";
 
 export class Match {
+  private static count: number = 0;
+  readonly id: string;
+
   // required
   shopName: string;
   deliveryPriceAtLeast: number;
@@ -15,17 +19,25 @@ export class Match {
 
   avgMannerRate: number;
 
+  readonly category: CategoryType;
+  readonly targetSection: SectionType;
+
   constructor(
     shopName: string,
     deliveryPriceAtLeast: number,
     deliveryTipsInterval: TipBoundary[],
-    perchaser: User
+    perchaser: User,
+    category: CategoryType,
+    section: SectionType
   ) {
     this.shopName = shopName;
     this.deliveryPriceAtLeast = deliveryPriceAtLeast;
     this.deliveryTipsInterval = deliveryTipsInterval;
     this.perchaser = perchaser;
+    this.category = category;
+    this.targetSection = section;
 
+    this.id = (Match.count++).toString();
     this.avgMannerRate = perchaser.getMannerRate();
   }
 }
@@ -35,6 +47,8 @@ export class MatchBuilder {
   private deliveryPriceAtLeast: number;
   private deliveryTipsInterval: TipBoundary[];
   private perchaser: User;
+  private category: CategoryType;
+  private targetSection: SectionType;
 
   public setShopName(val: string): MatchBuilder {
     this.shopName = val;
@@ -56,13 +70,25 @@ export class MatchBuilder {
     return this;
   }
 
+  public setCategory(val: CategoryType): MatchBuilder {
+    this.category = val;
+    return this;
+  }
+
+  public setSection(val: SectionType): MatchBuilder {
+    this.targetSection = val;
+    return this;
+  }
+
   public build(): Match {
     if (
       !(
         this.shopName &&
         this.deliveryPriceAtLeast &&
         this.deliveryPriceAtLeast &&
-        this.perchaser
+        this.perchaser &&
+        this.category &&
+        this.targetSection
       )
     ) {
       throw new Error("all attributes required");
@@ -71,7 +97,9 @@ export class MatchBuilder {
       this.shopName,
       this.deliveryPriceAtLeast,
       this.deliveryTipsInterval,
-      this.perchaser
+      this.perchaser,
+      this.category,
+      this.targetSection
     );
   }
 }
