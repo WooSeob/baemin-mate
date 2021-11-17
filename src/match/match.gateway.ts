@@ -13,6 +13,7 @@ import { Logger } from "@nestjs/common";
 import { Server, Socket } from "socket.io";
 import { MatchService } from "./match.service";
 import { CreateMatchDto } from "./dto/create-match.dto";
+import { CreateAwaiterDto } from "./dto/creaet-awaiter.dto";
 
 @WebSocketGateway({ namespace: "/match" })
 export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
@@ -38,10 +39,20 @@ export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
   create(
     @MessageBody() createMatchDto: CreateMatchDto,
     @ConnectedSocket() client: Socket
-  ): WsResponse<any> {
-    return {
-      event: "create",
-      data: this.matchService.createMatch(createMatchDto, client),
-    };
+  ): any {
+    return this.matchService.createMatch(createMatchDto, client);
+  }
+
+  @SubscribeMessage("await")
+  joinAnyWhere(
+    @MessageBody() createAwaiterDto: CreateAwaiterDto,
+    @ConnectedSocket() client: Socket
+  ): any {
+    return this.matchService.createAwaiter(createAwaiterDto, client);
+  }
+
+  @SubscribeMessage("getall")
+  getAllMatches(@ConnectedSocket() client: Socket): any {
+    return this.matchService.getAllMatches(client);
   }
 }
