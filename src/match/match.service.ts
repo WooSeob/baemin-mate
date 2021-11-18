@@ -21,7 +21,50 @@ export class MatchService {
     @Inject("IUserContainer") private userContainer: IUserContainer,
     @Inject("IMatchContainer") private matchContainer: IMatchContainer,
     @Inject("IMatchContainer") private closedMatchContainer: IMatchContainer
-  ) {}
+  ) {
+    let dto: CreateMatchDto = {
+      userId: "kiwoong",
+      shopName: "맥도날드",
+      deliveryPriceAtLeast: 3000,
+      deliveryTipsInterval: [
+        { price: 3000, tip: 2000 },
+        { price: 12000, tip: 0 },
+      ],
+      category: CATEGORY.KOREAN,
+      section: SECTION.BIBONG,
+    };
+    console.log(this.userContainer.findById(dto.userId));
+    let match: Match = new MatchBuilder()
+      .setShopName(dto.shopName)
+      .setDeliveryPriceAtLeast(dto.deliveryPriceAtLeast)
+      .setDeliveryTipsInterval(dto.deliveryTipsInterval)
+      .setPerchaser(this.userContainer.findById(dto.userId))
+      .setCategory(dto.category)
+      .setSection(dto.section)
+      .build();
+    this.matchContainer.push(match);
+    dto = {
+      userId: "wooseob",
+      shopName: "맘스터치",
+      deliveryPriceAtLeast: 3000,
+      deliveryTipsInterval: [
+        { price: 3000, tip: 2000 },
+        { price: 12000, tip: 0 },
+      ],
+      category: CATEGORY.CHINESE,
+      section: SECTION.BIBONG,
+    };
+    console.log(this.userContainer.findById(dto.userId));
+    match = new MatchBuilder()
+      .setShopName(dto.shopName)
+      .setDeliveryPriceAtLeast(dto.deliveryPriceAtLeast)
+      .setDeliveryTipsInterval(dto.deliveryTipsInterval)
+      .setPerchaser(this.userContainer.findById(dto.userId))
+      .setCategory(dto.category)
+      .setSection(dto.section)
+      .build();
+    this.matchContainer.push(match);
+  }
 
   createMatch(createMatchDto: CreateMatchDto, client: Socket) {
     let match: Match = new MatchBuilder()
