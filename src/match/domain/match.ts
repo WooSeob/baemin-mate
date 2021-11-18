@@ -37,6 +37,9 @@ export class Match {
     this.category = category;
     this.targetSection = section;
 
+    this.totalPrice = 0;
+    this.deliveryTip = deliveryTipsInterval[0].tip;
+
     this.id = (Match.count++).toString();
     this.avgMannerRate = perchaser.getMannerRate();
   }
