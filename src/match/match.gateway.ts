@@ -17,12 +17,18 @@ import { SubscribeCategoryDto } from "./dto/subscribe-category.dto";
 import { JoinMatchDto } from "./dto/join-match.dto";
 import { Match } from "./domain/match";
 import { IUserContainer } from "src/core/container/IUserContainer";
+import { AuthService } from "src/auth/auth.service";
+import { MatchSender } from "./match.sender";
+import MatchInfo from "./interfaces/response/match-info.interface";
+import Ack from "src/core/interfaces/ack.interface";
 
 @WebSocketGateway({ namespace: "/match", cors: { origin: "*" } })
 export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private matchService: MatchService,
-    @Inject("IUserContainer") private userContainer: IUserContainer
+    @Inject("IUserContainer") private userContainer: IUserContainer,
+    private authService: AuthService,
+    private matchSender: MatchSender
   ) {}
 
   @WebSocketServer() public server: Server;
@@ -30,6 +36,7 @@ export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
 
   afterInit(server: Server) {
     this.matchService.server = server;
+    this.matchSender.server = server;
   }
 
   handleDisconnect(client: Socket) {
@@ -46,9 +53,16 @@ export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
   create(
     @MessageBody() createMatchDto: CreateMatchDto,
     @ConnectedSocket() client: Socket
-  ): WsResponse<any> {
+  ): Ack<Match> {
+    if (!this.authService.verifySession(createMatchDto.userId, client.handshake.auth.token)) {
+      return {
+        status: 401,
+        data: null,
+      };
+    }
+
     return {
-      event: "create",
+      status: 200,
       data: this.matchService.createMatch(createMatchDto, client),
     };
   }
@@ -57,17 +71,16 @@ export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
   subscribe(
     @MessageBody() subscribeCategoryDto: SubscribeCategoryDto,
     @ConnectedSocket() client: Socket
-  ): MatchSubscribeAck {
+  ): Ack<MatchInfo[]> {
     if (
-      client.handshake.auth.token !=
-      this.userContainer.findById(subscribeCategoryDto.userId).sessionId
+      !this.authService.verifySession(subscribeCategoryDto.userId, client.handshake.auth.token)
     ) {
-      console.log(this.userContainer.findById(subscribeCategoryDto.userId).sessionId);
       return {
         status: 401,
         data: [],
       };
     }
+
     let matches: Match[] = this.matchService.subscribeByCategory(subscribeCategoryDto, client);
     return {
       status: 200,
@@ -87,23 +100,10 @@ export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
   join(
     @MessageBody() joinMatchDto: JoinMatchDto,
     @ConnectedSocket() client: Socket
-  ): WsResponse<any> {
+  ): Ack<null> {
     return {
-      event: "join",
-      data: this.matchService.joinMatch(joinMatchDto, client),
+      status: 200,
+      data: null,
     };
   }
-}
-
-interface MatchSubscribeAck {
-  status: number;
-  data: MatchInfo[];
-}
-
-interface MatchInfo {
-  id: string;
-  shopName: string;
-  section: string;
-  total: number;
-  tip: number;
 }

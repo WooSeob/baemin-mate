@@ -1,7 +1,6 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { Server, Socket } from "socket.io";
 import { IMatchContainer } from "src/core/container/IMatchContainer";
-import { SECTION } from "src/user/interfaces/user";
 import { IUserContainer } from "../core/container/IUserContainer";
 import { MatchQueue } from "./domain/impl/MatchQueue";
 import { IMatchQueue } from "./domain/interfaces/IMatchQueue";
@@ -9,7 +8,6 @@ import { Match, MatchBuilder } from "./domain/match";
 import { CreateMatchDto } from "./dto/create-match.dto";
 import { JoinMatchDto } from "./dto/join-match.dto";
 import { SubscribeCategoryDto } from "./dto/subscribe-category.dto";
-import { CATEGORY } from "./interfaces/category.interface";
 
 @Injectable()
 export class MatchService {
@@ -23,7 +21,7 @@ export class MatchService {
     @Inject("IMatchContainer") private closedMatchContainer: IMatchContainer
   ) {}
 
-  createMatch(createMatchDto: CreateMatchDto, client: Socket) {
+  createMatch(createMatchDto: CreateMatchDto, client: Socket): Match {
     let match: Match = new MatchBuilder()
       .setShopName(createMatchDto.shopName)
       .setDeliveryPriceAtLeast(createMatchDto.deliveryPriceAtLeast)
@@ -34,20 +32,13 @@ export class MatchService {
       .build();
 
     this.matchContainer.push(match);
-
-    //해당 카테고리를 구독중인 클라이언트들에게 새로운 match가 있음을 통지
-    this.server.to(match.targetSection).emit("new-arrive", match);
-
-    return { action: "create", status: "ok" };
+    return match;
   }
 
   closeMatchWait(matchId: string, client: Socket) {
     //인증 필요
     let closed = this.matchContainer.findById(matchId);
     this.closedMatchContainer.push(closed);
-
-    //해당 카테고리를 구독중인 클라이언트들에게 기존 match가 종료되었음을 통지
-    this.server.to(closed.targetSection).emit("closed", closed);
     this.matchContainer.delete(closed);
   }
 
