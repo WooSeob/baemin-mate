@@ -1,8 +1,8 @@
 import { Injectable } from "@nestjs/common";
-import EventEmitter from "events";
 import { Match } from "src/match/domain/match";
 import { CategoryType } from "src/match/interfaces/category.interface";
 import { SectionType } from "src/user/interfaces/user";
+import { EventEmitter } from "stream";
 import { IMatchContainer } from "./IMatchContainer";
 
 @Injectable()
