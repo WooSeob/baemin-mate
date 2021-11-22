@@ -1,11 +1,12 @@
 import { Injectable } from "@nestjs/common";
+import EventEmitter from "events";
 import { Match } from "src/match/domain/match";
 import { CategoryType } from "src/match/interfaces/category.interface";
 import { SectionType } from "src/user/interfaces/user";
 import { IMatchContainer } from "./IMatchContainer";
 
 @Injectable()
-export class MatchContainer implements IMatchContainer {
+export class MatchContainer extends EventEmitter implements IMatchContainer {
   private container: Map<string, Match> = new Map();
   private byCategoryAndSection: Map<string, Map<string, Map<string, Match>>> = new Map();
 
@@ -61,10 +62,12 @@ export class MatchContainer implements IMatchContainer {
     }
     let bySectioin = byCategory.get(match.targetSection);
     bySectioin.set(match.id, match);
+    this.emit("push", match);
   }
 
   delete(match: Match) {
     this.container.delete(match.id);
     this.byCategoryAndSection.get(match.category).get(match.targetSection).delete(match.id);
+    this.emit("delete", match);
   }
 }
