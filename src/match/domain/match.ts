@@ -46,63 +46,29 @@ export class Match {
 }
 
 export class MatchBuilder {
-  private shopName: string;
-  private deliveryPriceAtLeast: number;
-  private deliveryTipsInterval: TipBoundary[];
-  private perchaser: User;
-  private category: CategoryType;
-  private targetSection: SectionType;
+  private dto: CreateMatchDto;
+  private purchaser: User;
 
-  public setShopName(val: string): MatchBuilder {
-    this.shopName = val;
-    return this;
-  }
-
-  public setDeliveryPriceAtLeast(val: number): MatchBuilder {
-    this.deliveryPriceAtLeast = val;
-    return this;
-  }
-
-  public setDeliveryTipsInterval(val: TipBoundary[]): MatchBuilder {
-    this.deliveryTipsInterval = val;
-    return this;
+  constructor(dto: CreateMatchDto) {
+    this.dto = dto;
   }
 
   public setPerchaser(val: User): MatchBuilder {
-    this.perchaser = val;
-    return this;
-  }
-
-  public setCategory(val: CategoryType): MatchBuilder {
-    this.category = val;
-    return this;
-  }
-
-  public setSection(val: SectionType): MatchBuilder {
-    this.targetSection = val;
+    this.purchaser = val;
     return this;
   }
 
   public build(): Match {
-    if (
-      !(
-        this.shopName &&
-        this.deliveryPriceAtLeast &&
-        this.deliveryPriceAtLeast &&
-        this.perchaser &&
-        this.category &&
-        this.targetSection
-      )
-    ) {
+    if (!this.purchaser) {
       throw new Error("all attributes required");
     }
     return new Match(
-      this.shopName,
-      this.deliveryPriceAtLeast,
-      this.deliveryTipsInterval,
-      this.perchaser,
-      this.category,
-      this.targetSection
+      this.dto.shopName,
+      this.dto.deliveryPriceAtLeast,
+      this.dto.deliveryTipsInterval,
+      this.purchaser,
+      this.dto.category,
+      this.dto.section
     );
   }
 }

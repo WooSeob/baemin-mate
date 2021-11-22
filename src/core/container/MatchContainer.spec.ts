@@ -54,13 +54,8 @@ describe("MatchContainer", () => {
     ];
 
     for (let dto of createDtos) {
-      let match: Match = new MatchBuilder()
-        .setShopName(dto.shopName)
-        .setDeliveryPriceAtLeast(dto.deliveryPriceAtLeast)
-        .setDeliveryTipsInterval(dto.deliveryTipsInterval)
+      let match: Match = new MatchBuilder(dto)
         .setPerchaser(new User(dto.userId, SECTION.NARAE, 37))
-        .setCategory(dto.category)
-        .setSection(dto.section)
         .build();
       container.push(match);
     }

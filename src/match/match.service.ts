@@ -22,13 +22,8 @@ export class MatchService {
   ) {}
 
   createMatch(createMatchDto: CreateMatchDto, client: Socket): Match {
-    let match: Match = new MatchBuilder()
-      .setShopName(createMatchDto.shopName)
-      .setDeliveryPriceAtLeast(createMatchDto.deliveryPriceAtLeast)
-      .setDeliveryTipsInterval(createMatchDto.deliveryTipsInterval)
+    let match: Match = new MatchBuilder(createMatchDto)
       .setPerchaser(this.userContainer.findById(createMatchDto.userId))
-      .setCategory(createMatchDto.category)
-      .setSection(createMatchDto.section)
       .build();
 
     this.matchContainer.push(match);
