@@ -69,6 +69,7 @@ export class Match extends EventEmitter {
 
   _updateTotal(price: number) {
     this.totalPrice = price;
+    this.emit("update-matchInfo", this);
     this.emit("update-total", this);
   }
 
