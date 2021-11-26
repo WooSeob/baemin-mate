@@ -1,5 +1,5 @@
 import { SectionType, User } from "src/user/interfaces/user";
-import { CreateMatchDto } from "../dto/create-match.dto";
+import { CreateMatchDto } from "../dto/request/create-match.dto";
 import { MenuItem, TipBoundary } from "../interfaces/shop.interface";
 import { CategoryType } from "../interfaces/category.interface";
 import { EventEmitter } from "stream";
