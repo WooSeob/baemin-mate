@@ -22,11 +22,12 @@ export class MatchService {
   ) {}
 
   createMatch(createMatchDto: CreateMatchDto, client: Socket): Match {
-    let match: Match = new MatchBuilder(createMatchDto)
+    const match: Match = new MatchBuilder(createMatchDto)
       .setPerchaser(this.userContainer.findById(createMatchDto.userId))
       .build();
 
     this.matchContainer.push(match);
+
     return match;
   }
 

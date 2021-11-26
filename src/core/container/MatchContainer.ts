@@ -63,6 +63,10 @@ export class MatchContainer extends EventEmitter implements IMatchContainer {
     let bySectioin = byCategory.get(match.targetSection);
     bySectioin.set(match.id, match);
     this.emit("push", match);
+
+    match.on("update-matchInfo", (updatedMatch) => {
+      this.emit("update-matchInfo", updatedMatch);
+    });
   }
 
   delete(match: Match) {

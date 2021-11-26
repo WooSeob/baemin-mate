@@ -13,34 +13,27 @@ export class MatchSender {
     @Inject("IMatchContainer") private matchContainer: IMatchContainer,
     @Inject("IMatchContainer") private closedMatchContainer: IMatchContainer
   ) {
+    // server : namespace</match>
     this.matchContainer.on("push", (match: Match) => {
-      this.server.to(match.category).emit("new-arrive", this.newMatchArrived(match));
+      this.server.to(match.category).emit("new-arrive", this.toMatchInfo(match));
     });
 
     this.matchContainer.on("delete", (match: Match) => {
-      this.server.to(match.category).emit("closed", this.deleted(match));
+      this.server.to(match.category).emit("closed", this.toMatchInfo(match));
+    });
+    // MatchInfo에 포함된 멤버가 변경되면 통지해줘야함
+    this.matchContainer.on("update-matchInfo", (match: Match) => {
+      this.server.to(match.category).emit("update", this.toMatchInfo(match));
     });
   }
 
-  newMatchArrived(match: Match): MatchInfo {
-    let newMatchInfo: MatchInfo = {
+  toMatchInfo(match: Match): MatchInfo {
+    return {
       id: match.id,
       shopName: match.shopName,
       section: match.targetSection,
       total: match.totalPrice,
       tip: match.deliveryTip,
     };
-    return newMatchInfo;
-  }
-
-  deleted(match: Match): MatchInfo {
-    let closedMatchInfo: MatchInfo = {
-      id: match.id,
-      shopName: match.shopName,
-      section: match.targetSection,
-      total: match.totalPrice,
-      tip: match.deliveryTip,
-    };
-    return closedMatchInfo;
   }
 }
