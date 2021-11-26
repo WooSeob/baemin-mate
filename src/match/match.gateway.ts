@@ -8,6 +8,7 @@ import {
   MessageBody,
   WsResponse,
   ConnectedSocket,
+  GatewayMetadata,
 } from "@nestjs/websockets";
 import { Inject, Logger } from "@nestjs/common";
 import { Server, Socket } from "socket.io";
@@ -22,7 +23,12 @@ import { MatchSender } from "./match.sender";
 import MatchInfo from "./interfaces/response/match-info.interface";
 import Ack from "src/core/interfaces/ack.interface";
 
-@WebSocketGateway({ namespace: "/match", cors: { origin: "*" } })
+const metadata = {
+  namespace: "/match",
+  cors: { origin: "*" },
+  allowEIO3: true,
+};
+@WebSocketGateway(metadata)
 export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private matchService: MatchService,
