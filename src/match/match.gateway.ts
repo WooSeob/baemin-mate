@@ -6,16 +6,12 @@ import {
   WebSocketServer,
   SubscribeMessage,
   MessageBody,
-  WsResponse,
   ConnectedSocket,
-  GatewayMetadata,
 } from "@nestjs/websockets";
 import { Inject, Logger } from "@nestjs/common";
 import { Server, Socket } from "socket.io";
 import { MatchService } from "./match.service";
-import { CreateMatchDto } from "./dto/request/create-match.dto";
 import { SubscribeCategoryDto } from "./dto/request/subscribe-category.dto";
-import { JoinMatchDto } from "./dto/request/join-match.dto";
 import { Match } from "./domain/match";
 import { IUserContainer } from "src/core/container/IUserContainer";
 import { AuthService } from "src/auth/auth.service";
@@ -55,24 +51,6 @@ export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     // console.log("MatchGateway-connection!!", client.id);
   }
 
-  @SubscribeMessage("create")
-  create(
-    @MessageBody() createMatchDto: CreateMatchDto,
-    @ConnectedSocket() client: Socket
-  ): Ack<Match> {
-    if (!this.authService.verifySession(createMatchDto.userId, client.handshake.auth.token)) {
-      return {
-        status: 401,
-        data: null,
-      };
-    }
-
-    return {
-      status: 200,
-      data: this.matchService.createMatch(createMatchDto, client),
-    };
-  }
-
   @SubscribeMessage("subscribe")
   subscribe(
     @MessageBody() subscribeCategoryDto: SubscribeCategoryDto,
@@ -99,17 +77,6 @@ export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
           tip: match.deliveryTip,
         };
       }),
-    };
-  }
-
-  @SubscribeMessage("join")
-  join(
-    @MessageBody() joinMatchDto: JoinMatchDto,
-    @ConnectedSocket() client: Socket
-  ): Ack<null> {
-    return {
-      status: 200,
-      data: null,
     };
   }
 }

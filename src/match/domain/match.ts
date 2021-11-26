@@ -1,8 +1,8 @@
 import { SectionType, User } from "src/user/interfaces/user";
-import { CreateMatchDto } from "../dto/request/create-match.dto";
 import { MenuItem, TipBoundary } from "../interfaces/shop.interface";
 import { CategoryType } from "../interfaces/category.interface";
 import { EventEmitter } from "stream";
+import { CreateRoomDto } from "src/room/dto/request/create-room.dto";
 
 export class Match extends EventEmitter {
   private static count: number = 0;
@@ -69,41 +69,58 @@ export class Match extends EventEmitter {
 
   _updateTotal(price: number) {
     this.totalPrice = price;
-    this.emit("update-matchInfo", this);
+    this.emit("update-total", this);
   }
 
   addMenu(user: User, menuItem: MenuItem) {
     if (!this.sellectedMenus.has(user)) {
       this.sellectedMenus.set(user, []);
     }
+
     this.sellectedMenus.get(user).push(menuItem);
     const updatedPrice = this.totalPrice + menuItem.price;
     this._updateTotal(updatedPrice);
+    this.emit("update-menu", user, this);
   }
 
   updateMenu(user: User, menuIdx: number, menu: MenuItem) {
-    // 인덱스 초과 처리
+    this._menuErrorHandle(user, menuIdx);
     const menus = this.sellectedMenus.get(user);
     const priceDiff = menu.price - menus[menuIdx].price;
 
     const updatedPrice = this.totalPrice + priceDiff;
     this._updateTotal(updatedPrice);
+    this.emit("update-menu", user, this);
   }
 
   deleteMenu(user: User, menuIdx: number) {
+    this._menuErrorHandle(user, menuIdx);
     const menus = this.sellectedMenus.get(user);
     const deletedMenu = menus[menuIdx];
     const updatedPrice = this.totalPrice - deletedMenu.price;
+
     menus.splice(menuIdx, 1);
     this._updateTotal(updatedPrice);
+    this.emit("update-menu", user, this);
+  }
+
+  _menuErrorHandle(user: User, menuIdx: number) {
+    // key error 처리
+    if (!this.sellectedMenus.has(user)) {
+      throw new Error(`can't update menu. there is no key of ${user.getId()}`);
+    }
+    // 인덱스 초과 처리
+    if (menuIdx > this.sellectedMenus.get(user).length) {
+      throw new Error("menuIdx exceed array length");
+    }
   }
 }
 
 export class MatchBuilder {
-  private dto: CreateMatchDto;
+  private dto: CreateRoomDto;
   private purchaser: User;
 
-  constructor(dto: CreateMatchDto) {
+  constructor(dto: CreateRoomDto) {
     this.dto = dto;
   }
 

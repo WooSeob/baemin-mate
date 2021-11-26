@@ -1,4 +1,5 @@
 import {
+  ConnectedSocket,
   MessageBody,
   OnGatewayInit,
   SubscribeMessage,
@@ -6,30 +7,65 @@ import {
 } from "@nestjs/websockets";
 import { AuthService } from "src/auth/auth.service";
 import { RoomService } from "./room.service";
-import { Server } from "socket.io";
+import { Server, Socket } from "socket.io";
 import { AddMenuDto } from "./dto/request/add-menu.dto";
 import { UpdateMenuDto } from "./dto/request/update-menu.dto";
 import Ack from "src/core/interfaces/ack.interface";
 import None from "src/core/interfaces/none.interface";
 import RoomView from "./dto/response/room-view.dto";
-import { InitDto } from "./dto/request/init.dto";
 import { DeleteMenuDto } from "./dto/request/delete-menu.dto";
 import { CloseMatchDto } from "./dto/request/close-match.dto";
+import { JoinRoomDto } from "./dto/request/join-room.dto";
+import { CreateRoomDto } from "./dto/request/create-room.dto";
+import { RoomSender } from "./room.sender";
 
 @WebSocketGateway({ namespace: "/room", cors: { origin: "*" } })
 export class RoomGateway implements OnGatewayInit {
-  constructor(private roomService: RoomService, private authService: AuthService) {}
+  constructor(
+    private roomService: RoomService,
+    private authService: AuthService,
+    private roomSender: RoomSender
+  ) {}
   afterInit(server: Server) {
     this.roomService.server = server;
+    this.roomSender.server = server;
   }
-  @SubscribeMessage("init")
-  init(@MessageBody() initDto: InitDto): Ack<RoomView> {
-    // 방 최초 입장시 기존 Room State 전달
-    const match = this.roomService.getRoomData(initDto);
+
+  @SubscribeMessage("create")
+  create(
+    @MessageBody() createRoomDto: CreateRoomDto,
+    @ConnectedSocket() client: Socket
+  ): Ack<RoomView> {
+    if (!this.authService.verifySession(createRoomDto.userId, client.handshake.auth.token)) {
+      return {
+        status: 401,
+        data: null,
+      };
+    }
+
+    const created = this.roomService.createRoom(createRoomDto);
+    client.join(created.id);
+
+    this.roomSender.register(created);
 
     return {
       status: 200,
-      data: {},
+      data: RoomView.from(created),
+    };
+  }
+
+  @SubscribeMessage("join")
+  join(
+    @MessageBody() joinRoomDto: JoinRoomDto,
+    @ConnectedSocket() client: Socket
+  ): Ack<RoomView> {
+    const targetRoom = this.roomService.joinRoom(joinRoomDto);
+
+    client.join(targetRoom.id);
+
+    return {
+      status: 200,
+      data: RoomView.from(targetRoom),
     };
   }
 
