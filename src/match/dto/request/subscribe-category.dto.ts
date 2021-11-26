@@ -1,4 +1,4 @@
-import { CategoryType } from "../interfaces/category.interface";
+import { CategoryType } from "../../interfaces/category.interface";
 
 export class SubscribeCategoryDto {
   userId: string;
