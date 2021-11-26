@@ -5,7 +5,7 @@ import { io, Socket } from "socket.io-client";
 import { IoAdapter } from "@nestjs/platform-socket.io";
 
 async function bootstrap() {
-  const app: INestApplication = await NestFactory.create(AppModule);
+  const app: INestApplication = await NestFactory.create(AppModule, { cors: { origin: "*" } });
   app.useWebSocketAdapter(new IoAdapter(app));
   await app.listen(3000);
   console.log(`Application is running on: ${await app.getUrl()}`);
