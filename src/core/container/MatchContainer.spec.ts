@@ -1,6 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { Match, MatchBuilder } from "../../match/domain/match";
-import { CreateMatchDto } from "../../match/dto/create-match.dto";
+import { CreateMatchDto } from "../../match/dto/request/create-match.dto";
 import { CATEGORY } from "../../match/interfaces/category.interface";
 import { SECTION, User } from "../../user/interfaces/user";
 import { IMatchContainer } from "./IMatchContainer";

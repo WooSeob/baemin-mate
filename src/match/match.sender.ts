@@ -3,7 +3,7 @@ import { IMatchContainer } from "src/core/container/IMatchContainer";
 import { IUserContainer } from "src/core/container/IUserContainer";
 import { Server } from "socket.io";
 import { Match } from "./domain/match";
-import MatchInfo from "./interfaces/response/match-info.interface";
+import MatchInfo from "./dto/response/match-info.interface";
 
 @Injectable()
 export class MatchSender {

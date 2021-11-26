@@ -5,9 +5,9 @@ import { IUserContainer } from "../core/container/IUserContainer";
 import { MatchQueue } from "./domain/impl/MatchQueue";
 import { IMatchQueue } from "./domain/interfaces/IMatchQueue";
 import { Match, MatchBuilder } from "./domain/match";
-import { CreateMatchDto } from "./dto/create-match.dto";
-import { JoinMatchDto } from "./dto/join-match.dto";
-import { SubscribeCategoryDto } from "./dto/subscribe-category.dto";
+import { CreateMatchDto } from "./dto/request/create-match.dto";
+import { JoinMatchDto } from "./dto/request/join-match.dto";
+import { SubscribeCategoryDto } from "./dto/request/subscribe-category.dto";
 
 @Injectable()
 export class MatchService {

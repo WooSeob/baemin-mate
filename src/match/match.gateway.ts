@@ -13,14 +13,14 @@ import {
 import { Inject, Logger } from "@nestjs/common";
 import { Server, Socket } from "socket.io";
 import { MatchService } from "./match.service";
-import { CreateMatchDto } from "./dto/create-match.dto";
-import { SubscribeCategoryDto } from "./dto/subscribe-category.dto";
-import { JoinMatchDto } from "./dto/join-match.dto";
+import { CreateMatchDto } from "./dto/request/create-match.dto";
+import { SubscribeCategoryDto } from "./dto/request/subscribe-category.dto";
+import { JoinMatchDto } from "./dto/request/join-match.dto";
 import { Match } from "./domain/match";
 import { IUserContainer } from "src/core/container/IUserContainer";
 import { AuthService } from "src/auth/auth.service";
 import { MatchSender } from "./match.sender";
-import MatchInfo from "./interfaces/response/match-info.interface";
+import MatchInfo from "./dto/response/match-info.interface";
 import Ack from "src/core/interfaces/ack.interface";
 
 const metadata = {
