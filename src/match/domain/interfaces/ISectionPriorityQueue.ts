@@ -1,9 +1,9 @@
 import { User } from "src/user/interfaces/user";
-import { Match } from "../match";
+import { Room } from "../../../domain/room/room";
 
 export interface ISectionPriorityQueue {
-  matchEnqueue(match: Match);
-  matchDequeue(): Match;
+  matchEnqueue(match: Room);
+  matchDequeue(): Room;
   joinerEnqueue(user: User);
   joinerDequeue(): User;
 }

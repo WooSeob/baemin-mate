@@ -1,12 +1,12 @@
 import { User } from "src/user/interfaces/user";
 import { IMatchQueue } from "../interfaces/IMatchQueue";
-import { Match } from "../match";
+import { Room } from "../../../domain/room/room";
 import { SectionPriorityQueue } from "./SectioniPriorityQueue";
 
 export class MatchQueue implements IMatchQueue {
   queueBySection: Map<string, SectionPriorityQueue> = new Map<string, SectionPriorityQueue>();
 
-  matchEnqueue(match: Match) {
+  matchEnqueue(match: Room) {
     // throw new Error("Method not implemented.");
     let section = match.perchaser.getSection();
 
@@ -19,7 +19,7 @@ export class MatchQueue implements IMatchQueue {
       this.queueBySection.set(section, queue);
     }
   }
-  matchDequeue(): Match {
+  matchDequeue(): Room {
     throw new Error("Method not implemented.");
   }
   joinerEnqueue(user: User) {

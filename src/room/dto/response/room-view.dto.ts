@@ -1,4 +1,4 @@
-import { Match } from "src/match/domain/match";
+import { Room } from "src/domain/room/room";
 import { MenuItem } from "src/match/interfaces/shop.interface";
 import UserView from "./user-view.dto";
 
@@ -13,7 +13,7 @@ export default class RoomView {
     menus: MenuItem[];
   }[];
 
-  static from(match: Match): RoomView {
+  static from(match: Room): RoomView {
     const roomView = new RoomView();
     roomView.matchId = match.id;
     roomView.shopName = match.shopName;

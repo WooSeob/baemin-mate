@@ -4,7 +4,7 @@ import { IMatchContainer } from "src/core/container/IMatchContainer";
 import { IUserContainer } from "../core/container/IUserContainer";
 import { MatchQueue } from "./domain/impl/MatchQueue";
 import { IMatchQueue } from "./domain/interfaces/IMatchQueue";
-import { Match } from "./domain/match";
+import { Room } from "../domain/room/room";
 import { SubscribeCategoryDto } from "./dto/request/subscribe-category.dto";
 
 @Injectable()
@@ -41,7 +41,7 @@ export class MatchService {
 
   subscribeByCategory(subscribeCategoryDto: SubscribeCategoryDto, client: Socket) {
     client.join(subscribeCategoryDto.category);
-    let matches: Match[] = this.matchContainer.findByCategory(subscribeCategoryDto.category);
+    let matches: Room[] = this.matchContainer.findByCategory(subscribeCategoryDto.category);
     return matches;
   }
 }

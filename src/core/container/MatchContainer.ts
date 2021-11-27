@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { Match } from "src/match/domain/match";
+import { Room } from "src/domain/room/room";
 import { CategoryType } from "src/match/interfaces/category.interface";
 import { SectionType } from "src/user/interfaces/user";
 import { EventEmitter } from "stream";
@@ -7,10 +7,10 @@ import { IMatchContainer } from "./IMatchContainer";
 
 @Injectable()
 export class MatchContainer extends EventEmitter implements IMatchContainer {
-  private container: Map<string, Match> = new Map();
-  private byCategoryAndSection: Map<string, Map<string, Map<string, Match>>> = new Map();
+  private container: Map<string, Room> = new Map();
+  private byCategoryAndSection: Map<string, Map<string, Map<string, Room>>> = new Map();
 
-  findAll(): Match[] {
+  findAll(): Room[] {
     for (let category of this.byCategoryAndSection.keys()) {
       for (let section of this.byCategoryAndSection.get(category).keys()) {
         console.log(category, section);
@@ -20,8 +20,8 @@ export class MatchContainer extends EventEmitter implements IMatchContainer {
     return [...this.container.values()];
   }
 
-  findBySection(section: SectionType): Match[] {
-    let ret: Match[] = [];
+  findBySection(section: SectionType): Room[] {
+    let ret: Room[] = [];
     for (let cat of this.byCategoryAndSection.keys()) {
       for (let sec of this.byCategoryAndSection.get(cat).keys()) {
         if (section == sec) {
@@ -32,8 +32,8 @@ export class MatchContainer extends EventEmitter implements IMatchContainer {
     return ret;
   }
 
-  findByCategory(category: CategoryType): Match[] {
-    let ret: Match[] = [];
+  findByCategory(category: CategoryType): Room[] {
+    let ret: Room[] = [];
     for (let cat of this.byCategoryAndSection.keys()) {
       if (category == cat) {
         for (let sec of this.byCategoryAndSection.get(cat).keys()) {
@@ -44,11 +44,11 @@ export class MatchContainer extends EventEmitter implements IMatchContainer {
     return ret;
   }
 
-  findById(id: string): Match {
+  findById(id: string): Room {
     return this.container.get(id);
   }
 
-  push(match: Match) {
+  push(match: Room) {
     this.container.set(match.id, match);
 
     // match.category -> match.section
@@ -69,7 +69,7 @@ export class MatchContainer extends EventEmitter implements IMatchContainer {
     });
   }
 
-  delete(match: Match) {
+  delete(match: Room) {
     this.container.delete(match.id);
     this.byCategoryAndSection.get(match.category).get(match.targetSection).delete(match.id);
     this.emit("delete", match);

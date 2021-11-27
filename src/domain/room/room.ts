@@ -1,10 +1,10 @@
 import { SectionType, User } from "src/user/interfaces/user";
-import { MenuItem, TipBoundary } from "../interfaces/shop.interface";
-import { CategoryType } from "../interfaces/category.interface";
+import { MenuItem, TipBoundary } from "../../match/interfaces/shop.interface";
+import { CategoryType } from "../../match/interfaces/category.interface";
 import { EventEmitter } from "stream";
 import { CreateRoomDto } from "src/room/dto/request/create-room.dto";
 
-export class Match extends EventEmitter {
+export class Room extends EventEmitter {
   private static count: number = 0;
   readonly id: string;
 
@@ -44,7 +44,7 @@ export class Match extends EventEmitter {
     this.totalPrice = 0;
     this.deliveryTip = deliveryTipsInterval[0].tip;
 
-    this.id = (Match.count++).toString();
+    this.id = (Room.count++).toString();
     this.avgMannerRate = perchaser.getMannerRate();
 
     this.joiners.push(perchaser);
@@ -130,11 +130,11 @@ export class MatchBuilder {
     return this;
   }
 
-  public build(): Match {
+  public build(): Room {
     if (!this.purchaser) {
       throw new Error("all attributes required");
     }
-    return new Match(
+    return new Room(
       this.dto.shopName,
       this.dto.deliveryPriceAtLeast,
       this.dto.deliveryTipsInterval,

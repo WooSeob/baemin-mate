@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger } from "@nestjs/common";
 import { IMatchContainer } from "src/core/container/IMatchContainer";
 import { IUserContainer } from "src/core/container/IUserContainer";
 import { Server } from "socket.io";
-import { Match } from "src/match/domain/match";
+import { Room } from "src/domain/room/room";
 import { User } from "src/user/interfaces/user";
 
 @Injectable()
@@ -15,7 +15,7 @@ export class RoomSender {
     @Inject("IMatchContainer") private closedMatchContainer: IMatchContainer
   ) {}
 
-  register(match: Match) {
+  register(match: Room) {
     match.on("new-user-join", (user: User) => {
       this.server.to(match.id).emit("");
     });
@@ -25,7 +25,7 @@ export class RoomSender {
     match.on("update-total", (price: number) => {
       this.server.to(match.id).emit("");
     });
-    match.on("update-menu", (user: User, match: Match) => {
+    match.on("update-menu", (user: User, match: Room) => {
       this.server.to(match.id).emit("");
     });
   }

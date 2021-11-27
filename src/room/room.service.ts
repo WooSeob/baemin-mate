@@ -2,7 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { Server } from "socket.io";
 import { IMatchContainer } from "src/core/container/IMatchContainer";
 import { IUserContainer } from "src/core/container/IUserContainer";
-import { Match, MatchBuilder } from "src/match/domain/match";
+import { Room, MatchBuilder } from "src/domain/room/room";
 import { AddMenuDto } from "./dto/request/add-menu.dto";
 import { CreateRoomDto } from "./dto/request/create-room.dto";
 import { DeleteMenuDto } from "./dto/request/delete-menu.dto";
@@ -19,8 +19,8 @@ export class RoomService {
     @Inject("IMatchContainer") private closedMatchContainer: IMatchContainer
   ) {}
 
-  createRoom(createRoomDto: CreateRoomDto): Match {
-    const match: Match = new MatchBuilder(createRoomDto)
+  createRoom(createRoomDto: CreateRoomDto): Room {
+    const match: Room = new MatchBuilder(createRoomDto)
       .setPerchaser(this.userContainer.findById(createRoomDto.userId))
       .build();
 
@@ -29,8 +29,8 @@ export class RoomService {
     return match;
   }
 
-  joinRoom(joinRoomDto: JoinRoomDto): Match {
-    const match: Match = this.matchContainer.findById(joinRoomDto.matchId);
+  joinRoom(joinRoomDto: JoinRoomDto): Room {
+    const match: Room = this.matchContainer.findById(joinRoomDto.matchId);
     return match;
   }
 

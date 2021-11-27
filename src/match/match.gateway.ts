@@ -12,7 +12,7 @@ import { Inject, Logger } from "@nestjs/common";
 import { Server, Socket } from "socket.io";
 import { MatchService } from "./match.service";
 import { SubscribeCategoryDto } from "./dto/request/subscribe-category.dto";
-import { Match } from "./domain/match";
+import { Room } from "../domain/room/room";
 import { IUserContainer } from "src/core/container/IUserContainer";
 import { AuthService } from "src/auth/auth.service";
 import { MatchSender } from "./match.sender";
@@ -65,7 +65,7 @@ export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
       };
     }
 
-    let matches: Match[] = this.matchService.subscribeByCategory(subscribeCategoryDto, client);
+    let matches: Room[] = this.matchService.subscribeByCategory(subscribeCategoryDto, client);
     return {
       status: 200,
       data: matches.map((match): MatchInfo => {

@@ -1,6 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { Match, MatchBuilder } from "../../match/domain/match";
-import { CreateMatchDto } from "../../match/dto/request/create-match.dto";
+import { CreateRoomDto } from "src/room/dto/request/create-room.dto";
+import { Room, MatchBuilder } from "../../domain/room/room";
 import { CATEGORY } from "../../match/interfaces/category.interface";
 import { SECTION, User } from "../../user/interfaces/user";
 import { IMatchContainer } from "./IMatchContainer";
@@ -28,7 +28,7 @@ describe("MatchContainer", () => {
   });
 
   it("push", () => {
-    let createDtos: CreateMatchDto[] = [
+    let createDtos: CreateRoomDto[] = [
       {
         userId: "wooseob",
         shopName: "서브웨이",
@@ -54,7 +54,7 @@ describe("MatchContainer", () => {
     ];
 
     for (let dto of createDtos) {
-      let match: Match = new MatchBuilder(dto)
+      let match: Room = new MatchBuilder(dto)
         .setPerchaser(new User(dto.userId, SECTION.NARAE, 37))
         .build();
       container.push(match);
@@ -63,32 +63,32 @@ describe("MatchContainer", () => {
   });
 
   it("find by section narae", () => {
-    let bySection: Match[] = container.findBySection(SECTION.NARAE);
+    let bySection: Room[] = container.findBySection(SECTION.NARAE);
     expect(bySection.length).toBe(1); //1
   });
 
   it("find by section bibong", () => {
-    let bySection: Match[] = container.findBySection(SECTION.BIBONG);
+    let bySection: Room[] = container.findBySection(SECTION.BIBONG);
     expect(bySection.length).toBe(1);
   });
 
   it("find by section hoyoen", () => {
-    let byCategory: Match[] = container.findBySection(SECTION.HOYOEN);
+    let byCategory: Room[] = container.findBySection(SECTION.HOYOEN);
     expect(byCategory.length).toBe(0);
   });
 
   it("find by category chicken", () => {
-    let byCategory: Match[] = container.findByCategory(CATEGORY.CHICKEN);
+    let byCategory: Room[] = container.findByCategory(CATEGORY.CHICKEN);
     expect(byCategory.length).toBe(1); //1
   });
 
   it("find by category korean", () => {
-    let byCategory: Match[] = container.findByCategory(CATEGORY.KOREAN);
+    let byCategory: Room[] = container.findByCategory(CATEGORY.KOREAN);
     expect(byCategory.length).toBe(1);
   });
 
   it("find by category western", () => {
-    let byCategory: Match[] = container.findByCategory(CATEGORY.WESTERN);
+    let byCategory: Room[] = container.findByCategory(CATEGORY.WESTERN);
     expect(byCategory.length).toBe(0);
   });
 });
