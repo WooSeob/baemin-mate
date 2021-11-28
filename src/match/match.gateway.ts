@@ -12,12 +12,12 @@ import { Inject, Logger } from "@nestjs/common";
 import { Server, Socket } from "socket.io";
 import { MatchService } from "./match.service";
 import { SubscribeCategoryDto } from "./dto/request/subscribe-category.dto";
-import { Room } from "../domain/room/room";
 import { IUserContainer } from "src/core/container/IUserContainer";
 import { AuthService } from "src/auth/auth.service";
 import { MatchSender } from "./match.sender";
 import MatchInfo from "./dto/response/match-info.interface";
 import Ack from "src/core/interfaces/ack.interface";
+import { Match } from "../domain/match/match";
 
 const metadata = {
   namespace: "/match",
@@ -25,7 +25,9 @@ const metadata = {
   allowEIO3: true,
 };
 @WebSocketGateway(metadata)
-export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+export class MatchGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
   constructor(
     private matchService: MatchService,
     @Inject("IUserContainer") private userContainer: IUserContainer,
@@ -57,7 +59,10 @@ export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     @ConnectedSocket() client: Socket
   ): Ack<MatchInfo[]> {
     if (
-      !this.authService.verifySession(subscribeCategoryDto.userId, client.handshake.auth.token)
+      !this.authService.verifySession(
+        subscribeCategoryDto.userId,
+        client.handshake.auth.token
+      )
     ) {
       return {
         status: 401,
@@ -65,16 +70,19 @@ export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
       };
     }
 
-    let matches: Room[] = this.matchService.subscribeByCategory(subscribeCategoryDto, client);
+    let matches: Match[] = this.matchService.subscribeByCategory(
+      subscribeCategoryDto,
+      client
+    );
     return {
       status: 200,
       data: matches.map((match): MatchInfo => {
         return {
           id: match.id,
-          shopName: match.shopName,
-          section: match.targetSection,
+          shopName: match.info.shopName,
+          section: match.info.section,
           total: match.totalPrice,
-          tip: match.deliveryTip,
+          tip: match.tip,
         };
       }),
     };

@@ -3,7 +3,6 @@ import { IMatchContainer } from "src/core/container/IMatchContainer";
 import { IUserContainer } from "src/core/container/IUserContainer";
 import { Server } from "socket.io";
 import { Room } from "src/domain/room/room";
-import { User } from "src/user/interfaces/user";
 
 @Injectable()
 export class RoomSender {
@@ -15,18 +14,22 @@ export class RoomSender {
     @Inject("IMatchContainer") private closedMatchContainer: IMatchContainer
   ) {}
 
-  register(match: Room) {
-    match.on("new-user-join", (user: User) => {
-      this.server.to(match.id).emit("");
-    });
-    match.on("user-leave", (user: User) => {
-      this.server.to(match.id).emit("");
-    });
-    match.on("update-total", (price: number) => {
-      this.server.to(match.id).emit("");
-    });
-    match.on("update-menu", (user: User, match: Room) => {
-      this.server.to(match.id).emit("");
-    });
+  register(room: Room) {
+    //유저 입장
+    room.users.on("add", (roomUsers) => {});
+    //유저 퇴장
+    room.users.on("delete", (roomUsers) => {});
+
+    //특정 유저의 메뉴가 추가됨
+    room.menus.on("add", () => {});
+    //특정 유저의 기존 메뉴 항목 하나가 변경됨
+    room.menus.on("update", () => {});
+    //특정 유저의 기존 메뉴 항목 하나가 삭제됨
+    room.menus.on("delete", () => {});
+    //특정 유저의 메뉴 셋 전체가 삭제됨(퇴장한 경우)
+    room.menus.on("clean", () => {});
+
+    //방의 금액 정보가 변경됨
+    room.price.on("update", () => {});
   }
 }

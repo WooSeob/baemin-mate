@@ -36,7 +36,12 @@ export class RoomGateway implements OnGatewayInit {
     @MessageBody() createRoomDto: CreateRoomDto,
     @ConnectedSocket() client: Socket
   ): Ack<RoomView> {
-    if (!this.authService.verifySession(createRoomDto.userId, client.handshake.auth.token)) {
+    if (
+      !this.authService.verifySession(
+        createRoomDto.userId,
+        client.handshake.auth.token
+      )
+    ) {
       return {
         status: 401,
         data: null,
@@ -69,7 +74,7 @@ export class RoomGateway implements OnGatewayInit {
     };
   }
 
-  @SubscribeMessage("add-menu")
+  @SubscribeMessage("add-menus")
   addMenu(@MessageBody() addMenuDto: AddMenuDto): Ack<None> {
     return {
       status: 200,
@@ -77,7 +82,7 @@ export class RoomGateway implements OnGatewayInit {
     };
   }
 
-  @SubscribeMessage("update-menu")
+  @SubscribeMessage("update-menus")
   updateMenu(@MessageBody() updateMenuDto: UpdateMenuDto): Ack<None> {
     return {
       status: 200,
@@ -85,7 +90,7 @@ export class RoomGateway implements OnGatewayInit {
     };
   }
 
-  @SubscribeMessage("delte-menu")
+  @SubscribeMessage("delete-menus")
   deleteMenu(@MessageBody() deleteMenuDto: DeleteMenuDto): Ack<None> {
     return {
       status: 200,

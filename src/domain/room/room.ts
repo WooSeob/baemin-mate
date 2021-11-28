@@ -1,119 +1,71 @@
 import { SectionType, User } from "src/user/interfaces/user";
-import { MenuItem, TipBoundary } from "../../match/interfaces/shop.interface";
+import { TipBoundary } from "../../match/interfaces/shop.interface";
 import { CategoryType } from "../../match/interfaces/category.interface";
 import { EventEmitter } from "stream";
 import { CreateRoomDto } from "src/room/dto/request/create-room.dto";
+import RoomInfo from "./info/info";
+import RoomMenus from "./menus/menus";
+import RoomOrder from "./order/order";
+import RoomUsers from "./users/users";
+import RoomPrice from "./price/price";
+import { Match } from "../match/match";
 
 export class Room extends EventEmitter {
   private static count: number = 0;
   readonly id: string;
 
+  private _matches: Match[];
+
   // required
-  shopName: string;
-  deliveryPriceAtLeast: number;
-  deliveryTipsInterval: TipBoundary[];
-  perchaser: User;
-
-  deliveryTip: number;
-  totalPrice: number;
-
-  avgMannerRate: number;
-
-  readonly category: CategoryType;
-  readonly targetSection: SectionType;
-
-  joiners: User[] = [];
-  sellectedMenus: Map<User, MenuItem[]> = new Map();
+  readonly info: RoomInfo;
+  readonly menus: RoomMenus;
+  readonly order: RoomOrder;
+  readonly users: RoomUsers;
+  readonly price: RoomPrice;
 
   constructor(
     shopName: string,
     deliveryPriceAtLeast: number,
     deliveryTipsInterval: TipBoundary[],
-    perchaser: User,
+    purchaser: User,
     category: CategoryType,
     section: SectionType
   ) {
     super();
-    this.shopName = shopName;
-    this.deliveryPriceAtLeast = deliveryPriceAtLeast;
-    this.deliveryTipsInterval = deliveryTipsInterval;
-    this.perchaser = perchaser;
-    this.category = category;
-    this.targetSection = section;
-
-    this.totalPrice = 0;
-    this.deliveryTip = deliveryTipsInterval[0].tip;
 
     this.id = (Room.count++).toString();
-    this.avgMannerRate = perchaser.getMannerRate();
 
-    this.joiners.push(perchaser);
+    this.menus = new RoomMenus(this);
+    this.users = new RoomUsers(this);
+    this.info = {
+      shopName: shopName,
+      purchaser: purchaser,
+      category: category,
+      section: section,
+    };
+    this.price = new RoomPrice(this, {
+      total: 0,
+      tip: deliveryTipsInterval[0].tip,
+      deliveryTipsInterval: deliveryTipsInterval,
+    });
+
+    this.users.add(purchaser);
 
     setInterval(() => {
-      this.addMenu(perchaser, { name: "싸이버거", price: 5000 });
+      this.menus.add(purchaser, { name: "싸이버거", price: 5000 });
     }, 3000);
   }
 
-  join(user: User) {
-    this.joiners.push(user);
-    this.emit("new-user-join", user);
+  addToMatches(match: Match) {
+    this._matches.push(match);
   }
 
-  leave(user: User) {
-    this.joiners.splice(
-      this.joiners.findIndex((u) => u == user),
-      1
-    );
-    this.emit("user-leave", user);
+  deleteFromMatches(match: Match) {
+    //TODO Link된 Match가 삭제될 때 해당 Room.matches 목록에서도 제거되어야 함
   }
 
-  _updateTotal(price: number) {
-    this.totalPrice = price;
-    this.emit("update-matchInfo", this);
-    this.emit("update-total", this);
-  }
-
-  addMenu(user: User, menuItem: MenuItem) {
-    if (!this.sellectedMenus.has(user)) {
-      this.sellectedMenus.set(user, []);
-    }
-
-    this.sellectedMenus.get(user).push(menuItem);
-    const updatedPrice = this.totalPrice + menuItem.price;
-    this._updateTotal(updatedPrice);
-    this.emit("update-menu", user, this);
-  }
-
-  updateMenu(user: User, menuIdx: number, menu: MenuItem) {
-    this._menuErrorHandle(user, menuIdx);
-    const menus = this.sellectedMenus.get(user);
-    const priceDiff = menu.price - menus[menuIdx].price;
-
-    const updatedPrice = this.totalPrice + priceDiff;
-    this._updateTotal(updatedPrice);
-    this.emit("update-menu", user, this);
-  }
-
-  deleteMenu(user: User, menuIdx: number) {
-    this._menuErrorHandle(user, menuIdx);
-    const menus = this.sellectedMenus.get(user);
-    const deletedMenu = menus[menuIdx];
-    const updatedPrice = this.totalPrice - deletedMenu.price;
-
-    menus.splice(menuIdx, 1);
-    this._updateTotal(updatedPrice);
-    this.emit("update-menu", user, this);
-  }
-
-  _menuErrorHandle(user: User, menuIdx: number) {
-    // key error 처리
-    if (!this.sellectedMenus.has(user)) {
-      throw new Error(`can't update menu. there is no key of ${user.getId()}`);
-    }
-    // 인덱스 초과 처리
-    if (menuIdx > this.sellectedMenus.get(user).length) {
-      throw new Error("menuIdx exceed array length");
-    }
+  get matches(): Match[] {
+    return this._matches;
   }
 }
 

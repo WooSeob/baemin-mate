@@ -13,17 +13,17 @@ export default class RoomView {
     menus: MenuItem[];
   }[];
 
-  static from(match: Room): RoomView {
+  static from(room: Room): RoomView {
     const roomView = new RoomView();
-    roomView.matchId = match.id;
-    roomView.shopName = match.shopName;
-    roomView.purchaser = UserView.from(match.perchaser);
-    roomView.tip = match.deliveryTip;
-    roomView.totalPrice = match.totalPrice;
-    roomView.users = Array.from(match.sellectedMenus).map(([user, menuitems]) => {
+    roomView.matchId = room.id;
+    roomView.shopName = room.info.shopName;
+    roomView.purchaser = UserView.from(room.info.purchaser);
+    roomView.tip = room.price.tip;
+    roomView.totalPrice = room.price.total;
+    roomView.users = room.users.getUserList().map((user) => {
       return {
         user: UserView.from(user),
-        menus: menuitems,
+        menus: room.menus.getMenusByUser(user),
       };
     });
     return roomView;
