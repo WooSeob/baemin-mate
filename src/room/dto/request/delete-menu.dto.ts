@@ -1,5 +1,5 @@
 export class DeleteMenuDto {
   userId: string;
-  matchId: string;
+  roomId: string;
   menuId: string;
 }
