@@ -8,4 +8,5 @@ export default interface RoomInfo {
   readonly category: CategoryType;
   readonly section: SectionType;
   readonly createdAt: number;
+  readonly linkFor3rdApp: string;
 }

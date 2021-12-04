@@ -62,10 +62,10 @@ export class Room extends EventEmitter {
   constructor(
     shopName: string,
     deliveryPriceAtLeast: number,
-    deliveryTipsInterval: TipBoundary[],
     purchaser: User,
     category: CategoryType,
-    section: SectionType
+    section: SectionType,
+    shopLink: string
   ) {
     super();
 
@@ -92,11 +92,10 @@ export class Room extends EventEmitter {
       category: category,
       section: section,
       createdAt: Date.now(),
+      linkFor3rdApp: shopLink,
     };
     this.price = new RoomPrice(this, {
       total: 0,
-      tip: deliveryTipsInterval[0].tip,
-      deliveryTipsInterval: deliveryTipsInterval,
       atLeast: deliveryPriceAtLeast,
     });
 

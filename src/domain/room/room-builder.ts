@@ -22,10 +22,10 @@ export class RoomBuilder {
     return new Room(
       this.dto.shopName,
       this.dto.deliveryPriceAtLeast,
-      this.dto.deliveryTipsInterval,
       this.purchaser,
       this.dto.category,
-      this.dto.section
+      this.dto.section,
+      this.dto.shopLink
     );
   }
 }
