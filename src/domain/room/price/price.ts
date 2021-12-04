@@ -5,11 +5,13 @@ import { EventEmitter } from "stream";
 export interface RoomPriceInfo {
   tip: number;
   total: number;
+  atLeast: number;
   deliveryTipsInterval: TipBoundary[];
 }
 export default class RoomPrice extends EventEmitter implements RoomPriceInfo {
   private _tip: number;
   private _total: number;
+  private _atLeast: number;
   readonly deliveryTipsInterval: TipBoundary[];
 
   private room: Room;
@@ -19,6 +21,7 @@ export default class RoomPrice extends EventEmitter implements RoomPriceInfo {
 
     this._tip = info.tip;
     this._total = info.total;
+    this._atLeast = info.atLeast;
     this.deliveryTipsInterval = info.deliveryTipsInterval;
   }
 
@@ -38,5 +41,9 @@ export default class RoomPrice extends EventEmitter implements RoomPriceInfo {
 
   get tip(): number {
     return this._tip;
+  }
+
+  get atLeast(): number {
+    return this._atLeast;
   }
 }

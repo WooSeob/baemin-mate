@@ -45,6 +45,10 @@ export class User {
 
   private _joinRoom: Room;
 
+  get joinRoom(): Room {
+    return this._joinRoom;
+  }
+
   join(room: Room) {
     this._joinRoom = room;
   }

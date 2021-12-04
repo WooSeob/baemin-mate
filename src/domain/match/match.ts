@@ -12,6 +12,7 @@ export class Match extends EventEmitter {
   readonly info: RoomInfo;
 
   private _totalPrice: number;
+  private _atLeast: number;
   private _tip: number;
   private _users: number;
 
@@ -32,6 +33,7 @@ export class Match extends EventEmitter {
     this._totalPrice = room.price.total;
     this._tip = room.price.tip;
     this._users = room.users.getUserCount();
+    this._atLeast = room.price.atLeast;
 
     room.price.on("update", (roomPrice: RoomPrice) => {
       this._totalPrice = roomPrice.total;
@@ -64,5 +66,9 @@ export class Match extends EventEmitter {
 
   get totalPrice(): number {
     return this._totalPrice;
+  }
+
+  get atLeast(): number {
+    return this._atLeast;
   }
 }

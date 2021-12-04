@@ -91,11 +91,13 @@ export class Room extends EventEmitter {
       purchaser: purchaser,
       category: category,
       section: section,
+      createdAt: Date.now(),
     };
     this.price = new RoomPrice(this, {
       total: 0,
       tip: deliveryTipsInterval[0].tip,
       deliveryTipsInterval: deliveryTipsInterval,
+      atLeast: deliveryPriceAtLeast,
     });
 
     this.users.add(purchaser);

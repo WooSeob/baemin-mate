@@ -82,7 +82,9 @@ export class MatchGateway
           shopName: match.info.shopName,
           section: match.info.section,
           total: match.totalPrice,
-          tip: match.tip,
+          priceAtLeast: match.atLeast,
+          purchaserName: match.info.purchaser.name,
+          createdAt: match.info.createdAt,
         };
       }),
     };

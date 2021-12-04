@@ -87,7 +87,18 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
   }
 
   @SubscribeMessage("chat")
-  chat(@MessageBody() message: string): Ack<None> {
+  async chat(
+    @MessageBody() message: string,
+    @ConnectedSocket() client: Socket
+  ): Promise<Ack<None>> {
+    const user = await this.authService.validate(client.handshake.auth.token);
+    if (!user) {
+      return {
+        status: 401,
+        data: {},
+      };
+    }
+    user.joinRoom.chat.receive(user, message);
     return {
       status: 200,
       data: {},

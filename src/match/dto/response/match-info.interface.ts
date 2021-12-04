@@ -3,5 +3,15 @@ export default interface MatchInfo {
   shopName: string;
   section: string;
   total: number;
-  tip: number;
+  priceAtLeast: number;
+  purchaserName: string;
+  createdAt: number;
 }
+
+// export default interface MatchInfo {
+//   id: string;
+//   shopName: string;
+//   section: string;
+//   total: number;
+//   tip: number;
+// }

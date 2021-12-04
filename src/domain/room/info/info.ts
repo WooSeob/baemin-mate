@@ -7,4 +7,5 @@ export default interface RoomInfo {
   readonly purchaser: User;
   readonly category: CategoryType;
   readonly section: SectionType;
+  readonly createdAt: number;
 }
