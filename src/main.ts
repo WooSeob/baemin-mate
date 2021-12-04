@@ -3,43 +3,37 @@ import { AppModule } from "./app.module";
 import { INestApplication } from "@nestjs/common";
 import { io, Socket } from "socket.io-client";
 import { IoAdapter } from "@nestjs/platform-socket.io";
+import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 
 async function bootstrap() {
-  const app: INestApplication = await NestFactory.create(AppModule, { cors: { origin: "*" } });
+  const app: INestApplication = await NestFactory.create(AppModule, {
+    cors: { origin: "*" },
+  });
   app.useWebSocketAdapter(new IoAdapter(app));
+
+  const config = new DocumentBuilder()
+    .setTitle("같이하실")
+    .setDescription("같이하실 Rest API description")
+    .setVersion("1.0")
+    .addBearerAuth({ type: "http", scheme: "bearer" }, "swagger-auth")
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup("api", app, document);
+
   await app.listen(3000);
   console.log(`Application is running on: ${await app.getUrl()}`);
-  // const baseAddress = `ws://${address.address}:${address.port}`;
-  // const baseAddress = `ws://localhost:3000`;
-  // let clientSocket: Socket = io(`${baseAddress}`, {
-  //   transports: ["websocket"],
-  // });
-
-  // clientSocket.on("connect", () => {
-  //   console.log("client connected");
-
-  //   clientSocket.on("events", (msg) => {
-  //     console.log("client received - events : ", msg);
-  //   });
-  //   clientSocket.emit("events", {
-  //     user: "wooseob!",
-  //   });
-
-  //   clientSocket.on("identity", (arg) => {
-  //     console.log("client received - identity : ", arg);
-  //   });
-  //   clientSocket.emit("identity", 123123);
-  // });
 }
 bootstrap();
 
-/*
-import { NestFactory } from "@nestjs/core";
-import { AppModule } from "./app.module";
-
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  await app.listen(3000);
+/**
+ * export interface SecuritySchemeObject {
+    type: SecuritySchemeType;
+    description?: string;
+    name?: string;
+    in?: string;
+    scheme?: string;
+    bearerFormat?: string;
+    flows?: OAuthFlowsObject;
+    openIdConnectUrl?: string;
 }
-bootstrap();
-*/
+ * */

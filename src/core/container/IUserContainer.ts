@@ -1,4 +1,4 @@
-import { User } from "src/user/interfaces/user";
+import { User } from "../../user/entity/user.entity";
 
 export interface IUserContainer {
   findAll(): User[];

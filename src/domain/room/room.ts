@@ -1,28 +1,64 @@
-import { SectionType, User } from "src/user/interfaces/user";
+import { SectionType } from "src/user/interfaces/user";
 import { TipBoundary } from "../../match/interfaces/shop.interface";
 import { CategoryType } from "../../match/interfaces/category.interface";
 import { EventEmitter } from "stream";
-import { CreateRoomDto } from "src/room/dto/request/create-room.dto";
 import RoomInfo from "./info/info";
 import RoomMenus from "./menus/menus";
 import RoomOrder from "./order/order";
 import RoomUsers from "./users/users";
 import RoomPrice from "./price/price";
 import { Match } from "../match/match";
+import RoomVote from "./vote/roomvote";
+import RoomContext from "./context/context";
+import RoomPolicy from "./policy/policy";
+import { User } from "../../user/entity/user.entity";
+import RoomChat from "./chat/chat";
+
+/**
+ * Policy
+ *
+ * 유저 : 참여는 하나의 Room만
+ *
+ * state 기준 : order fix ?
+ *
+ * role 기준 : 방장 or 참가자
+ *
+ * order fix 전
+ *  - 레디, 레디풀기 가능,
+ *  - 나가기 가능
+ *  - 투표 불가능
+ *  - 강퇴는 방장만 가능
+ *  - 메뉴 resource C R U D 가능
+ *
+ * order fix 후
+ *  - 레디 풀기 불가능
+ *  - 나가기 불가능
+ *  - 투표 가능
+ *  - 방장의 강퇴권한 상실
+ *  - 메뉴 resource R 만 가능
+ *
+ * */
 
 export class Room extends EventEmitter {
   private static count: number = 0;
   readonly id: string;
 
-  private _matches: Match[];
+  private _matches: Match[] = [];
 
   // required
   readonly info: RoomInfo;
   readonly menus: RoomMenus;
-  readonly order: RoomOrder;
   readonly users: RoomUsers;
   readonly price: RoomPrice;
+  readonly chat: RoomChat;
 
+  readonly order: RoomOrder;
+  readonly vote: RoomVote;
+
+  readonly ctx: RoomContext;
+  readonly policy: RoomPolicy;
+
+  //join -> ready
   constructor(
     shopName: string,
     deliveryPriceAtLeast: number,
@@ -35,8 +71,21 @@ export class Room extends EventEmitter {
 
     this.id = (Room.count++).toString();
 
+    this.ctx = new RoomContext();
+
+    // this.menus = new Proxy<RoomMenus>(new RoomMenus(this), {
+    //   get: (target, p, receiver) => {
+    //     if (!RoomPolicy.canExecute(this.ctx, p)) {
+    //       throw new Error(`can't execute ${p as string}`);
+    //     }
+    //     return target[p];
+    //   },
+    // });
     this.menus = new RoomMenus(this);
     this.users = new RoomUsers(this);
+    this.vote = new RoomVote(this);
+    this.order = new RoomOrder(this);
+    this.chat = new RoomChat(this);
     this.info = {
       shopName: shopName,
       purchaser: purchaser,
@@ -50,10 +99,6 @@ export class Room extends EventEmitter {
     });
 
     this.users.add(purchaser);
-
-    setInterval(() => {
-      this.menus.add(purchaser, { name: "싸이버거", price: 5000 });
-    }, 3000);
   }
 
   addToMatches(match: Match) {
@@ -66,33 +111,5 @@ export class Room extends EventEmitter {
 
   get matches(): Match[] {
     return this._matches;
-  }
-}
-
-export class MatchBuilder {
-  private dto: CreateRoomDto;
-  private purchaser: User;
-
-  constructor(dto: CreateRoomDto) {
-    this.dto = dto;
-  }
-
-  public setPerchaser(val: User): MatchBuilder {
-    this.purchaser = val;
-    return this;
-  }
-
-  public build(): Room {
-    if (!this.purchaser) {
-      throw new Error("all attributes required");
-    }
-    return new Room(
-      this.dto.shopName,
-      this.dto.deliveryPriceAtLeast,
-      this.dto.deliveryTipsInterval,
-      this.purchaser,
-      this.dto.category,
-      this.dto.section
-    );
   }
 }

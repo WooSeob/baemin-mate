@@ -1,16 +1,15 @@
-import { MenuItem } from "src/match/interfaces/shop.interface";
-import { User } from "src/user/interfaces/user";
+import { User } from "../../../user/entity/user.entity";
 
-export default class UserView {
+export default class RoomUserView {
   userId: string;
-  nickname: string;
+  name: string;
   mannerRate: number;
 
-  static from(user: User): UserView {
-    const userView = new UserView();
-    userView.userId = user.getId();
-    userView.nickname = "not implemented";
-    userView.mannerRate = user.getMannerRate();
+  static from(user: User): RoomUserView {
+    const userView = new RoomUserView();
+    userView.userId = user.id;
+    userView.name = "not implemented";
+    userView.mannerRate = user.mannerRate;
     return userView;
   }
 }

@@ -1,46 +1,64 @@
-import { User } from "../../../user/interfaces/user";
 import { EventEmitter } from "stream";
 import { Room } from "../room";
+import { User } from "../../../user/entity/user.entity";
 
 export default class RoomUsers extends EventEmitter {
-  private users: Map<User, { user: User; ready: boolean }> = new Map();
+  private _users: Map<User, { user: User; ready: boolean }> = new Map();
   private mannerSum: number = 0;
-  room: Room;
+  private _room: Room;
 
   constructor(room: Room) {
     super();
-    this.room = room;
+    this._room = room;
   }
 
   add(user: User) {
-    this.users.set(user, {
+    user.join(this._room);
+    this._users.set(user, {
       user: user,
       ready: false,
     });
-    this.mannerSum += user.getMannerRate();
+    this.mannerSum += user.mannerRate;
     this.emit("add", this);
   }
 
   delete(user: User) {
-    this.users.delete(user);
-    this.mannerSum -= user.getMannerRate();
-    this.room.menus.clearForUser(user);
+    user.leaveRoom();
+    this._users.delete(user);
+    this.mannerSum -= user.mannerRate;
+    this._room.menus.clearForUser(user);
     this.emit("delete", this);
   }
 
+  getIsReady(user: User) {
+    return this._users.get(user).ready;
+  }
+
   setReady(user: User, isReady: boolean) {
-    this.users.get(user).ready = isReady;
+    //TODO 트랙잭션 처리 해야할거같은 느낌
+    this._users.get(user).ready = isReady;
+    let allReady = true;
+    Array.from(this._users.values()).forEach((user) => {
+      allReady = allReady && user.ready;
+    });
+    if (allReady) {
+      this.emit("all-ready", this);
+    }
   }
 
   getUserCount(): number {
-    return this.users.size;
+    return this._users.size;
   }
 
   getAvgMannerRate(): number {
-    return this.mannerSum / this.users.size;
+    return this.mannerSum / this._users.size;
   }
 
   getUserList(): User[] {
-    return Array.from(this.users.keys());
+    return Array.from(this._users.keys());
+  }
+
+  has(user: User): boolean {
+    return this._users.has(user);
   }
 }

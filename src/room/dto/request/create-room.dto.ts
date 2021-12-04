@@ -3,7 +3,6 @@ import { CategoryType } from "../../../match/interfaces/category.interface";
 import { TipBoundary } from "../../../match/interfaces/shop.interface";
 
 export class CreateRoomDto {
-  userId: string;
   shopName: string;
   deliveryPriceAtLeast: number;
   deliveryTipsInterval: TipBoundary[];

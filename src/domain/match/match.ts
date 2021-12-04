@@ -15,6 +15,13 @@ export class Match extends EventEmitter {
   private _tip: number;
   private _users: number;
 
+  /**
+   * Match 의 정보들은 Room 정보의 subset
+   * Room 의 정보들 중 관심 목록은 향후 변경 가능성 높기 때문에
+   * 관심 있는 정보들만 subscribe 한다.
+   *
+   * Events of Match Class : "update"
+   * */
   constructor(room: Room) {
     super();
     this.id = uuidv4();

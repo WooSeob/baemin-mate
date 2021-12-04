@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
-import { User } from "src/user/interfaces/user";
 import { IUserContainer } from "./IUserContainer";
+import { User } from "../../user/entity/user.entity";
 
 @Injectable()
 export class UserContainer implements IUserContainer {
@@ -19,10 +19,10 @@ export class UserContainer implements IUserContainer {
   }
 
   push(user: User) {
-    this.container.set(user.getId(), user);
+    this.container.set(user.id, user);
   }
 
   delete(user: User) {
-    this.container.delete(user.getId());
+    this.container.delete(user.id);
   }
 }
