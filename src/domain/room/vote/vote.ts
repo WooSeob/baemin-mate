@@ -24,8 +24,10 @@ export default abstract class Vote extends EventEmitter {
    * */
   protected constructor() {
     super();
-    this.timeout = 90; // 이건 policy 인데.. 여기있어도 되나..
-    this.timer = setTimeout(this.result, this.timeout);
+    this.timeout = 90 * 1000; // 이건 policy 인데.. 여기있어도 되나..
+    this.timer = setTimeout(() => {
+      this.result();
+    }, this.timeout);
   }
 
   // 투표 방식은 구현 클래스에서 결정

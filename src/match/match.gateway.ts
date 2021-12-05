@@ -8,11 +8,10 @@ import {
   MessageBody,
   ConnectedSocket,
 } from "@nestjs/websockets";
-import { Inject, Logger } from "@nestjs/common";
+import { Logger } from "@nestjs/common";
 import { Server, Socket } from "socket.io";
 import { MatchService } from "./match.service";
 import { SubscribeCategoryDto } from "./dto/request/subscribe-category.dto";
-import { IUserContainer } from "src/core/container/IUserContainer";
 import { AuthService } from "src/auth/auth.service";
 import { MatchSender } from "./match.sender";
 import MatchInfo from "./dto/response/match-info.interface";
@@ -30,7 +29,6 @@ export class MatchGateway
 {
   constructor(
     private matchService: MatchService,
-    @Inject("IUserContainer") private userContainer: IUserContainer,
     private authService: AuthService,
     private matchSender: MatchSender
   ) {}

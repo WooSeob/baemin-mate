@@ -1,11 +1,15 @@
-import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
-import { Observable } from "rxjs";
+import {
+  CanActivate,
+  ExecutionContext,
+  forwardRef,
+  Inject,
+  Injectable,
+  Logger,
+} from "@nestjs/common";
 import { Request } from "express";
-import { AuthService } from "../auth.service";
 import axios, { AxiosResponse } from "axios";
 import { User } from "../../user/entity/user.entity";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { UserService } from "../../user/user.service";
 
 interface NaverAuthResponse {
   id: string;
@@ -16,8 +20,10 @@ interface NaverAuthResponse {
 
 @Injectable()
 export class NaverAuthGuard implements CanActivate {
+  private logger: Logger = new Logger("NaverAuthGuard");
+
   constructor(
-    @InjectRepository(User) private userRepository: Repository<User>
+    @Inject(forwardRef(() => UserService)) private userService: UserService
   ) {}
   async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<Request>();
@@ -36,16 +42,14 @@ export class NaverAuthGuard implements CanActivate {
       token = token.split(" ")[1];
     }
 
-    console.log(token);
     const user = await this.validate(token);
-    console.log(user);
 
     if (!user) {
       console.log("user anvalid");
       return false;
     }
-    // request.user = User;
-    // console.log(user);
+
+    this.logger.log(`${user.name}(${user.id}) is authenticated`);
     Reflect.set(request, "user", user);
     return true;
   }
@@ -63,16 +67,15 @@ export class NaverAuthGuard implements CanActivate {
     }
 
     const info: NaverAuthResponse = res.data.response;
-    console.log(info);
-    const found = await this.userRepository.findOne({ id: info.id });
+    // this.logger.log(info);
+    // const found = await this.userRepository.findOne({ id: info.id });
+    const found = await this.userService.findUserById(info.id);
     if (!found) {
-      // console.log(info);
-      const newUser = new User();
-      newUser.id = info.id;
-      newUser.name = info.name;
-      newUser.phone = info.mobile_e164;
-      await this.userRepository.save(newUser);
-      return newUser;
+      return this.userService.createUserByNaver(
+        info.id,
+        info.name,
+        info.mobile_e164
+      );
     }
     return found;
   }

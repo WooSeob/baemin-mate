@@ -1,5 +1,4 @@
 import { SectionType } from "src/user/interfaces/user";
-import { TipBoundary } from "../../match/interfaces/shop.interface";
 import { CategoryType } from "../../match/interfaces/category.interface";
 import { EventEmitter } from "stream";
 import RoomInfo from "./info/info";
@@ -72,20 +71,12 @@ export class Room extends EventEmitter {
     this.id = (Room.count++).toString();
 
     this.ctx = new RoomContext();
-
-    // this.menus = new Proxy<RoomMenus>(new RoomMenus(this), {
-    //   get: (target, p, receiver) => {
-    //     if (!RoomPolicy.canExecute(this.ctx, p)) {
-    //       throw new Error(`can't execute ${p as string}`);
-    //     }
-    //     return target[p];
-    //   },
-    // });
     this.menus = new RoomMenus(this);
     this.users = new RoomUsers(this);
     this.vote = new RoomVote(this);
     this.order = new RoomOrder(this);
     this.chat = new RoomChat(this);
+    this.policy = new RoomPolicy(this);
     this.info = {
       shopName: shopName,
       purchaser: purchaser,

@@ -71,4 +71,10 @@ export default class RoomPolicy {
       );
     }
   }
+
+  onlyNotReady(user: User) {
+    if (this.room.users.getIsReady(user)) {
+      throw new Error("this action is only for un ready state");
+    }
+  }
 }

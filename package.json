@@ -32,6 +32,8 @@
     "@nestjs/typeorm": "^8.0.2",
     "@nestjs/websockets": "^8.0.9",
     "axios": "^0.21.4",
+    "class-transformer": "^0.4.0",
+    "class-validator": "^0.13.2",
     "mysql2": "^2.3.3",
     "passport": "^0.4.1",
     "passport-jwt": "^4.0.0",

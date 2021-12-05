@@ -2,46 +2,55 @@ import {
   Body,
   Controller,
   Delete,
+  forwardRef,
   Get,
   HttpException,
   HttpStatus,
+  Inject,
   Param,
   Post,
   Put,
   UseGuards,
 } from "@nestjs/common";
 import { UserService } from "./user.service";
-import { RoomService } from "../room/room.service";
 import { AddMenuDto } from "./dto/request/add-menu.dto";
 import { UpdateMenuDto } from "./dto/request/update-menu.dto";
-import { SetReadyDto } from "./dto/request/set-ready.dto";
 import { NaverAuthGuard } from "../auth/guards/naver-auth.guard";
 import { ApiBearerAuth } from "@nestjs/swagger";
+import { RoomService } from "../room/room.service";
+import { User } from "./entity/user.entity";
+import { Room } from "../domain/room/room";
 
 // 로그인이 안되어 있으면 exception
 
 @Controller("user")
 export class UserController {
-  constructor(private userService: UserService) {}
+  constructor(
+    private userService: UserService,
+    @Inject(forwardRef(() => RoomService)) private roomService: RoomService
+  ) {}
 
-  private _roleParticipant(uid: string, rid: string) {
+  private _roleParticipant(user: User, room: Room) {
     // 방 참여자가 아니라면 exception
-    if (!this.userService.isParticipant(uid, rid)) {
+    if (!this.roomService.isParticipant(user, room)) {
       throw new HttpException(
-        `${uid} is not member of room(${rid})`,
+        `${user.id} is not member of room(${room.id})`,
         HttpStatus.UNAUTHORIZED
       );
     }
   }
 
-  private _isMenuNotFound(rid, uid, mid) {
-    const menu = this.userService.getMenu(rid, uid, mid);
-    if (!menu) {
-      throw new HttpException(
-        `there is no menu(${mid}) for ${uid}`,
-        HttpStatus.NOT_FOUND
-      );
+  private async checkRoomAndUser(rid: string, uid: string) {
+    const room = await this.roomService.findRoomById(rid);
+    if (!room) {
+      throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
+    const user = await this.userService.findUserById(uid);
+    if (!user) {
+      throw new HttpException("user not found", HttpStatus.NOT_FOUND);
+    }
+    this._roleParticipant(user, room);
+    return { room, user };
   }
 
   @UseGuards(NaverAuthGuard)
@@ -51,9 +60,9 @@ export class UserController {
     // 참여한 곳이 없으면 exception
     // 방 상태가 활성 상태가 아니라면 exception
 
-    this._roleParticipant(uid, rid);
+    const { room, user } = await this.checkRoomAndUser(rid, uid);
 
-    return this.userService.getMenus(rid, uid);
+    return this.userService.getMenus(room, user);
   }
 
   @UseGuards(NaverAuthGuard)
@@ -63,11 +72,11 @@ export class UserController {
     @Param("uid") uid: string,
     @Param("rid") rid: string,
     @Body() addMenuDto: AddMenuDto
-  ) {
+  ): Promise<string> {
     // 참여한 곳이 없으면 exception
-    this._roleParticipant(uid, rid);
-    const menuId = this.userService.addMenu(addMenuDto, rid, uid);
-    return menuId;
+    const { room, user } = await this.checkRoomAndUser(rid, uid);
+
+    return this.userService.addMenu(room, user, addMenuDto);
   }
 
   @UseGuards(NaverAuthGuard)
@@ -78,12 +87,13 @@ export class UserController {
     @Param("rid") rid: string,
     @Param("mid") mid: string
   ) {
-    // 참가자가 아님
-    this._roleParticipant(uid, rid);
-    // 메뉴 없음
-    this._isMenuNotFound(rid, uid, mid);
+    const { room, user } = await this.checkRoomAndUser(rid, uid);
 
-    return this.userService.getMenu(rid, uid, mid);
+    const menu = await this.userService.getMenu(room, user, mid);
+    if (!menu) {
+      throw new HttpException("menu not found", HttpStatus.NOT_FOUND);
+    }
+    return menu;
   }
 
   @UseGuards(NaverAuthGuard)
@@ -95,10 +105,9 @@ export class UserController {
     @Param("mid") mid: string,
     @Body() updateMenuDto: UpdateMenuDto
   ) {
-    this._roleParticipant(uid, rid);
-    // 메뉴 없음
-    this._isMenuNotFound(rid, uid, mid);
-    this.userService.updateMenu(updateMenuDto, rid, uid, mid);
+    const { room, user } = await this.checkRoomAndUser(rid, uid);
+
+    this.userService.updateMenu(room, user, mid, updateMenuDto);
   }
 
   @UseGuards(NaverAuthGuard)
@@ -109,17 +118,15 @@ export class UserController {
     @Param("rid") rid: string,
     @Param("mid") mid: string
   ) {
-    this._roleParticipant(uid, rid);
-    // 메뉴 없음
-    this._isMenuNotFound(rid, uid, mid);
-    this.userService.deleteMenu(rid, uid, mid);
+    const { room, user } = await this.checkRoomAndUser(rid, uid);
+    this.userService.deleteMenu(room, user, mid);
   }
 
   @UseGuards(NaverAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @Get("/:uid/room/:rid/ready")
   async toggleReady(@Param("uid") uid: string, @Param("rid") rid: string) {
-    this._roleParticipant(uid, rid);
-    return this.userService.toggleReady(rid, uid);
+    const { room, user } = await this.checkRoomAndUser(rid, uid);
+    return this.userService.toggleReady(room, user);
   }
 }

@@ -13,7 +13,7 @@ export default class ResetVote extends Vote {
   }
 
   vote(user: User, opinion: boolean) {
-    if (this.remain.has(user.id)) {
+    if (!this.remain.has(user.id)) {
       throw Error(`${user.id} has no authority for this vote, or already vote`);
     }
 
@@ -21,7 +21,7 @@ export default class ResetVote extends Vote {
     this.remain.delete(user.id);
 
     if (this.remain.size == 0) {
-      this.result();
+      super.result();
     }
   }
 }

@@ -1,6 +1,5 @@
 import { EventEmitter } from "stream";
 import { Room } from "../room";
-import { RoomState } from "../context/context";
 
 export default class RoomOrder extends EventEmitter {
   private _room: Room;
@@ -12,17 +11,17 @@ export default class RoomOrder extends EventEmitter {
   }
 
   fix() {
-    this._room.ctx.state = RoomState.orderFix;
+    this._room.ctx.toOrderFix();
     this.emit("fix", this);
   }
 
   check() {
-    this._room.ctx.state = RoomState.orderCheck;
+    this._room.ctx.toOrderCheck();
     this.emit("check", this);
   }
 
   done() {
-    this._room.ctx.state = RoomState.orderDone;
+    this._room.ctx.toOrderDone();
     this.emit("done", this);
   }
 }

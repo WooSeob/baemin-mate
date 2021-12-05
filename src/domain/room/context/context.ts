@@ -6,5 +6,19 @@ export enum RoomState {
 }
 
 export default class RoomContext {
-  state: RoomState = RoomState.prepare;
+  private _state: RoomState = RoomState.prepare;
+
+  get state(): RoomState {
+    return this._state;
+  }
+
+  toOrderFix() {
+    this._state = RoomState.orderFix;
+  }
+  toOrderCheck() {
+    this._state = RoomState.orderCheck;
+  }
+  toOrderDone() {
+    this._state = RoomState.orderDone;
+  }
 }

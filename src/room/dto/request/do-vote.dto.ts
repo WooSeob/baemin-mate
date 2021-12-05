@@ -1,3 +1,8 @@
+import { IsBoolean } from "class-validator";
+import { ApiProperty } from "@nestjs/swagger";
+
 export default class DoVoteDto {
-  reject: boolean;
+  @ApiProperty()
+  @IsBoolean()
+  agree: boolean;
 }
