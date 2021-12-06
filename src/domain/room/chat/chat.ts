@@ -1,19 +1,33 @@
 import { EventEmitter } from "stream";
 import { Room } from "../room";
-import { RoomState } from "../context/context";
 import { User } from "../../../user/entity/user.entity";
 
-interface Chat {
+enum MessageType {
+  System,
+  Chat,
+}
+export interface Chat {
   user: User;
   message: string;
   at: number;
 }
+interface SystemMessage {}
+type Message = Chat | SystemMessage;
+
 export default class RoomChat extends EventEmitter {
   private _room: Room;
-  private _chats: Chat[] = [];
+  private _messages: Message[] = [];
+  private _readPointers: Map<User, number> = new Map();
+
   constructor(room: Room) {
     super();
     this._room = room;
+    //강퇴 투표가 시작됨
+    room.vote.on("created-kick", () => {});
+    //리셋 투표가 시작됨
+    room.vote.on("created-reset", () => {});
+    //투표 결과가 나옴
+    room.vote.on("finish", () => {});
   }
   receive(user: User, message: string) {
     const newMessage: Chat = {
@@ -21,7 +35,7 @@ export default class RoomChat extends EventEmitter {
       message: message,
       at: Date.now(),
     };
-    this._chats.push(newMessage);
+    this._messages.push(newMessage);
     this.emit("receive", newMessage);
   }
 }

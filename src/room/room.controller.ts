@@ -39,10 +39,7 @@ export class RoomController {
   private _roleParticipant(user: User, room: Room) {
     // 방 참여자가 아니라면 exception
     if (!this.roomService.isParticipant(user, room)) {
-      throw new HttpException(
-        `${user.id} is not member of room(${room.id})`,
-        HttpStatus.BAD_REQUEST
-      );
+      throw new HttpException(`not member of room`, HttpStatus.BAD_REQUEST);
     }
   }
 

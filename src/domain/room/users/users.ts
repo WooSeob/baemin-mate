@@ -19,7 +19,7 @@ export default class RoomUsers extends EventEmitter {
       ready: false,
     });
     this.mannerSum += user.mannerRate;
-    this.emit("add", this);
+    this.emit("add", user);
   }
 
   delete(user: User) {
@@ -27,7 +27,7 @@ export default class RoomUsers extends EventEmitter {
     this._users.delete(user);
     this.mannerSum -= user.mannerRate;
     this._room.menus.clearForUser(user);
-    this.emit("delete", this);
+    this.emit("delete", user);
   }
 
   getIsReady(user: User) {

@@ -21,7 +21,7 @@ export default class ResetVote extends Vote {
     this.remain.delete(user.id);
 
     if (this.remain.size == 0) {
-      super.result();
+      super.resultHook();
     }
   }
 }

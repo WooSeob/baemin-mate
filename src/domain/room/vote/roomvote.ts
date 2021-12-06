@@ -3,7 +3,6 @@ import { Room } from "../room";
 import Vote from "./vote";
 import KickVote from "./KickVote";
 import ResetVote from "./ResetVote";
-import { v4 as uuidv4 } from "uuid";
 import { User } from "../../../user/entity/user.entity";
 
 /**
@@ -14,34 +13,42 @@ import { User } from "../../../user/entity/user.entity";
  * RoomVote 는 Vote 의 일종의 프록시
  * */
 export default class RoomVote extends EventEmitter {
-  get vid(): string {
-    return this._vid;
-  }
-
   private _room: Room;
   private vote: Vote;
-  private _vid: string;
+  //TODO _vid Vote 속으로 숨기기
 
   constructor(room: Room) {
     super();
     this._room = room;
   }
 
+  get vid() {
+    return this.vote.id;
+  }
+
+  //TODO Vote 인스턴스별 결과 처리 로직 캡슐화 해야함
   createKickVote(targetUser: User) {
     this._isVoteAlreadyExist();
-    this._createVote(new KickVote(this._room, targetUser), () => {
+    const kickVoteInstance = new KickVote(this._room, targetUser);
+    this._createVote(kickVoteInstance, () => {
+      //vote 결과 알림 브로드캐스팅
+      this.emit("kick-finish", kickVoteInstance);
       //실제 강퇴 처리
       this._room.users.delete(targetUser);
     });
-    this.emit("created-kick", this);
+    //지목된 사람 닉네임 아이디
+    this.emit("created-kick", kickVoteInstance);
   }
 
   createResetVote() {
     this._isVoteAlreadyExist();
-    this._createVote(new ResetVote(this._room), () => {
+    const resetVoteInstance = new ResetVote(this._room);
+    this._createVote(resetVoteInstance, () => {
+      //vote 결과 알림 브로드캐스팅
+      this.emit("reset-finish", resetVoteInstance);
       //TODO 실제 리셋 처리
     });
-    this.emit("created-reset", this);
+    this.emit("created-reset", resetVoteInstance);
   }
 
   doVote(user: User, opinion: boolean) {
@@ -59,14 +66,11 @@ export default class RoomVote extends EventEmitter {
 
   private _createVote(instance: Vote, voteCallback: Function) {
     instance.on("finish", (result: boolean) => {
-      //vote 결과 알림 브로드캐스팅
-      this.emit("finish", result);
       //vote 종료
       this.vote = null;
       //vote type 별 결과 처리
       voteCallback();
     });
     this.vote = instance;
-    this._vid = uuidv4();
   }
 }

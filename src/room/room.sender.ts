@@ -1,6 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Server } from "socket.io";
 import { Room } from "src/domain/room/room";
+import RoomUserView from "./dto/response/user-view.dto";
+import { User } from "../user/entity/user.entity";
+import ResetVote from "../domain/room/vote/ResetVote";
+import KickVote from "../domain/room/vote/KickVote";
+import { Chat } from "../domain/room/chat/chat";
 
 @Injectable()
 export class RoomSender {
@@ -11,15 +16,15 @@ export class RoomSender {
 
   register(room: Room) {
     //유저 입장
-    room.users.on("add", (roomUsers) => {
-      this.server.to(room.id).emit("users-new");
+    room.users.on("add", (user: User) => {
+      this.server.to(room.id).emit("users-new", RoomUserView.from(user));
       this.logger.log(
         `'users-new' broadcast to Room(${room.info.shopName}#${room.id})`
       );
     });
     //유저 퇴장
-    room.users.on("delete", (roomUsers) => {
-      this.server.to(room.id).emit("users-leave");
+    room.users.on("delete", (user: User) => {
+      this.server.to(room.id).emit("users-leave", RoomUserView.from(user));
       this.logger.log(
         `'users-leave' broadcast to Room(${room.info.shopName}#${room.id})`
       );
@@ -50,30 +55,48 @@ export class RoomSender {
     // });
 
     //방의 금액 정보가 변경됨
-    room.price.on("update", () => {
-      this.server.to(room.id).emit("price-updated");
-      this.logger.log(
-        `'price-updated' broadcast to Room(${room.info.shopName}#${room.id})`
-      );
-    });
+    // room.price.on("update", () => {
+    //   this.server.to(room.id).emit("price-updated");
+    //   this.logger.log(
+    //     `'price-updated' broadcast to Room(${room.info.shopName}#${room.id})`
+    //   );
+    // });
 
     //강퇴 투표가 시작됨
-    room.vote.on("created-kick", () => {
-      this.server.to(room.id).emit("vote-kick-created");
+    //TODO interface 따로 만들기
+    room.vote.on("created-kick", (kickVote: KickVote) => {
+      this.server.to(room.id).emit("vote-kick-created", {
+        voteId: kickVote.id,
+        targetUser: RoomUserView.from(kickVote.target),
+      });
       this.logger.log(
         `'vote-kick-created' broadcast to Room(${room.info.shopName}#${room.id})`
       );
     });
     //리셋 투표가 시작됨
-    room.vote.on("created-reset", () => {
-      this.server.to(room.id).emit("vote-reset-created");
+    room.vote.on("created-reset", (resetVote: ResetVote) => {
+      this.server
+        .to(room.id)
+        .emit("vote-reset-created", { voteId: resetVote.id });
       this.logger.log(
         `'vote-reset-created' broadcast to Room(${room.info.shopName}#${room.id})`
       );
     });
-    //투표 결과가 나옴
-    room.vote.on("finish", () => {
-      this.server.to(room.id).emit("vote-finished");
+    //강퇴 투표 결과가 나옴
+    room.vote.on("kick-finish", (kickVote: KickVote) => {
+      this.server.to(room.id).emit("vote-kick-finished", {
+        target: RoomUserView.from(kickVote.target),
+        result: kickVote.result,
+      });
+      this.logger.log(
+        `'vote-finished' broadcast to Room(${room.info.shopName}#${room.id})`
+      );
+    });
+    //리셋 투표 결과가 나옴
+    room.vote.on("reset-finish", (resetVote: ResetVote) => {
+      this.server
+        .to(room.id)
+        .emit("vote-reset-finished", { result: resetVote.result });
       this.logger.log(
         `'vote-finished' broadcast to Room(${room.info.shopName}#${room.id})`
       );
@@ -88,7 +111,12 @@ export class RoomSender {
     });
     //방장이 결제 직전 정보를 업로드 함
     room.order.on("check", () => {
-      this.server.to(room.id).emit("order-checked");
+      //TODO 구현
+      this.server.to(room.id).emit("order-checked", {
+        screenshot: null,
+        deliveryTipTotal: null,
+        tipForIndividual: null,
+      });
       this.logger.log(
         `'order-checked' broadcast to Room(${room.info.shopName}#${room.id})`
       );
@@ -101,8 +129,12 @@ export class RoomSender {
       );
     });
 
-    room.chat.on("receive", (message) => {
-      this.server.to(room.id).emit("chat", message);
+    room.chat.on("receive", (message: Chat) => {
+      this.server.to(room.id).emit("chat", {
+        user: RoomUserView.from(message.user),
+        message: message.message,
+        at: message.at,
+      });
     });
   }
 }
