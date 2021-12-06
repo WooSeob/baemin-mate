@@ -24,8 +24,11 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
     this.roomService.server = server;
     this.roomSender.server = server;
   }
-  handleConnection(client: Socket, ...args: any[]): any {
-    this.authService.validate(client.handshake.auth.token);
+  async handleConnection(client: Socket, ...args: any[]) {
+    const user = await this.authService.validate(client.handshake.auth.token);
+    if (user.isAlreadyJoined()) {
+      client.join(user.joinRoom.id);
+    }
   }
   // @SubscribeMessage("create")
   // async create(
