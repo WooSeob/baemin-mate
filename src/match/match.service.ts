@@ -1,4 +1,10 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import {
+  HttpException,
+  HttpStatus,
+  Inject,
+  Injectable,
+  Logger,
+} from "@nestjs/common";
 import { Server, Socket } from "socket.io";
 import { IMatchContainer } from "src/core/container/IMatchContainer";
 import { Room } from "../domain/room/room";
@@ -43,7 +49,10 @@ export class MatchService {
   join(match: Match, user: User): Room {
     //Room 은 한순간에 한곳만 참여 가능
     if (user.isAlreadyJoined()) {
-      throw new Error("already joined another room");
+      throw new HttpException(
+        "already joined another room",
+        HttpStatus.BAD_REQUEST
+      );
     }
     match.room.users.add(user);
     return match.room;
