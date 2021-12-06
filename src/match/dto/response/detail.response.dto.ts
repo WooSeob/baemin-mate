@@ -2,7 +2,7 @@ import { Match } from "../../../domain/match/match";
 import { ApiProperty } from "@nestjs/swagger";
 
 export default class MatchDetailResponseDto {
-  @ApiProperty({ description: "match id" })
+  @ApiProperty({ description: "room id" })
   id: string;
 
   @ApiProperty({ description: "가게 이름" })
@@ -25,7 +25,7 @@ export default class MatchDetailResponseDto {
 
   static from(match: Match): MatchDetailResponseDto {
     const detail = new MatchDetailResponseDto();
-    detail.id = match.id;
+    detail.id = match.room.id;
     detail.shopName = match.info.shopName;
     detail.category = match.info.category;
     detail.section = match.info.section;
