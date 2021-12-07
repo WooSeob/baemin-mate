@@ -24,7 +24,6 @@ export class RoomService {
   ) {}
 
   isParticipant(user: User, room: Room) {
-    console.log();
     return room.users.has(user);
   }
 

@@ -29,9 +29,28 @@ import {
   OrderFixedResponse,
 } from "../../../room/dto/response/order.response";
 
+class Buffer<T> {
+  private _buf: T[] = [];
+
+  push(item: T) {
+    this._buf.push(item);
+  }
+  flush(callback: Function) {
+    this._buf.forEach((e: T) => {
+      callback(e);
+    });
+    this._buf = [];
+  }
+}
+
 export default class RoomChat extends EventEmitter {
   private _room: Room;
   private _messages: Message<ChatBody | SystemBody>[] = [];
+
+  private _messagesBuffer: Buffer<Message<ChatBody | SystemBody>> =
+    new Buffer();
+
+  private _canBufferFlush: boolean = true;
 
   private _readPointers: Map<User, number> = new Map();
 
@@ -44,15 +63,15 @@ export default class RoomChat extends EventEmitter {
      **/
     room.users.on("add", (user: User) => {
       const res = UserJoinedResponse.from(user);
-      this._pushMessage(this._createSystemMessage(res));
+      this._pushMessageToBuffer(this._createSystemMessage(res));
     });
     room.users.on("delete", (user: User) => {
       const res = UserLeaveResponse.from(user);
-      this._pushMessage(this._createSystemMessage(res));
+      this._pushMessageToBuffer(this._createSystemMessage(res));
     });
     room.users.on("all-ready", (roomUsers: RoomUsers) => {
       const res = UserAllReadyResponse.from(roomUsers);
-      this._pushMessage(this._createSystemMessage(res));
+      this._pushMessageToBuffer(this._createSystemMessage(res));
     });
 
     /**
@@ -61,22 +80,22 @@ export default class RoomChat extends EventEmitter {
     //강퇴 투표가 시작됨
     room.vote.on("created-kick", (kickVote: KickVote) => {
       const body = KickVoteCreatedResponse.from(kickVote);
-      this._pushMessage(this._createSystemMessage(body));
+      this._pushMessageToBuffer(this._createSystemMessage(body));
     });
     //리셋 투표가 시작됨
     room.vote.on("created-reset", (resetVote: ResetVote) => {
       const res = ResetVoteCreatedResponse.from(resetVote);
-      this._pushMessage(this._createSystemMessage(res));
+      this._pushMessageToBuffer(this._createSystemMessage(res));
     });
     //강퇴 투표 결과가 나옴
     room.vote.on("kick-finish", (kickVote: KickVote) => {
       const res = KickVoteFinishedResponse.from(kickVote);
-      this._pushMessage(this._createSystemMessage(res));
+      this._pushMessageToBuffer(this._createSystemMessage(res));
     });
     //리셋 투표 결과가 나옴
     room.vote.on("reset-finish", (resetVote: ResetVote) => {
       const res = ResetVoteFinishedResponse.from(resetVote);
-      this._pushMessage(this._createSystemMessage(res));
+      this._pushMessageToBuffer(this._createSystemMessage(res));
     });
 
     /**
@@ -85,17 +104,17 @@ export default class RoomChat extends EventEmitter {
     //모두 레디가 되어 방장이 order를 fix함
     room.order.on("fix", (roomOrder: RoomOrder) => {
       const res = OrderFixedResponse.from(roomOrder);
-      this._pushMessage(this._createSystemMessage(res));
+      this._pushMessageToBuffer(this._createSystemMessage(res));
     });
     //방장이 결제 직전 정보를 업로드 함
     room.order.on("check", (roomOrder: RoomOrder) => {
       const res = OrderCheckedResponse.from(roomOrder);
-      this._pushMessage(this._createSystemMessage(res));
+      this._pushMessageToBuffer(this._createSystemMessage(res));
     });
     //방장이 결제를 성사함(배달 시작)
     room.order.on("done", (roomOrder: RoomOrder) => {
       const res = OrderDoneResponse.from(roomOrder);
-      this._pushMessage(this._createSystemMessage(res));
+      this._pushMessageToBuffer(this._createSystemMessage(res));
     });
   }
 
@@ -110,7 +129,12 @@ export default class RoomChat extends EventEmitter {
       : 0;
     //TODO 트랜잭션 처리?
     this.setReadPointer(user);
+    this._canBufferFlush = false;
     return this._messages.slice(startPoint, this._messages.length);
+  }
+
+  notReceivedMessagesAccepted() {
+    this._canBufferFlush = true;
   }
 
   receive(user: User, message: string) {
@@ -119,7 +143,16 @@ export default class RoomChat extends EventEmitter {
       message: message,
     });
 
-    this._pushMessage(chatMessage);
+    this._pushMessageToBuffer(chatMessage);
+  }
+
+  private _pushMessageToBuffer(message: Message<ChatBody | SystemBody>) {
+    this._messagesBuffer.push(message);
+    if (this._canBufferFlush) {
+      this._messagesBuffer.flush((msg) => {
+        this._pushMessage(msg);
+      });
+    }
   }
 
   private _pushMessage(message: Message<ChatBody | SystemBody>) {
