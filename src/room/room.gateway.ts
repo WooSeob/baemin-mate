@@ -29,6 +29,10 @@ export class RoomGateway
   }
   async handleConnection(client: Socket, ...args: any[]) {
     const user = await this.authService.validate(client.handshake.auth.token);
+    //인증 실패시 disconnect
+    if (!user) {
+      client.disconnect();
+    }
     //이미 참가중인 방이 있으면
     if (user.isAlreadyJoined()) {
       //소켓 룸 연결
@@ -101,10 +105,7 @@ export class RoomGateway
   ): Promise<Ack<None>> {
     const user = await this.authService.validate(client.handshake.auth.token);
     if (!user) {
-      return {
-        status: 401,
-        data: {},
-      };
+      client.disconnect();
     }
     user.joinRoom.chat.receive(user, message);
     return {
