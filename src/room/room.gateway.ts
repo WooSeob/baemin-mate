@@ -13,11 +13,13 @@ import { Server, Socket } from "socket.io";
 import Ack from "src/core/interfaces/ack.interface";
 import None from "src/core/interfaces/none.interface";
 import { RoomSender } from "./room.sender";
+import { Logger } from "@nestjs/common";
 
 @WebSocketGateway({ namespace: "/room", cors: { origin: "*" } })
 export class RoomGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
+  private logger = new Logger("RoomGateway");
   constructor(
     private roomService: RoomService,
     private authService: AuthService,
@@ -28,10 +30,12 @@ export class RoomGateway
     this.roomSender.server = server;
   }
   async handleConnection(client: Socket, ...args: any[]) {
+    this.logger.log(client.handshake.auth.token);
     const user = await this.authService.validate(client.handshake.auth.token);
     //인증 실패시 disconnect
     if (!user) {
       client.disconnect();
+      return;
     }
     //이미 참가중인 방이 있으면
     if (user.isAlreadyJoined()) {
