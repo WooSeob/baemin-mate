@@ -43,19 +43,36 @@ export class User {
   })
   currentJoinedRoom: string;
 
+  //TODO DB 칼럼 추가!!!
   private _joinRoom: Room;
+  private _joinedRooms: Room[];
 
   get joinRoom(): Room {
     return this._joinRoom;
   }
 
+  get joinedRooms() {
+    return this._joinedRooms;
+  }
+
   join(room: Room) {
     this._joinRoom = room;
+    this._joinedRooms.push(room);
   }
-  leaveRoom() {
+
+  leaveRoom(roomId: string) {
     this._joinRoom = null;
-  }
-  isAlreadyJoined() {
-    return this._joinRoom != null;
+
+    let toDeleteIdx = -1;
+    for (let i = 0; i < this._joinedRooms.length; i++) {
+      const room = this._joinedRooms[i];
+      if (room.id === roomId) {
+        toDeleteIdx = i;
+        break;
+      }
+    }
+    if (toDeleteIdx > -1) {
+      this._joinedRooms = this._joinedRooms.splice(toDeleteIdx, 1);
+    }
   }
 }

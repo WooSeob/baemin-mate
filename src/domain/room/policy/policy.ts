@@ -77,6 +77,15 @@ export default class RoomPolicy {
     }
   }
 
+  onlyNotParticipant(user: User) {
+    if (this.room.users.has(user)) {
+      throw new HttpException(
+        `target(${user.id}) is already member of room(${this.room.id})`,
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+
   onlyNotReady(user: User) {
     if (this.room.users.getIsReady(user)) {
       throw new HttpException(

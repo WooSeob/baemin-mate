@@ -23,7 +23,7 @@ export default class RoomUsers extends EventEmitter {
   }
 
   delete(user: User) {
-    user.leaveRoom();
+    user.leaveRoom(this._room.id);
     this._users.delete(user);
     this.mannerSum -= user.mannerRate;
     this._room.menus.clearForUser(user);

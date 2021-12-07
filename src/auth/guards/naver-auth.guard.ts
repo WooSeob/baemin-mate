@@ -67,8 +67,6 @@ export class NaverAuthGuard implements CanActivate {
     }
 
     const info: NaverAuthResponse = res.data.response;
-    // this.logger.log(info);
-    // const found = await this.userRepository.findOne({ id: info.id });
     const found = await this.userService.findUserById(info.id);
     if (!found) {
       return this.userService.createUserByNaver(

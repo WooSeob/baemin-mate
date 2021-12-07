@@ -103,16 +103,14 @@ export default class RoomChat extends EventEmitter {
     this._readPointers.set(user, this._messages.length);
   }
 
-  getMessagesFromPointer(user: User): Message<ChatBody | SystemBody>[] {
+  getMessagesFromLastPointer(user: User): Message<ChatBody | SystemBody>[] {
+    //전송할 메시지 시작점
     const startPoint = this._readPointers.has(user)
       ? this._readPointers.get(user)
       : 0;
+    //TODO 트랜잭션 처리?
+    this.setReadPointer(user);
     return this._messages.slice(startPoint, this._messages.length);
-  }
-
-  private _pushMessage(message: Message<ChatBody | SystemBody>) {
-    this._messages.push(message);
-    this.emit("receive", message);
   }
 
   receive(user: User, message: string) {
@@ -122,6 +120,11 @@ export default class RoomChat extends EventEmitter {
     });
 
     this._pushMessage(chatMessage);
+  }
+
+  private _pushMessage(message: Message<ChatBody | SystemBody>) {
+    this._messages.push(message);
+    this.emit("receive", message);
   }
 
   private _createSystemMessage(body: SystemBody): Message<SystemBody> {

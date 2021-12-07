@@ -14,104 +14,84 @@ import Ack from "src/core/interfaces/ack.interface";
 import None from "src/core/interfaces/none.interface";
 import { RoomSender } from "./room.sender";
 import { Logger } from "@nestjs/common";
+import ChatRequestDto from "./dto/request/chat-request.dto";
+import { UserService } from "../user/user.service";
 
 @WebSocketGateway({ namespace: "/room", cors: { origin: "*" } })
 export class RoomGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
+  private _socketIdToUserId: Map<string, string> = new Map();
   private logger = new Logger("RoomGateway");
+
   constructor(
     private roomService: RoomService,
     private authService: AuthService,
-    private roomSender: RoomSender
+    private roomSender: RoomSender,
+    private userService: UserService
   ) {}
+
   afterInit(server: Server) {
     this.roomService.server = server;
     this.roomSender.server = server;
   }
+
   async handleConnection(client: Socket, ...args: any[]) {
     this.logger.log(client.handshake.auth.token);
     const user = await this.authService.validate(client.handshake.auth.token);
-    //인증 실패시 disconnect
+    //인증 실패시 강제 disconnect
     if (!user) {
       client.disconnect();
       return;
     }
+
+    // Socket id <-> user id 매핑 셋
+    this._socketIdToUserId.set(client.id, user.id);
+
     //이미 참가중인 방이 있으면
-    if (user.isAlreadyJoined()) {
-      //소켓 룸 연결
-      client.join(user.joinRoom.id);
-      //기존 메시지 리스토어
-      client.emit("", user.joinRoom.chat.getMessagesFromPointer(user));
-    }
+    user.joinedRooms.forEach((room) => {
+      //TODO client.join은 기존 메시지 전송 이후에 이뤄져야함. (메시지 유실 가능성)
+      client.join(room.id);
+    });
   }
 
   async handleDisconnect(client: Socket) {
-    const user = await this.authService.validate(client.handshake.auth.token);
-    if (user.isAlreadyJoined()) {
-      user.joinRoom.chat.setReadPointer(user);
-    }
+    const user = await this.userService.findUserById(
+      this._socketIdToUserId.get(client.id)
+    );
+    //기존 매핑 삭제
+    this._socketIdToUserId.delete(client.id);
+    //최종 포인터 기록
+    user.joinedRooms.forEach((room) => {
+      room.chat.setReadPointer(user);
+    });
   }
-
-  // @SubscribeMessage("create")
-  // async create(
-  //   @MessageBody() createRoomDto: CreateRoomDto,
-  //   @ConnectedSocket() client: Socket
-  // ): Promise<Ack<RoomView>> {
-  //   const user = await this.authService.validate(client.handshake.auth.token);
-  //   if (!user) {
-  //     return {
-  //       status: 401,
-  //       data: null,
-  //     };
-  //   }
-  //
-  //   console.log(user);
-  //   const created = this.roomService.createRoom(user, createRoomDto);
-  //   client.join(created.id);
-  //
-  //   console.log(created);
-  //   this.roomSender.register(created);
-  //
-  //   return {
-  //     status: 200,
-  //     data: RoomView.from(created),
-  //   };
-  // }
-
-  // @SubscribeMessage("join")
-  // join(
-  //   @MessageBody() joinRoomDto: JoinRoomDto,
-  //   @ConnectedSocket() client: Socket
-  // ): Ack<RoomView> {
-  //   const targetRoom = this.roomService.joinRoom(joinRoomDto);
-  //
-  //   client.join(targetRoom.id);
-  //
-  //   return {
-  //     status: 200,
-  //     data: RoomView.from(targetRoom),
-  //   };
-  // }
-
-  // @SubscribeMessage("exit")
-  // exit(@MessageBody() exitMessage): Ack<None> {
-  //   return {
-  //     status: 200,
-  //     data: {},
-  //   };
-  // }
 
   @SubscribeMessage("chat")
   async chat(
-    @MessageBody() message: string,
+    @MessageBody() chatRequestDto: ChatRequestDto,
     @ConnectedSocket() client: Socket
   ): Promise<Ack<None>> {
-    const user = await this.authService.validate(client.handshake.auth.token);
+    const user = await this.userService.findUserById(
+      this._socketIdToUserId.get(client.id)
+    );
     if (!user) {
       client.disconnect();
+      return {
+        status: 401,
+        data: {},
+      };
     }
-    user.joinRoom.chat.receive(user, message);
+
+    const room = this.roomService.findRoomById(chatRequestDto.roomId);
+    if (!room) {
+      return {
+        status: 404,
+        data: {},
+      };
+    }
+    room.chat.receive(user, chatRequestDto.message);
+
     return {
       status: 200,
       data: {},
@@ -119,28 +99,23 @@ export class RoomGateway
   }
 
   @SubscribeMessage("get-messages")
-  async getNotReceivedMessages(
-    @MessageBody() message: string,
-    @ConnectedSocket() client: Socket
-  ) {
-    const user = await this.authService.validate(client.handshake.auth.token);
+  async getNotReceivedMessages(@ConnectedSocket() client: Socket) {
+    const user = await this.userService.findUserById(
+      this._socketIdToUserId.get(client.id)
+    );
     if (!user) {
+      client.disconnect();
       return {
         status: 401,
         data: {},
       };
     }
-    return {
-      rid: user.joinRoom.id,
-      messages: user.joinRoom.chat.getMessagesFromPointer(user),
-    };
-  }
 
-  // @SubscribeMessage("close-match")
-  // closeMatch(@MessageBody() closeMatchDto: CloseMatchDto): Ack<None> {
-  //   return {
-  //     status: 200,
-  //     data: {},
-  //   };
-  // }
+    return user.joinedRooms.map((room) => {
+      return {
+        rid: room.id,
+        messages: room.chat.getMessagesFromLastPointer(user),
+      };
+    });
+  }
 }
