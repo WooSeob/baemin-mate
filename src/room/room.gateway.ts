@@ -2,6 +2,7 @@ import {
   ConnectedSocket,
   MessageBody,
   OnGatewayConnection,
+  OnGatewayDisconnect,
   OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
@@ -14,7 +15,9 @@ import None from "src/core/interfaces/none.interface";
 import { RoomSender } from "./room.sender";
 
 @WebSocketGateway({ namespace: "/room", cors: { origin: "*" } })
-export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
+export class RoomGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
   constructor(
     private roomService: RoomService,
     private authService: AuthService,
@@ -26,10 +29,22 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
   }
   async handleConnection(client: Socket, ...args: any[]) {
     const user = await this.authService.validate(client.handshake.auth.token);
+    //이미 참가중인 방이 있으면
     if (user.isAlreadyJoined()) {
+      //소켓 룸 연결
       client.join(user.joinRoom.id);
+      //기존 메시지 리스토어
+      client.emit("", user.joinRoom.chat.getMessagesFromPointer(user));
     }
   }
+
+  async handleDisconnect(client: Socket) {
+    const user = await this.authService.validate(client.handshake.auth.token);
+    if (user.isAlreadyJoined()) {
+      user.joinRoom.chat.setReadPointer(user);
+    }
+  }
+
   // @SubscribeMessage("create")
   // async create(
   //   @MessageBody() createRoomDto: CreateRoomDto,
@@ -95,6 +110,24 @@ export class RoomGateway implements OnGatewayInit, OnGatewayConnection {
     return {
       status: 200,
       data: {},
+    };
+  }
+
+  @SubscribeMessage("get-messages")
+  async getNotReceivedMessages(
+    @MessageBody() message: string,
+    @ConnectedSocket() client: Socket
+  ) {
+    const user = await this.authService.validate(client.handshake.auth.token);
+    if (!user) {
+      return {
+        status: 401,
+        data: {},
+      };
+    }
+    return {
+      rid: user.joinRoom.id,
+      messages: user.joinRoom.chat.getMessagesFromPointer(user),
     };
   }
 
