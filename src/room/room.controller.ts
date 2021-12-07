@@ -27,6 +27,7 @@ import { CreateRoomDto } from "./dto/request/create-room.dto";
 import { User } from "../user/entity/user.entity";
 import { CheckOrderDto } from "./dto/request/check-order.dto";
 import MenusResponseDto from "./dto/response/menus.response.dto";
+import CreateRoomResponse from "./dto/response/create-room.response";
 
 @Controller("room")
 export class RoomController {
@@ -71,18 +72,18 @@ export class RoomController {
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description: "새로운 Room 을 생성합니다.",
-    type: RoomView,
+    type: CreateRoomResponse,
   })
   @Post("/")
   async createRoom(
     @Req() request: Request,
     @Body(new ValidationPipe()) createRoomDto: CreateRoomDto
-  ): Promise<RoomView> {
+  ): Promise<CreateRoomResponse> {
     const room = this.roomService.createRoom(
       request.user as User,
       createRoomDto
     );
-    return RoomView.from(room);
+    return CreateRoomResponse.from(room);
   }
 
   /**
