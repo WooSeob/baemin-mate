@@ -19,6 +19,9 @@ import { Request, Response } from "express";
 import axios, { AxiosResponse } from "axios";
 import { NaverAuthGuard } from "./guards/naver-auth.guard";
 import { User } from "../user/entity/user.entity";
+import { SendCodeDto } from "./dto/send-code.dto";
+import { VerifyCodeDto } from "./dto/verify-code.dto";
+import { ApiBearerAuth } from "@nestjs/swagger";
 
 const CLIENT_ID = "qpKfX2QvHyoIFy_BPR_0";
 const CALLBACK_URL = encodeURI("http://localhost:3000/auth/naver/callback");
@@ -93,8 +96,39 @@ export class AuthController {
 
     res.status(HttpStatus.OK).json({ sessionId: ret });
   }
+
   @Post("/logout")
   async logout(@Body() logoutDto: LogoutDto) {
     this.authService.logout(logoutDto);
+  }
+
+  @UseGuards(NaverAuthGuard)
+  @ApiBearerAuth("swagger-auth")
+  @Post("/email/send")
+  async sendVerifyEmail(
+    @Req() request: Request,
+    @Body() sendCodeDto: SendCodeDto
+  ) {
+    const user = request.user as User;
+    await this.authService.emailAuthCreate(user, sendCodeDto.email);
+  }
+
+  @UseGuards(NaverAuthGuard)
+  @ApiBearerAuth("swagger-auth")
+  @Post("/email/verify")
+  async verifyAuthCode(
+    @Req() request: Request,
+    @Body() verifyCodeDto: VerifyCodeDto
+  ) {
+    const user = request.user as User;
+    await this.authService.emailAuthVerify(user, verifyCodeDto.authCode);
+  }
+
+  @UseGuards(NaverAuthGuard)
+  @ApiBearerAuth("swagger-auth")
+  @Get("/email/verified")
+  async getIsEmailVerified(@Req() request: Request) {
+    const user = request.user as User;
+    return user.verified;
   }
 }

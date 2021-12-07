@@ -50,6 +50,11 @@ export class UserService {
     return user;
   }
 
+  async verify(user: User) {
+    user.verified = true;
+    await this.userRepository.save(user);
+  }
+
   async getMenus(room: Room, user: User): Promise<MenuItem[]> {
     return room.menus.getMenusByUser(user);
   }
