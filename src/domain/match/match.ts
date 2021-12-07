@@ -4,6 +4,7 @@ import RoomInfo from "../room/info/info";
 import RoomUsers from "../room/users/users";
 import RoomPrice from "../room/price/price";
 import { v4 as uuidv4 } from "uuid";
+import { User } from "../../user/entity/user.entity";
 
 export class Match extends EventEmitter {
   readonly id: string;
@@ -41,13 +42,13 @@ export class Match extends EventEmitter {
       this.emit("update", this);
     });
 
-    room.users.on("add", (roomUsers: RoomUsers) => {
-      this._users = roomUsers.getUserCount();
+    room.users.on("add", (user: User) => {
+      this._users = room.users.getUserCount();
       this.emit("update", this);
     });
 
-    room.users.on("delete", (roomUsers: RoomUsers) => {
-      this._users = roomUsers.getUserCount();
+    room.users.on("delete", (user: User) => {
+      this._users = room.users.getUserCount();
       this.emit("update", this);
     });
   }
