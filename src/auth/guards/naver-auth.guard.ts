@@ -32,7 +32,7 @@ export class NaverAuthGuard implements CanActivate {
     let token = request.headers.authorization;
 
     if (!token) {
-      console.log("token anvalid");
+      console.log("token invalid");
       return false;
     }
     // if (!token || token.split(" ").length < 2) {
@@ -45,7 +45,7 @@ export class NaverAuthGuard implements CanActivate {
     const user = await this.validate(token);
 
     if (!user) {
-      console.log("user anvalid");
+      console.log("user invalid");
       return false;
     }
 
