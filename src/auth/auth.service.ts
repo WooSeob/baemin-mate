@@ -1,4 +1,4 @@
-import { ConsoleLogger, Inject, Injectable } from "@nestjs/common";
+import { ConsoleLogger, forwardRef, Inject, Injectable } from "@nestjs/common";
 import { IUserContainer } from "../core/container/IUserContainer";
 import { LoginDto } from "./dto/login.dto";
 import { LogoutDto } from "./dto/logout.dto";
@@ -6,6 +6,7 @@ import axios, { AxiosResponse } from "axios";
 import { InjectRepository } from "@nestjs/typeorm";
 import { User } from "../user/entity/user.entity";
 import { Repository } from "typeorm";
+import { UserService } from "../user/user.service";
 
 interface NaverAuthResponse {
   id: string;
@@ -17,35 +18,32 @@ interface NaverAuthResponse {
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectRepository(User) private userRepository: Repository<User>
+    @Inject(forwardRef(() => UserService)) private userService: UserService
   ) {}
 
   async validate(token: string): Promise<User> {
-    const res: AxiosResponse = await axios.get(
-      "https://openapi.naver.com/v1/nid/me",
-      {
+    let res: AxiosResponse;
+    try {
+      res = await axios.get("https://openapi.naver.com/v1/nid/me", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
-      }
-    );
-
-    // console.log(res.data);
-    if (res.data.error) {
-      console.log(res.data);
-      throw null;
+      });
+    } catch (e) {
+      console.log(e);
+      return null;
     }
 
     const info: NaverAuthResponse = res.data.response;
-    const found = await this.userRepository.findOne({ id: info.id });
+    // this.logger.log(info);
+    // const found = await this.userRepository.findOne({ id: info.id });
+    const found = await this.userService.findUserById(info.id);
     if (!found) {
-      console.log(info);
-      const newUser = new User();
-      newUser.id = info.id;
-      newUser.name = info.name;
-      newUser.phone = info.mobile_e164;
-      await this.userRepository.save(newUser);
-      return newUser;
+      return this.userService.createUserByNaver(
+        info.id,
+        info.name,
+        info.mobile_e164
+      );
     }
     return found;
   }
