@@ -2,7 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { Server, Socket } from "socket.io";
 import { IMatchContainer } from "src/core/container/IMatchContainer";
 import { Room } from "../domain/room/room";
-import { SubscribeCategoryDto } from "./dto/request/subscribe-category.dto";
+import { SubscribeMatchDto } from "./dto/request/subscribe-match.dto";
 import { IRoomContainer } from "../core/container/IRoomContainer";
 import { Match } from "../domain/match/match";
 import { User } from "../user/entity/user.entity";
@@ -26,14 +26,26 @@ export class MatchService {
     });
   }
 
-  subscribeByCategory(
-    subscribeCategoryDto: SubscribeCategoryDto,
-    client: Socket
-  ) {
-    client.join(subscribeCategoryDto.category);
-    let matches: Match[] = this.matchContainer.findByCategory(
-      subscribeCategoryDto.category
-    );
+  subscribeByCategory(subscribeMatchDto: SubscribeMatchDto, client: Socket) {
+    for (let room of client.rooms) {
+      client.leave(room);
+    }
+
+    let matches: Match[] = [];
+    for (let category of subscribeMatchDto.category) {
+      matches.concat(this.matchContainer.findByCategory(category));
+    }
+    for (let section of subscribeMatchDto.section) {
+      matches.concat(this.matchContainer.findBySection(section));
+    }
+
+    //TODO 데이터 중복 가능성?
+    for (let category of subscribeMatchDto.category) {
+      for (let section of subscribeMatchDto.section) {
+        client.join(`${category}-${section}`);
+      }
+    }
+
     return matches;
   }
 

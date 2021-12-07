@@ -15,21 +15,22 @@ export class MatchSender {
     this.matchContainer.on("push", (match: Match) => {
       // MatchInfo에 포함된 멤버가 변경되면 통지해줘야함
 
+      //TODO 하드코딩 room id 바꾸기
       match.on("update", (updatedMatch) => {
         this.server
-          .to(match.info.category)
+          .to(`${match.info.category}-${match.info.section}`)
           .emit("update", this.toMatchInfo(updatedMatch));
         this.logger.log(`'update' broadcast to ${match.info.category}`);
       });
       this.server
-        .to(match.info.category)
+        .to(`${match.info.category}-${match.info.section}`)
         .emit("new-arrive", this.toMatchInfo(match));
       this.logger.log(`'new-arrive' broadcast to ${match.info.category}`);
     });
 
     this.matchContainer.on("delete", (match: Match) => {
       this.server
-        .to(match.info.category)
+        .to(`${match.info.category}-${match.info.section}`)
         .emit("closed", this.toMatchInfo(match));
       this.logger.log(`'closed' broadcast to ${match.info.category}`);
     });

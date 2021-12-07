@@ -11,12 +11,12 @@ import {
 import { Logger } from "@nestjs/common";
 import { Server, Socket } from "socket.io";
 import { MatchService } from "./match.service";
-import { SubscribeCategoryDto } from "./dto/request/subscribe-category.dto";
 import { AuthService } from "src/auth/auth.service";
 import { MatchSender } from "./match.sender";
 import MatchInfo from "./dto/response/match-info.interface";
-import Ack from "src/core/interfaces/ack.interface";
 import { Match } from "../domain/match/match";
+import { UserService } from "../user/user.service";
+import { SubscribeMatchDto } from "./dto/request/subscribe-match.dto";
 
 const metadata = {
   namespace: "/match",
@@ -27,10 +27,12 @@ const metadata = {
 export class MatchGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
+  private _socketIdToUserId: Map<string, string> = new Map();
   constructor(
     private matchService: MatchService,
     private authService: AuthService,
-    private matchSender: MatchSender
+    private matchSender: MatchSender,
+    private userService: UserService
   ) {}
 
   @WebSocketServer() public server: Server;
@@ -41,35 +43,49 @@ export class MatchGateway
     this.matchSender.server = server;
   }
 
-  handleDisconnect(client: Socket) {
-    this.logger.log(`Client disconnected: ${client.id}`);
+  async handleConnection(client: Socket, ...args: any[]) {
+    this.logger.log(
+      `Client connected: ${client.id} (${client.handshake.auth.token})`
+    );
+
+    const user = await this.authService.validate(client.handshake.auth.token);
+    //인증 실패시 강제 disconnect
+    if (!user) {
+      client.disconnect();
+      return;
+    }
+
+    // Socket id <-> user id 매핑 셋
+    this._socketIdToUserId.set(client.id, user.id);
   }
 
-  handleConnection(client: Socket, ...args: any[]) {
-    this.logger.log(`Client connected: ${client.id}`);
-    this.logger.log(client.handshake.auth); // prints { token: "abcd" }
-    // console.log("MatchGateway-connection!!", client.id);
+  async handleDisconnect(client: Socket) {
+    this.logger.log(
+      `Client disconnected: ${client.id} (${client.handshake.auth.token})`
+    );
+
+    //기존 매핑 삭제
+    this._socketIdToUserId.delete(client.id);
   }
 
   @SubscribeMessage("subscribe")
-  subscribe(
-    @MessageBody() subscribeCategoryDto: SubscribeCategoryDto,
+  async subscribe(
+    @MessageBody() subscribeMatchDto: SubscribeMatchDto,
     @ConnectedSocket() client: Socket
-  ): Ack<MatchInfo[]> {
-    if (
-      !this.authService.verifySession(
-        subscribeCategoryDto.userId,
-        client.handshake.auth.token
-      )
-    ) {
+  ) {
+    const user = await this.userService.findUserById(
+      this._socketIdToUserId.get(client.id)
+    );
+    if (!user) {
+      client.disconnect();
       return {
         status: 401,
-        data: [],
+        data: {},
       };
     }
 
     let matches: Match[] = this.matchService.subscribeByCategory(
-      subscribeCategoryDto,
+      subscribeMatchDto,
       client
     );
     return {
