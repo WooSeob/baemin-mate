@@ -45,7 +45,7 @@ export class User {
 
   //TODO DB 칼럼 추가!!!
   private _joinRoom: Room;
-  private _joinedRooms: Room[];
+  private _joinedRooms: Room[] = [];
 
   get joinRoom(): Room {
     return this._joinRoom;
