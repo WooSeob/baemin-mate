@@ -7,6 +7,7 @@ import { IRoomContainer } from "../core/container/IRoomContainer";
 import { Match } from "../domain/match/match";
 import { User } from "../user/entity/user.entity";
 import { RoomState } from "../domain/room/context/context";
+import { match } from "assert";
 
 @Injectable()
 export class MatchService {
@@ -31,22 +32,27 @@ export class MatchService {
       client.leave(room);
     }
 
-    let matches: Match[] = [];
+    let matches: Set<Match> = new Set();
     for (let category of subscribeMatchDto.category) {
-      matches.concat(this.matchContainer.findByCategory(category));
-    }
-    for (let section of subscribeMatchDto.section) {
-      matches.concat(this.matchContainer.findBySection(section));
+      for (let m of this.matchContainer.findByCategory(category)) {
+        matches.add(m);
+      }
     }
 
-    //TODO 데이터 중복 가능성?
+    for (let section of subscribeMatchDto.section) {
+      for (let m of this.matchContainer.findBySection(section)) {
+        matches.add(m);
+      }
+    }
+
+    // TODO 데이터 중복 가능성?
     for (let category of subscribeMatchDto.category) {
       for (let section of subscribeMatchDto.section) {
         client.join(`${category}-${section}`);
       }
     }
 
-    return matches;
+    return [...matches.values()];
   }
 
   findMatchById(id: string): Match {
