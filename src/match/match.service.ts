@@ -69,6 +69,10 @@ export class MatchService {
       room.policy.onlyFor([RoomState.prepare, RoomState.orderDone]);
     }
     match.room.users.add(user);
+
+    if (Reflect.has(user, "socket")) {
+      (Reflect.get(user, "socket") as Socket).join(match.room.id);
+    }
     return match.room;
   }
 }

@@ -50,6 +50,9 @@ export class RoomGateway
 
     // Socket id <-> user id 매핑 셋
     this._socketIdToUserId.set(client.id, user.id);
+
+    //유저 객체에 소켓 클라이언트 첨부
+    Reflect.set(user, "socket", client);
   }
 
   async handleDisconnect(client: Socket) {

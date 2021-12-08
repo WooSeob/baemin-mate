@@ -53,6 +53,9 @@ export class RoomService {
     this.roomContainer.push(room);
     this.logger.log(`Room - ${room.info.shopName}(${room.id}) created`);
     this.roomSender.register(room);
+    if (Reflect.has(purchaser, "socket")) {
+      (Reflect.get(purchaser, "socket") as Socket).join(room.id);
+    }
     return room;
   }
 
@@ -60,6 +63,10 @@ export class RoomService {
     room.policy.onlyParticipant(user);
     room.policy.onlyFor([RoomState.prepare, RoomState.orderDone]);
     room.policy.onlyNotReady(user);
+
+    if (Reflect.has(user, "socket")) {
+      (Reflect.get(user, "socket") as Socket).leave(room.id);
+    }
 
     room.users.delete(user);
   }
