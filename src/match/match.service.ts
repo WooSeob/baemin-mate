@@ -63,7 +63,7 @@ export class MatchService {
     //기존 참여자가 아닐때
     match.room.policy.onlyNotParticipant(user);
     //Order Fix 전에
-    match.room.policy.onlyAfterOrderFix();
+    match.room.policy.onlyBeforeOrderFix();
     //사용자가 참여한 방에 OrderFix ~ OrderDone 단계의 방이 하나라도 있으면 안됨.
     for (let room of user.joinedRooms) {
       room.policy.onlyFor([RoomState.prepare, RoomState.orderDone]);
