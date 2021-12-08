@@ -65,6 +65,9 @@ export class RoomGateway
     );
     //기존 매핑 삭제
     this._socketIdToUserId.delete(client.id);
+    if (!user) {
+      return;
+    }
     //최종 포인터 기록
     user.joinedRooms.forEach((room) => {
       room.chat.setReadPointer(user);

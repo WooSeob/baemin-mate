@@ -170,7 +170,7 @@ export default class RoomChat extends EventEmitter {
     return {
       at: String(Date.now()),
       id: uuidv4(),
-      idx: this._messageCnt++,
+      idx: String(this._messageCnt++),
       type: "system",
       body: body,
     };
@@ -180,7 +180,7 @@ export default class RoomChat extends EventEmitter {
     return {
       at: String(Date.now()),
       id: uuidv4(),
-      idx: this._messageCnt++,
+      idx: String(this._messageCnt++),
       type: "chat",
       body: body,
     };
