@@ -36,9 +36,9 @@ class Buffer<T> {
     this._buf.push(item);
   }
   flush(callback: Function) {
-    this._buf.forEach((e: T) => {
+    for (let e of this._buf) {
       callback(e);
-    });
+    }
     this._buf = [];
   }
 }
@@ -50,8 +50,11 @@ export default class RoomChat extends EventEmitter {
   private _messagesBuffer: Buffer<Message<ChatBody | SystemBody>> =
     new Buffer();
 
+  private _messageCnt: number = 0;
+
   private _canBufferFlush: boolean = true;
 
+  private _joinPointers: Map<User, number> = new Map();
   private _readPointers: Map<User, number> = new Map();
 
   constructor(room: Room) {
@@ -62,10 +65,12 @@ export default class RoomChat extends EventEmitter {
      * User
      **/
     room.users.on("add", (user: User) => {
+      this._joinPointers.set(user, this._messageCnt);
       const res = UserJoinedResponse.from(user);
       this._pushMessageToBuffer(this._createSystemMessage(res));
     });
     room.users.on("delete", (user: User) => {
+      this._joinPointers.delete(user);
       const res = UserLeaveResponse.from(user);
       this._pushMessageToBuffer(this._createSystemMessage(res));
     });
@@ -126,7 +131,7 @@ export default class RoomChat extends EventEmitter {
     //전송할 메시지 시작점
     const startPoint = this._readPointers.has(user)
       ? this._readPointers.get(user)
-      : 0;
+      : this._joinPointers.get(user);
     //TODO 트랜잭션 처리?
     this.setReadPointer(user);
     this._canBufferFlush = false;
@@ -157,6 +162,7 @@ export default class RoomChat extends EventEmitter {
 
   private _pushMessage(message: Message<ChatBody | SystemBody>) {
     this._messages.push(message);
+    // this._messageCnt = this._messages.length
     this.emit("receive", message);
   }
 
@@ -164,16 +170,17 @@ export default class RoomChat extends EventEmitter {
     return {
       at: String(Date.now()),
       id: uuidv4(),
-      idx: this._messages.length,
+      idx: this._messageCnt++,
       type: "system",
       body: body,
     };
   }
+
   private _createChatMessage(body: ChatBody): Message<ChatBody> {
     return {
       at: String(Date.now()),
       id: uuidv4(),
-      idx: this._messages.length,
+      idx: this._messageCnt++,
       type: "chat",
       body: body,
     };
