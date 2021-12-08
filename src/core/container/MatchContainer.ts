@@ -38,16 +38,33 @@ export class MatchContainer extends EventEmitter implements IMatchContainer {
 
   findByCategory(category: CategoryType): Match[] {
     let ret: Match[] = [];
-    for (let cat of this.byCategoryAndSection.keys()) {
-      if (category == cat) {
-        for (let sec of this.byCategoryAndSection.get(cat).keys()) {
-          ret = [
-            ...ret,
-            ...this.byCategoryAndSection.get(cat).get(sec).values(),
-          ];
-        }
-      }
+    const byCategory = this.byCategoryAndSection.get(category);
+    if (!byCategory) {
+      return ret;
     }
+    for (let sec of byCategory.keys()) {
+      ret = [...ret, ...byCategory.get(sec).values()];
+    }
+    return ret;
+  }
+
+  findByCategoryAndSection(
+    category: CategoryType,
+    section: SectionType
+  ): Match[] {
+    let ret: Match[] = [];
+    const byCat = this.byCategoryAndSection.get(category);
+    if (!byCat) {
+      return ret;
+    }
+
+    const byCatAndSec = byCat.get(section);
+    if (!byCatAndSec) {
+      return ret;
+    }
+
+    return [...byCatAndSec.values()];
+
     return ret;
   }
 
@@ -79,5 +96,10 @@ export class MatchContainer extends EventEmitter implements IMatchContainer {
       .get(match.info.section)
       .delete(match.id);
     this.emit("delete", match);
+  }
+
+  clear() {
+    this.container = new Map();
+    this.byCategoryAndSection = new Map();
   }
 }

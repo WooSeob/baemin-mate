@@ -7,7 +7,12 @@ export interface IMatchContainer extends EventEmitter {
   findAll(): Match[];
   findBySection(section: SectionType): Match[];
   findByCategory(category: CategoryType): Match[];
+  findByCategoryAndSection(
+    category: CategoryType,
+    section: SectionType
+  ): Match[];
   findById(id: string): Match;
   push(match: Match);
   delete(match: Match);
+  clear();
 }
