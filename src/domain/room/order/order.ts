@@ -4,7 +4,8 @@ import { Room } from "../room";
 export default class RoomOrder extends EventEmitter {
   private _room: Room;
 
-  is;
+  private _screenshotUploaded: boolean = false;
+
   constructor(room: Room) {
     super();
     this._room = room;
@@ -23,5 +24,13 @@ export default class RoomOrder extends EventEmitter {
   done() {
     this._room.ctx.toOrderDone();
     this.emit("done", this);
+  }
+
+  upload() {
+    this._screenshotUploaded = true;
+  }
+
+  get screenshotUploaded() {
+    return this._screenshotUploaded;
   }
 }

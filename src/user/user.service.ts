@@ -24,11 +24,7 @@ export class UserService {
     return room.users.has(user);
   }
 
-  async createUserByNaver(
-    id: string,
-    name: string,
-    mobile_e164: string
-  ): Promise<User> {
+  async createUserByNaver(id: string, name: string, mobile_e164: string): Promise<User> {
     const newUser = new User();
     newUser.id = id;
     newUser.name = name;
@@ -63,11 +59,7 @@ export class UserService {
     return room.menus.getMenuMapByUser(user).get(menuId);
   }
 
-  async addMenu(
-    room: Room,
-    user: User,
-    addMenuDto: AddMenuDto
-  ): Promise<string> {
+  async addMenu(room: Room, user: User, addMenuDto: AddMenuDto): Promise<string> {
     const menuId = uuidv4();
     room.menus.add(user, {
       id: menuId,
@@ -79,12 +71,7 @@ export class UserService {
     return menuId;
   }
 
-  async updateMenu(
-    room: Room,
-    user: User,
-    mid: string,
-    updateMenuDto: UpdateMenuDto
-  ) {
+  async updateMenu(room: Room, user: User, mid: string, updateMenuDto: UpdateMenuDto) {
     //TODO MenuItem 객체를 먼저 찾고, menus의 key를 객체로 바꾸기. mid에 해당하는 MenuItem없을때 처리 해줘야함.
     room.menus.update(user, mid, {
       id: mid,
@@ -96,9 +83,16 @@ export class UserService {
     room.menus.delete(user, mid);
   }
 
+  //TODO depricated!!
   async toggleReady(room: Room, user: User) {
     const isReady = room.users.getIsReady(user);
     room.users.setReady(user, !isReady);
     return !isReady;
+  }
+
+  async setReady(room: Room, user: User, state: boolean) {
+    //TODO only in Prepare state
+    room.users.setReady(user, state);
+    return state;
   }
 }

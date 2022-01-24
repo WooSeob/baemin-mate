@@ -30,11 +30,14 @@ export default class RoomVote extends EventEmitter {
   createKickVote(targetUser: User) {
     this._isVoteAlreadyExist();
     const kickVoteInstance = new KickVote(this._room, targetUser);
-    this._createVote(kickVoteInstance, () => {
+    this._createVote(kickVoteInstance, (result: boolean) => {
       //vote 결과 알림 브로드캐스팅
       this.emit("kick-finish", kickVoteInstance);
-      //실제 강퇴 처리
-      this._room.users.delete(targetUser);
+      //TODO callback으로 들어온 값과 인스턴스의 값이 다른듯?
+      if (kickVoteInstance.result) {
+        //실제 강퇴 처리
+        this._room.users.delete(targetUser);
+      }
     });
     //지목된 사람 닉네임 아이디
     this.emit("created-kick", kickVoteInstance);
@@ -43,10 +46,12 @@ export default class RoomVote extends EventEmitter {
   createResetVote() {
     this._isVoteAlreadyExist();
     const resetVoteInstance = new ResetVote(this._room);
-    this._createVote(resetVoteInstance, () => {
+    this._createVote(resetVoteInstance, (result: boolean) => {
       //vote 결과 알림 브로드캐스팅
       this.emit("reset-finish", resetVoteInstance);
-      //TODO 실제 리셋 처리
+      if (result) {
+        //TODO 실제 리셋 처리
+      }
     });
     this.emit("created-reset", resetVoteInstance);
   }
@@ -69,7 +74,7 @@ export default class RoomVote extends EventEmitter {
       //vote 종료
       this.vote = null;
       //vote type 별 결과 처리
-      voteCallback();
+      voteCallback(result);
     });
     this.vote = instance;
   }

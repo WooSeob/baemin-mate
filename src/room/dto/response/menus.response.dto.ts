@@ -2,11 +2,11 @@ import RoomUserView from "./user-view.dto";
 import { MenuItem } from "../../../match/interfaces/shop.interface";
 import { ApiProperty } from "@nestjs/swagger";
 
-class UserMenus {
+export class UserMenus {
   @ApiProperty({ description: "유저 정보" })
   user: RoomUserView;
 
-  @ApiProperty({ description: "메뉴 목록" })
+  @ApiProperty({ description: "메뉴 목록", type: [MenuItem]})
   menus: MenuItem[];
 }
 

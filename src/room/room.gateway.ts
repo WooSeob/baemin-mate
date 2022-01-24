@@ -18,9 +18,7 @@ import ChatRequestDto from "./dto/request/chat-request.dto";
 import { UserService } from "../user/user.service";
 
 @WebSocketGateway({ namespace: "/room", cors: { origin: "*" } })
-export class RoomGateway
-  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
-{
+export class RoomGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   private _socketIdToUserId: Map<string, string> = new Map();
   private logger = new Logger("RoomGateway");
 
@@ -37,9 +35,7 @@ export class RoomGateway
   }
 
   async handleConnection(client: Socket, ...args: any[]) {
-    this.logger.log(
-      `Client connected: ${client.id} (${client.handshake.auth.token})`
-    );
+    this.logger.log(`Client connected: ${client.id} (${client.handshake.auth.token})`);
 
     const user = await this.authService.validate(client.handshake.auth.token);
     //인증 실패시 강제 disconnect
@@ -53,16 +49,17 @@ export class RoomGateway
 
     //유저 객체에 소켓 클라이언트 첨부
     Reflect.set(user, "socket", client);
+
+    //이미 참가중인 방에 대해서 socket join 처리
+    user.joinedRooms.forEach((room) => {
+      client.join(room.id);
+    });
   }
 
   async handleDisconnect(client: Socket) {
-    this.logger.log(
-      `Client disconnected: ${client.id} (${client.handshake.auth.token})`
-    );
+    this.logger.log(`Client disconnected: ${client.id} (${client.handshake.auth.token})`);
 
-    const user = await this.userService.findUserById(
-      this._socketIdToUserId.get(client.id)
-    );
+    const user = await this.userService.findUserById(this._socketIdToUserId.get(client.id));
     //기존 매핑 삭제
     this._socketIdToUserId.delete(client.id);
     if (!user) {
@@ -76,12 +73,18 @@ export class RoomGateway
 
   @SubscribeMessage("chat")
   async chat(
-    @MessageBody() chatRequestDto: ChatRequestDto,
+    @MessageBody() _chatRequestDto: any,
     @ConnectedSocket() client: Socket
   ): Promise<Ack<None>> {
-    const user = await this.userService.findUserById(
-      this._socketIdToUserId.get(client.id)
-    );
+    let chatRequestDto;
+    if (typeof _chatRequestDto === "string") {
+      chatRequestDto = JSON.parse(_chatRequestDto);
+    } else {
+      chatRequestDto = _chatRequestDto;
+    }
+
+    console.log(chatRequestDto);
+    const user = await this.userService.findUserById(this._socketIdToUserId.get(client.id));
     if (!user) {
       client.disconnect();
       return {
@@ -107,9 +110,7 @@ export class RoomGateway
 
   @SubscribeMessage("get-messages")
   async getNotReceivedMessages(@ConnectedSocket() client: Socket) {
-    const user = await this.userService.findUserById(
-      this._socketIdToUserId.get(client.id)
-    );
+    const user = await this.userService.findUserById(this._socketIdToUserId.get(client.id));
     if (!user) {
       client.disconnect();
       return {
@@ -133,9 +134,7 @@ export class RoomGateway
    * */
   @SubscribeMessage("ack-messages")
   async notReceivedMessagesAccepted(@ConnectedSocket() client: Socket) {
-    const user = await this.userService.findUserById(
-      this._socketIdToUserId.get(client.id)
-    );
+    const user = await this.userService.findUserById(this._socketIdToUserId.get(client.id));
     if (!user) {
       client.disconnect();
       return {

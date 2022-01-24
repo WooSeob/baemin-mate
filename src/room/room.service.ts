@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import { HttpException, HttpStatus, Inject, Injectable, Logger } from "@nestjs/common";
 import { Server, Socket } from "socket.io";
 import { IMatchContainer } from "src/core/container/IMatchContainer";
 import { IUserContainer } from "src/core/container/IUserContainer";
@@ -46,9 +46,7 @@ export class RoomService {
       room.policy.onlyFor([RoomState.prepare, RoomState.orderDone]);
     }
 
-    const room: Room = new RoomBuilder(createRoomDto)
-      .setPurchaser(purchaser)
-      .build();
+    const room: Room = new RoomBuilder(createRoomDto).setPurchaser(purchaser).build();
 
     this.roomContainer.push(room);
     this.logger.log(`Room - ${room.info.shopName}(${room.id}) created`);
@@ -86,6 +84,7 @@ export class RoomService {
   fixOrder(room: Room, user: User) {
     room.policy.onlyBeforeOrderFix();
     room.policy.onlyPurchaser(user);
+    //TODO ALL ready시에만 가능
     room.order.fix();
   }
 
@@ -93,6 +92,11 @@ export class RoomService {
     //TODO 구현하기
     room.policy.onlyForOrderFix();
     room.policy.onlyPurchaser(user);
+    if (!room.order.screenshotUploaded) {
+      throw new HttpException("screenshot not uploaded", HttpStatus.BAD_REQUEST);
+    }
+    room.price.updateTip(checkOrderDto.tip);
+    room.order.check();
   }
 
   doneOrder(room: Room, user: User) {

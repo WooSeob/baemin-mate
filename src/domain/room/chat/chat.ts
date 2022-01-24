@@ -4,11 +4,7 @@ import { User } from "../../../user/entity/user.entity";
 import RoomUserView from "../../../room/dto/response/user-view.dto";
 import KickVote from "../vote/KickVote";
 import { v4 as uuidv4 } from "uuid";
-import {
-  ChatBody,
-  Message,
-  SystemBody,
-} from "../../../room/dto/response/message.response";
+import { ChatBody, Message, SystemBody } from "../../../room/dto/response/message.response";
 import {
   KickVoteCreatedResponse,
   KickVoteFinishedResponse,
@@ -47,8 +43,7 @@ export default class RoomChat extends EventEmitter {
   private _room: Room;
   private _messages: Message<ChatBody | SystemBody>[] = [];
 
-  private _messagesBuffer: Buffer<Message<ChatBody | SystemBody>> =
-    new Buffer();
+  private _messagesBuffer: Buffer<Message<ChatBody | SystemBody>> = new Buffer();
 
   private _messageCnt: number = 0;
 
@@ -125,6 +120,10 @@ export default class RoomChat extends EventEmitter {
 
   setReadPointer(user: User) {
     this._readPointers.set(user, this._messages.length);
+  }
+
+  getMessagesFromIdx(idx: number): Message<ChatBody | SystemBody>[] {
+    return this._messages.slice(idx, this._messages.length);
   }
 
   getMessagesFromLastPointer(user: User): Message<ChatBody | SystemBody>[] {

@@ -4,9 +4,11 @@ import { INestApplication } from "@nestjs/common";
 import { io, Socket } from "socket.io-client";
 import { IoAdapter } from "@nestjs/platform-socket.io";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import { NestExpressApplication } from "@nestjs/platform-express";
+import { join, resolve } from "path";
 
 async function bootstrap() {
-  const app: INestApplication = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     cors: { origin: "*" },
   });
   app.useWebSocketAdapter(new IoAdapter(app));

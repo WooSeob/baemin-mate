@@ -24,9 +24,7 @@ const metadata = {
   allowEIO3: true,
 };
 @WebSocketGateway(metadata)
-export class MatchGateway
-  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
-{
+export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   private _socketIdToUserId: Map<string, string> = new Map();
   constructor(
     private matchService: MatchService,
@@ -44,39 +42,49 @@ export class MatchGateway
   }
 
   async handleConnection(client: Socket, ...args: any[]) {
-    this.logger.log(
-      `Client connected: ${client.id} (${client.handshake.auth.token})`
-    );
+    this.logger.log(`Client connected: ${client.id} (${client.handshake.auth.token})`);
 
     const user = await this.authService.validate(client.handshake.auth.token);
     //인증 실패시 강제 disconnect
     if (!user) {
+      console.log("auth fail at Match gateway");
+      console.log(client.handshake.auth);
       client.disconnect();
       return;
     }
 
+    // console.log(user);
+
     // Socket id <-> user id 매핑 셋
     this._socketIdToUserId.set(client.id, user.id);
+    console.log(this._socketIdToUserId);
   }
 
   async handleDisconnect(client: Socket) {
-    this.logger.log(
-      `Client disconnected: ${client.id} (${client.handshake.auth.token})`
-    );
+    this.logger.log(`Client disconnected: ${client.id} (${client.handshake.auth.token})`);
 
     //기존 매핑 삭제
     this._socketIdToUserId.delete(client.id);
   }
 
   @SubscribeMessage("subscribe")
-  async subscribe(
-    @MessageBody() subscribeMatchDto: SubscribeMatchDto,
-    @ConnectedSocket() client: Socket
-  ) {
-    const user = await this.userService.findUserById(
-      this._socketIdToUserId.get(client.id)
-    );
+  async subscribe(@MessageBody() _subscribeMatchDto: any, @ConnectedSocket() client: Socket) {
+    let subscribeMatchDto;
+    if (typeof _subscribeMatchDto === "string") {
+      subscribeMatchDto = JSON.parse(_subscribeMatchDto);
+    } else {
+      subscribeMatchDto = _subscribeMatchDto;
+    }
+
+    console.log(typeof subscribeMatchDto);
+
+    console.log(subscribeMatchDto);
+    const user = await this.userService.findUserById(this._socketIdToUserId.get(client.id));
+    console.log(this._socketIdToUserId.get(client.id));
+    console.log(this._socketIdToUserId);
+
     if (!user) {
+      console.log("user not found at subscribe");
       client.disconnect();
       return {
         status: 401,
@@ -84,10 +92,8 @@ export class MatchGateway
       };
     }
 
-    let matches: Match[] = this.matchService.subscribeByCategory(
-      subscribeMatchDto,
-      client
-    );
+    let matches: Match[] = this.matchService.subscribeByCategory(subscribeMatchDto, client);
+    console.log(matches);
     return {
       status: 200,
       data: matches.map((match): MatchInfo => {

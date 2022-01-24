@@ -26,6 +26,10 @@ export default class RoomPrice extends EventEmitter implements RoomPriceInfo {
     this.emit("update", this);
   }
 
+  updateTip(price: number) {
+    this._tip = price;
+  }
+
   get total(): number {
     return this._total;
   }

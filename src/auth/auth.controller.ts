@@ -27,17 +27,7 @@ const CLIENT_ID = "qpKfX2QvHyoIFy_BPR_0";
 const CALLBACK_URL = encodeURI("http://localhost:3000/auth/naver/callback");
 const SERVICE_URL = "http://localhost:3000";
 const CLIENT_SECRET = "8eUK60rAo3";
-/**
- * oauth id
- *
- *  {
-  access_token: 'AAAANv0ztj2fAvegwiDme2Xdd7b7tbqm0-1syFrlrCcDnF0Km8FbfvkSOxLoQWCpcwi8wU_E98nwzhPs7PO8-nPTCV4',
-  refresh_token: '3S0iibYEMGcrMlF16Z83zZ22GcxBJcQR4JawgLWTZOeS3L2ETTxDMiiis13agskcWOPlVtdmyahevNFTtKr9H2yzg7isMOkfMpko0C95TVGii7KeajWd0LcNYtBJzwjjXlBwn',
-  token_type: 'bearer',
-  expires_in: '3600'
-}
 
- * */
 const STATE = "asdf";
 @Controller("auth")
 export class AuthController {
@@ -81,7 +71,7 @@ export class AuthController {
   @Get("/user")
   async getUser(@Req() request: Request) {
     const user = request.user as User;
-    return { name: user.name };
+    return { name: user.name, id: user.id };
   }
 
   @Post("/login")
@@ -105,10 +95,7 @@ export class AuthController {
   @UseGuards(NaverAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @Post("/email/send")
-  async sendVerifyEmail(
-    @Req() request: Request,
-    @Body() sendCodeDto: SendCodeDto
-  ) {
+  async sendVerifyEmail(@Req() request: Request, @Body() sendCodeDto: SendCodeDto) {
     const user = request.user as User;
     await this.authService.emailAuthCreate(user, sendCodeDto.email);
   }
@@ -116,10 +103,7 @@ export class AuthController {
   @UseGuards(NaverAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @Post("/email/verify")
-  async verifyAuthCode(
-    @Req() request: Request,
-    @Body() verifyCodeDto: VerifyCodeDto
-  ) {
+  async verifyAuthCode(@Req() request: Request, @Body() verifyCodeDto: VerifyCodeDto) {
     const user = request.user as User;
     await this.authService.emailAuthVerify(user, verifyCodeDto.authCode);
   }

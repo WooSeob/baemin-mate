@@ -38,9 +38,13 @@ export default class RoomUsers extends EventEmitter {
     //TODO 트랙잭션 처리 해야할거같은 느낌
     this._users.get(user).ready = isReady;
     let allReady = true;
-    Array.from(this._users.values()).forEach((user) => {
-      allReady = allReady && user.ready;
-    });
+    Array.from(this._users.values())
+      .filter((user) => {
+        return this._room.info.purchaser != user.user;
+      })
+      .forEach((user) => {
+        allReady = allReady && user.ready;
+      });
     if (allReady) {
       this.emit("all-ready", this);
     }
