@@ -30,8 +30,8 @@ export default class RoomPolicy {
   }
 
   onlyForPrepare() {
-    if (this.ctx.state != RoomState.orderFix) {
-      throw new HttpException("onlyAtOrderFix", HttpStatus.BAD_REQUEST);
+    if (this.ctx.state != RoomState.prepare) {
+      throw new HttpException("onlyAtPrepare", HttpStatus.BAD_REQUEST);
     }
   }
 
