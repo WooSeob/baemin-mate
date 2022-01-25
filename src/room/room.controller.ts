@@ -282,8 +282,6 @@ export class RoomController {
   /**
    * uid를 에 해당하는 유저를 강퇴시킵니다.
    * */
-  @UseGuards(NaverAuthGuard)
-  @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description: "uid를 에 해당하는 유저를 ready set합니다.",
   })

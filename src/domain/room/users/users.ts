@@ -7,6 +7,8 @@ export default class RoomUsers extends EventEmitter {
   private mannerSum: number = 0;
   private _room: Room;
 
+  private _nowAllReady: boolean = false;
+
   constructor(room: Room) {
     super();
     this._room = room;
@@ -36,18 +38,28 @@ export default class RoomUsers extends EventEmitter {
 
   setReady(user: User, isReady: boolean) {
     //TODO 트랙잭션 처리 해야할거같은 느낌
-    this._users.get(user).ready = isReady;
-    let allReady = true;
-    Array.from(this._users.values())
-      .filter((user) => {
-        return this._room.info.purchaser != user.user;
-      })
-      .forEach((user) => {
-        allReady = allReady && user.ready;
-      });
-    if (allReady) {
+    this._users.get(user).ready = isReady
+
+    const allReady = Array.from(this._users.values())
+        .filter((user) => {
+          return this._room.info.purchaser != user.user;
+        })
+        .map(user => {
+          return user.ready
+        })
+        .reduce((prev, current) => {
+          return prev && current
+        }, true)
+
+    if (allReady){
       this.emit("all-ready", this);
+    } else {
+      if (this._nowAllReady){
+        this.emit("all-ready-canceled", this)
+      }
     }
+
+    this._nowAllReady = allReady;
   }
 
   getUserCount(): number {

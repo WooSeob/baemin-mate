@@ -68,6 +68,16 @@ export default class RoomPolicy {
     }
   }
 
+  onlyForMember(user: User) {
+    //TODO role이 purchaser or not purchaser 뿐만 아니라 더 늘어날때 대비해야함
+    if (this.room.info.purchaser == user) {
+      throw new HttpException(
+          "this action is only for purchaser user",
+          HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+
   onlyParticipant(user: User) {
     if (!this.room.users.has(user)) {
       throw new HttpException(

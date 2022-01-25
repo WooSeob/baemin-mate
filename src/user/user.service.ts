@@ -84,14 +84,17 @@ export class UserService {
   }
 
   //TODO depricated!!
-  async toggleReady(room: Room, user: User) {
-    const isReady = room.users.getIsReady(user);
-    room.users.setReady(user, !isReady);
-    return !isReady;
-  }
+  //async toggleReady(room: Room, user: User) {
+  //   const isReady = room.users.getIsReady(user);
+  //   room.users.setReady(user, !isReady);
+  //   return !isReady;
+  // }
 
   async setReady(room: Room, user: User, state: boolean) {
     //TODO only in Prepare state
+    room.policy.onlyParticipant(user)
+    room.policy.onlyForMember(user)
+    room.policy.onlyForPrepare()
     room.users.setReady(user, state);
     return state;
   }

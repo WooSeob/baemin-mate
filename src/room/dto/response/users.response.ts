@@ -30,3 +30,11 @@ export class UserAllReadyResponse implements SystemBody {
     return new UserAllReadyResponse();
   }
 }
+
+export class UserAllReadyCanceledResponse implements SystemBody {
+  readonly action = "all-ready-canceled";
+  data: {};
+  static from(roomUsers: RoomUsers) {
+    return new UserAllReadyCanceledResponse();
+  }
+}

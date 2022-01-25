@@ -58,15 +58,31 @@ export class RoomService {
   }
 
   leaveRoom(room: Room, user: User) {
+    // 방 참여자만 나갈 수 있음
     room.policy.onlyParticipant(user);
+    // prepare || orderDone 상태에만 나갈 수 있음
     room.policy.onlyFor([RoomState.prepare, RoomState.orderDone]);
+    // ready == false 일때만 나갈 수 있음.
     room.policy.onlyNotReady(user);
 
+    // 방장은 참여자가 1명 일때만 나갈 수 있음.
+    if (user == room.info.purchaser && room.users.getUserCount() > 1){
+      throw new HttpException(
+          "purchaser can leave when there is only one participant in the room.",
+          HttpStatus.BAD_REQUEST
+      );
+    }
+
+    //나가기 처리
     if (Reflect.has(user, "socket")) {
       (Reflect.get(user, "socket") as Socket).leave(room.id);
     }
-
     room.users.delete(user);
+
+    //모두 나가면 방 삭제
+    if (room.users.getUserCount() == 0){
+      this.roomContainer.delete(room);
+    }
   }
 
   getRoomById(id: string) {

@@ -7,7 +7,7 @@ import {
   HttpException,
   HttpStatus,
   Inject,
-  Param,
+  Param, ParseBoolPipe,
   Post,
   Put,
   Query,
@@ -202,7 +202,7 @@ export class UserController {
   async toggleReady(
     @Param("uid") uid: string,
     @Param("rid") rid: string,
-    @Query("state") readyState: boolean
+    @Query("state", ParseBoolPipe) readyState: boolean
   ) {
     const { room, user } = await this.checkRoomAndUser(rid, uid);
     await this.userService.setReady(room, user, readyState);
