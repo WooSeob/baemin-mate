@@ -448,7 +448,7 @@ export class RoomController {
   async checkOrder(
     @Param("rid") rid: string,
     @Req() request: Request,
-    @Query("delivery-tip") deliveryTip: number
+    @Query("delivery_tip") deliveryTip: number
   ) {
     const room = await this.roomService.findRoomById(rid);
     if (!room) {
