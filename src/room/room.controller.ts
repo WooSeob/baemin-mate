@@ -538,8 +538,8 @@ export class RoomController {
   @UseGuards(NaverAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
-    description: `해당 room의 purchaser 는 결제를 완료하고 해당 api를 호출합니다.
-   * 이 시점 이후로 참여자들은 방을 나갈 수 있습니다.`,
+    description: '개개인의 주문 정보를 반환합니다. 결제정보 스크린샷은 포함되어 있지 않으며, ' +
+        '개개인의 메뉴, 배달팁, 총 금액, purchaser의 계좌 정보를 반환합니다.',
     type: OrderReceiptResonse,
   })
   @Get("/:rid/receipt")
