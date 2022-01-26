@@ -24,7 +24,8 @@ export default class RoomMenus extends EventEmitter {
   update(user: User, menuId: string, menu: MenuItem) {
     this._menuErrorHandle(user, menuId);
     const menus = this.selectedMenus.get(user);
-    const priceDiff = menu.price - menus[menuId].price;
+    const priceDiff = menu.price - menus.get(menuId).price;
+    menus.set(menuId, menu);
     this.room.price.updatePrice(priceDiff);
     this.emit("update", user, this);
   }
