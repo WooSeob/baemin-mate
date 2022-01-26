@@ -15,10 +15,26 @@ import { Request } from "express";
 import { User } from "../user/entity/user.entity";
 import MatchDetailResponseDto from "./dto/response/detail.response.dto";
 import RoomDetailForUser from "../user/dto/response/room";
+import {SECTION} from "../user/interfaces/user";
 
 @Controller("match")
 export class MatchController {
   constructor(private matchService: MatchService) {}
+
+  /**
+   * 유저의 기숙사 section들을 반환합니다.
+   * */
+  @UseGuards(NaverAuthGuard)
+  @ApiBearerAuth("swagger-auth")
+  @ApiCreatedResponse({
+    description: "유저의 기숙사 section들을 반환합니다.",
+    type: [String],
+  })
+  @Get("/sections")
+  async getSections(@Req() request: Request): Promise<String[]> {
+    return [SECTION.NARAE, SECTION.HOYOEN, SECTION.BIBONG, SECTION.CHANGZO];
+  }
+
   /**
    * matchId에 해당하는 match에 대한 상세정보를 반환합니다.
    * */
