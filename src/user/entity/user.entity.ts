@@ -66,7 +66,7 @@ export class User {
     let toDeleteIdx = -1;
     for (let i = 0; i < this._joinedRooms.length; i++) {
       const room = this._joinedRooms[i];
-      if (room.id === roomId) {
+      if (room.id == roomId) {
         toDeleteIdx = i;
         break;
       }
