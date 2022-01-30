@@ -469,7 +469,7 @@ export class RoomController {
     if (!room) {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
-    throw new HttpException("not implemented yet", HttpStatus.NOT_IMPLEMENTED);
+    this.roomService.doneOrder(room, request.user as User);
   }
 
   @UseGuards(NaverAuthGuard)

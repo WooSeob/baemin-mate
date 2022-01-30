@@ -119,6 +119,7 @@ export class RoomService {
     //TODO 구현하기
     room.policy.onlyForOrderCheck();
     room.policy.onlyPurchaser(user);
+    room.order.done();
   }
 
   kick(room: Room, purchaser: User, target: User) {
