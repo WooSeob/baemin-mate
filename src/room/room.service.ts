@@ -43,7 +43,7 @@ export class RoomService {
   createRoom(purchaser: User, createRoomDto: CreateRoomDto): Room {
     //사용자가 참여한 방에 OrderFix ~ OrderDone 단계의 방이 하나라도 있으면 안됨.
     for (let room of purchaser.joinedRooms) {
-      room.policy.onlyFor([RoomState.prepare, RoomState.orderDone]);
+      room.policy.onlyFor(RoomState.prepare, RoomState.orderDone);
     }
 
     const room: Room = new RoomBuilder(createRoomDto).setPurchaser(purchaser).build();
@@ -61,7 +61,7 @@ export class RoomService {
     // 방 참여자만 나갈 수 있음
     room.policy.onlyParticipant(user);
     // prepare || orderDone 상태에만 나갈 수 있음
-    room.policy.onlyFor([RoomState.prepare, RoomState.orderDone]);
+    room.policy.onlyFor(RoomState.prepare, RoomState.orderDone);
     // ready == false 일때만 나갈 수 있음.
     room.policy.onlyNotReady(user);
 

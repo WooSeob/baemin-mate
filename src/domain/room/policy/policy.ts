@@ -17,8 +17,7 @@ export default class RoomPolicy {
   }
 
   onlyFor(...states) {
-    if (this.ctx.state in states) {
-    } else {
+    if (!new Set(states).has(this.ctx.state)) {
       throw new HttpException(`only for ${states}`, HttpStatus.BAD_REQUEST);
     }
   }
