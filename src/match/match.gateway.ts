@@ -17,6 +17,7 @@ import MatchInfo from "./dto/response/match-info.interface";
 import { Match } from "../domain/match/match";
 import { UserService } from "../user/user.service";
 import { SubscribeMatchDto } from "./dto/request/subscribe-match.dto";
+import { User } from "src/user/entity/user.entity";
 
 const metadata = {
   namespace: "/match",
@@ -25,7 +26,7 @@ const metadata = {
 };
 @WebSocketGateway(metadata)
 export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
-  private _socketIdToUserId: Map<string, string> = new Map();
+  private _socketIdToUserId: Map<string, Promise<string>> = new Map();
   constructor(
     private matchService: MatchService,
     private authService: AuthService,
@@ -44,19 +45,28 @@ export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
   async handleConnection(client: Socket, ...args: any[]) {
     this.logger.log(`Client connected: ${client.id} (${client.handshake.auth.token})`);
 
-    const user = await this.authService.validate(client.handshake.auth.token);
-    //인증 실패시 강제 disconnect
-    if (!user) {
-      console.log("auth fail at Match gateway");
-      console.log(client.handshake.auth);
-      client.disconnect();
-      return;
-    }
-
-    // console.log(user);
+    const foundUserPromise: Promise<User> = this.authService.validate(
+        client.handshake.auth.token
+    );
 
     // Socket id <-> user id 매핑 셋
-    this._socketIdToUserId.set(client.id, user.id);
+    this._socketIdToUserId.set(
+        client.id,
+        new Promise((res, rej) => {
+          foundUserPromise.then((u) => res(u.id)).catch((e) => rej(e));
+        })
+    );
+
+    foundUserPromise.then((user) => {
+      //인증 실패시 강제 disconnect
+      if (!user) {
+        console.log("auth fail at Match gateway");
+        console.log(client.handshake.auth);
+        client.disconnect();
+        return;
+      }
+    });
+
     console.log(this._socketIdToUserId);
   }
 
@@ -79,8 +89,10 @@ export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     console.log(typeof subscribeMatchDto);
 
     console.log(subscribeMatchDto);
-    const user = await this.userService.findUserById(this._socketIdToUserId.get(client.id));
-    console.log(this._socketIdToUserId.get(client.id));
+    const user = await this.userService.findUserById(
+        await this._socketIdToUserId.get(client.id)
+    );
+    console.log(await this._socketIdToUserId.get(client.id));
     console.log(this._socketIdToUserId);
 
     if (!user) {
