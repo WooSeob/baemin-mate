@@ -8,6 +8,8 @@ import { Match } from "../domain/match/match";
 import { User } from "../user/entity/user.entity";
 import { RoomState } from "../domain/room/context/context";
 import { match } from "assert";
+import {CategoryType} from "./interfaces/category.interface";
+import {SectionType} from "../user/interfaces/user";
 
 @Injectable()
 export class MatchService {
@@ -33,15 +35,22 @@ export class MatchService {
     }
 
     let matches: Set<Match> = new Set();
+    const selectedCategories: Set<CategoryType> = new Set(subscribeMatchDto.category);
+    const selectedSections: Set<SectionType> = new Set(subscribeMatchDto.section);
+
     for (let category of subscribeMatchDto.category) {
       for (let m of this.matchContainer.findByCategory(category)) {
-        matches.add(m);
+        if (selectedSections.has(m.info.section)) {
+          matches.add(m);
+        }
       }
     }
 
     for (let section of subscribeMatchDto.section) {
       for (let m of this.matchContainer.findBySection(section)) {
-        matches.add(m);
+        if (selectedCategories.has(m.info.category)) {
+          matches.add(m);
+        }
       }
     }
 
