@@ -17,14 +17,14 @@ export default class RoomMenus extends EventEmitter {
       this.selectedMenus.set(user, new Map());
     }
     this.selectedMenus.get(user).set(menuItem.id, menuItem);
-    this.room.price.updatePrice(menuItem.price);
+    this.room.price.updatePrice(menuItem.price * menuItem.quantity);
     this.emit("add", user, this);
   }
 
   update(user: User, menuId: string, menu: MenuItem) {
     this._menuErrorHandle(user, menuId);
     const menus = this.selectedMenus.get(user);
-    const priceDiff = menu.price - menus.get(menuId).price;
+    const priceDiff = (menu.price * menu.quantity) - (menus.get(menuId).price * menus.get(menuId).quantity);
     menus.set(menuId, menu);
     this.room.price.updatePrice(priceDiff);
     this.emit("update", user, this);
@@ -36,7 +36,7 @@ export default class RoomMenus extends EventEmitter {
     const deletedMenu = this.selectedMenus.get(user).get(menuId);
     this.selectedMenus.get(user).delete(menuId);
 
-    this.room.price.updatePrice(-deletedMenu.price);
+    this.room.price.updatePrice(-(deletedMenu.price * deletedMenu.quantity));
     this.emit("delete", user, this);
   }
 
@@ -44,7 +44,7 @@ export default class RoomMenus extends EventEmitter {
     if (this.selectedMenus.has(user)) {
       let priceForUser = 0;
       for (let menu of this.selectedMenus.get(user).values()) {
-        priceForUser += menu.price;
+        priceForUser += (menu.price * menu.quantity);
       }
       this.room.price.updatePrice(-priceForUser);
       this.selectedMenus.delete(user);
