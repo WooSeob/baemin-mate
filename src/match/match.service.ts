@@ -1,64 +1,87 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import { Server, Socket } from "socket.io";
 import { IMatchContainer } from "src/core/container/IMatchContainer";
-import { IUserContainer } from "../core/container/IUserContainer";
-import { MatchQueue } from "./domain/impl/MatchQueue";
-import { IMatchQueue } from "./domain/interfaces/IMatchQueue";
-import { Match, MatchBuilder } from "./domain/match";
-import { CreateMatchDto } from "./dto/request/create-match.dto";
-import { JoinMatchDto } from "./dto/request/join-match.dto";
-import { SubscribeCategoryDto } from "./dto/request/subscribe-category.dto";
+import { Room } from "../domain/room/room";
+import { SubscribeMatchDto } from "./dto/request/subscribe-match.dto";
+import { IRoomContainer } from "../core/container/IRoomContainer";
+import { Match } from "../domain/match/match";
+import { User } from "../user/entity/user.entity";
+import { RoomState } from "../domain/room/context/context";
+import { match } from "assert";
+import {CategoryType} from "./interfaces/category.interface";
+import {SectionType} from "../user/interfaces/user";
 
 @Injectable()
 export class MatchService {
   public server: Server = null;
 
-  public matchQueue: IMatchQueue = new MatchQueue();
-
   constructor(
-    @Inject("IUserContainer") private userContainer: IUserContainer,
     @Inject("IMatchContainer") private matchContainer: IMatchContainer,
-    @Inject("IMatchContainer") private closedMatchContainer: IMatchContainer
-  ) {}
-
-  createMatch(createMatchDto: CreateMatchDto, client: Socket): Match {
-    const match: Match = new MatchBuilder(createMatchDto)
-      .setPerchaser(this.userContainer.findById(createMatchDto.userId))
-      .build();
-
-    this.matchContainer.push(match);
-
-    return match;
+    @Inject("IRoomContainer") private roomContainer: IRoomContainer
+  ) {
+    roomContainer.on("push", (room: Room) => {
+      this.matchContainer.push(new Match(room));
+    });
+    roomContainer.on("delete", (room: Room) => {
+      room.matches.forEach((match) => {
+        this.matchContainer.delete(match);
+      });
+    });
   }
 
-  closeMatchWait(matchId: string, client: Socket) {
-    //인증 필요
-    let closed = this.matchContainer.findById(matchId);
-    this.closedMatchContainer.push(closed);
-    this.matchContainer.delete(closed);
-  }
-
-  destroyMatch(matchId: string, client: Socket) {
-    let atContainer = this.matchContainer.findById(matchId);
-    if (atContainer) {
-      this.matchContainer.delete(atContainer);
-      return;
+  subscribeByCategory(subscribeMatchDto: SubscribeMatchDto, client: Socket) {
+    for (let room of client.rooms) {
+      client.leave(room);
     }
 
-    let atClosed = this.closedMatchContainer.findById(matchId);
-    if (atClosed) {
-      this.closedMatchContainer.delete(atClosed);
+    let matches: Set<Match> = new Set();
+    const selectedCategories: Set<CategoryType> = new Set(subscribeMatchDto.category);
+    const selectedSections: Set<SectionType> = new Set(subscribeMatchDto.section);
+
+    for (let category of subscribeMatchDto.category) {
+      for (let m of this.matchContainer.findByCategory(category)) {
+        if (selectedSections.has(m.info.section)) {
+          matches.add(m);
+        }
+      }
     }
+
+    for (let section of subscribeMatchDto.section) {
+      for (let m of this.matchContainer.findBySection(section)) {
+        if (selectedCategories.has(m.info.category)) {
+          matches.add(m);
+        }
+      }
+    }
+
+    // TODO 데이터 중복 가능성?
+    for (let category of subscribeMatchDto.category) {
+      for (let section of subscribeMatchDto.section) {
+        client.join(`${category}-${section}`);
+      }
+    }
+
+    return [...matches.values()];
   }
 
-  subscribeByCategory(subscribeCategoryDto: SubscribeCategoryDto, client: Socket) {
-    client.join(subscribeCategoryDto.category);
-    let matches: Match[] = this.matchContainer.findByCategory(subscribeCategoryDto.category);
-    return matches;
+  findMatchById(id: string): Match {
+    return this.matchContainer.findById(id);
   }
 
-  joinMatch(joinMatchDto: JoinMatchDto, client: Socket) {
-    let match: Match = this.matchContainer.findById(joinMatchDto.matchId);
-    // match.
+  join(match: Match, user: User): Room {
+    //기존 참여자가 아닐때
+    match.room.policy.onlyNotParticipant(user);
+    //Order Fix 전에
+    match.room.policy.onlyBeforeOrderFix();
+    //사용자가 참여한 방에 OrderFix ~ OrderDone 단계의 방이 하나라도 있으면 안됨.
+    for (let room of user.joinedRooms) {
+      room.policy.onlyFor(RoomState.prepare, RoomState.orderDone);
+    }
+    match.room.users.add(user);
+
+    if (Reflect.has(user, "socket")) {
+      (Reflect.get(user, "socket") as Socket).join(match.room.id);
+    }
+    return match.room;
   }
 }

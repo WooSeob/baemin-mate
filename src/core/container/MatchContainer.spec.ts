@@ -1,10 +1,15 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { Match, MatchBuilder } from "../../match/domain/match";
-import { CreateMatchDto } from "../../match/dto/request/create-match.dto";
-import { CATEGORY } from "../../match/interfaces/category.interface";
-import { SECTION, User } from "../../user/interfaces/user";
 import { IMatchContainer } from "./IMatchContainer";
 import { MatchContainer } from "./MatchContainer";
+import { SECTION, SectionType } from "../../user/interfaces/user";
+import { RoomBuilder } from "../../domain/room/room-builder";
+import { Room } from "../../domain/room/room";
+import { User } from "../../user/entity/user.entity";
+import { Match } from "../../domain/match/match";
+import {
+  CATEGORY,
+  CategoryType,
+} from "../../match/interfaces/category.interface";
 
 const MatchContainerProvider = {
   provide: "IMatchContainer",
@@ -13,7 +18,23 @@ const MatchContainerProvider = {
 
 describe("MatchContainer", () => {
   let container: IMatchContainer;
-
+  const sections = [
+    "Narae" as SectionType,
+    "Bibong" as SectionType,
+    "Changzo" as SectionType,
+    "Hoyoen" as SectionType,
+  ];
+  const categories = [
+    "korean" as CategoryType,
+    "chinese" as CategoryType,
+    "japanese" as CategoryType,
+    "western" as CategoryType,
+    "porkcutlet" as CategoryType,
+    "chicken" as CategoryType,
+    "pizza" as CategoryType,
+    "ddeock" as CategoryType,
+    "fastfood" as CategoryType,
+  ];
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [MatchContainerProvider],
@@ -22,73 +43,74 @@ describe("MatchContainer", () => {
     container = module.get<IMatchContainer>("IMatchContainer");
   });
 
+  beforeEach(() => {
+    container.clear();
+  });
+
   it("should be defined", () => {
-    console.log(container);
     expect(container).toBeDefined();
   });
 
-  it("push", () => {
-    let createDtos: CreateMatchDto[] = [
-      {
-        userId: "wooseob",
-        shopName: "서브웨이",
-        deliveryPriceAtLeast: 3000,
-        deliveryTipsInterval: [
-          { price: 3000, tip: 2000 },
-          { price: 12000, tip: 0 },
-        ],
-        category: CATEGORY.CHICKEN,
-        section: SECTION.NARAE,
-      },
-      {
-        userId: "gildong",
-        shopName: "맥도날드",
-        deliveryPriceAtLeast: 3000,
-        deliveryTipsInterval: [
-          { price: 3000, tip: 2000 },
-          { price: 12000, tip: 0 },
-        ],
-        category: CATEGORY.KOREAN,
-        section: SECTION.BIBONG,
-      },
-    ];
-
-    for (let dto of createDtos) {
-      let match: Match = new MatchBuilder(dto)
-        .setPerchaser(new User(dto.userId, SECTION.NARAE, 37))
+  it("section test", () => {
+    for (let section of sections) {
+      const room: Room = new RoomBuilder({
+        shopName: "testshop",
+        deliveryPriceAtLeast: 200,
+        shopLink: "asdf",
+        category: "korean",
+        section: section,
+      })
+        .setPurchaser(new User())
         .build();
-      container.push(match);
+      container.push(new Match(room));
     }
-    expect(container.findById("0").perchaser.getId()).toBe("kiwoong");
+
+    for (let section of sections) {
+      expect(container.findBySection(section)).toHaveLength(1);
+    }
   });
 
-  it("find by section narae", () => {
-    let bySection: Match[] = container.findBySection(SECTION.NARAE);
-    expect(bySection.length).toBe(1); //1
+  it("category test", () => {
+    for (let category of categories) {
+      const room: Room = new RoomBuilder({
+        shopName: "testshop",
+        deliveryPriceAtLeast: 200,
+        shopLink: "asdf",
+        category: category,
+        section: "Narae",
+      })
+        .setPurchaser(new User())
+        .build();
+      container.push(new Match(room));
+    }
+
+    for (let category of categories) {
+      expect(container.findByCategory(category)).toHaveLength(1);
+    }
   });
 
-  it("find by section bibong", () => {
-    let bySection: Match[] = container.findBySection(SECTION.BIBONG);
-    expect(bySection.length).toBe(1);
-  });
+  it("category x section product test", () => {
+    for (let section of sections) {
+      for (let category of categories) {
+        const room: Room = new RoomBuilder({
+          shopName: "testshop",
+          deliveryPriceAtLeast: 200,
+          shopLink: "asdf",
+          category: category,
+          section: section,
+        })
+          .setPurchaser(new User())
+          .build();
+        container.push(new Match(room));
+      }
+    }
 
-  it("find by section hoyoen", () => {
-    let byCategory: Match[] = container.findBySection(SECTION.HOYOEN);
-    expect(byCategory.length).toBe(0);
-  });
-
-  it("find by category chicken", () => {
-    let byCategory: Match[] = container.findByCategory(CATEGORY.CHICKEN);
-    expect(byCategory.length).toBe(1); //1
-  });
-
-  it("find by category korean", () => {
-    let byCategory: Match[] = container.findByCategory(CATEGORY.KOREAN);
-    expect(byCategory.length).toBe(1);
-  });
-
-  it("find by category western", () => {
-    let byCategory: Match[] = container.findByCategory(CATEGORY.WESTERN);
-    expect(byCategory.length).toBe(0);
+    for (let section of sections) {
+      for (let category of categories) {
+        expect(
+          container.findByCategoryAndSection(category, section)
+        ).toHaveLength(1);
+      }
+    }
   });
 });

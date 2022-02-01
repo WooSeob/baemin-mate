@@ -6,22 +6,18 @@ import {
   WebSocketServer,
   SubscribeMessage,
   MessageBody,
-  WsResponse,
   ConnectedSocket,
-  GatewayMetadata,
 } from "@nestjs/websockets";
-import { Inject, Logger } from "@nestjs/common";
+import { Logger } from "@nestjs/common";
 import { Server, Socket } from "socket.io";
 import { MatchService } from "./match.service";
-import { CreateMatchDto } from "./dto/request/create-match.dto";
-import { SubscribeCategoryDto } from "./dto/request/subscribe-category.dto";
-import { JoinMatchDto } from "./dto/request/join-match.dto";
-import { Match } from "./domain/match";
-import { IUserContainer } from "src/core/container/IUserContainer";
 import { AuthService } from "src/auth/auth.service";
 import { MatchSender } from "./match.sender";
 import MatchInfo from "./dto/response/match-info.interface";
-import Ack from "src/core/interfaces/ack.interface";
+import { Match } from "../domain/match/match";
+import { UserService } from "../user/user.service";
+import { SubscribeMatchDto } from "./dto/request/subscribe-match.dto";
+import { User } from "src/user/entity/user.entity";
 
 const metadata = {
   namespace: "/match",
@@ -30,11 +26,12 @@ const metadata = {
 };
 @WebSocketGateway(metadata)
 export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+  private _socketIdToUserId: Map<string, Promise<string>> = new Map();
   constructor(
     private matchService: MatchService,
-    @Inject("IUserContainer") private userContainer: IUserContainer,
     private authService: AuthService,
-    private matchSender: MatchSender
+    private matchSender: MatchSender,
+    private userService: UserService
   ) {}
 
   @WebSocketServer() public server: Server;
@@ -45,71 +42,83 @@ export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     this.matchSender.server = server;
   }
 
-  handleDisconnect(client: Socket) {
-    this.logger.log(`Client disconnected: ${client.id}`);
+  async handleConnection(client: Socket, ...args: any[]) {
+    this.logger.log(`Client connected: ${client.id} (${client.handshake.auth.token})`);
+
+    const foundUserPromise: Promise<User> = this.authService.validate(
+        client.handshake.auth.token
+    );
+
+    // Socket id <-> user id 매핑 셋
+    this._socketIdToUserId.set(
+        client.id,
+        new Promise((res, rej) => {
+          foundUserPromise.then((u) => res(u.id)).catch((e) => rej(e));
+        })
+    );
+
+    foundUserPromise.then((user) => {
+      //인증 실패시 강제 disconnect
+      if (!user) {
+        console.log("auth fail at Match gateway");
+        console.log(client.handshake.auth);
+        client.disconnect();
+        return;
+      }
+    });
+
+    console.log(this._socketIdToUserId);
   }
 
-  handleConnection(client: Socket, ...args: any[]) {
-    this.logger.log(`Client connected: ${client.id}`);
-    this.logger.log(client.handshake.auth); // prints { token: "abcd" }
-    // console.log("MatchGateway-connection!!", client.id);
-  }
+  async handleDisconnect(client: Socket) {
+    this.logger.log(`Client disconnected: ${client.id} (${client.handshake.auth.token})`);
 
-  @SubscribeMessage("create")
-  create(
-    @MessageBody() createMatchDto: CreateMatchDto,
-    @ConnectedSocket() client: Socket
-  ): Ack<Match> {
-    if (!this.authService.verifySession(createMatchDto.userId, client.handshake.auth.token)) {
-      return {
-        status: 401,
-        data: null,
-      };
-    }
-
-    return {
-      status: 200,
-      data: this.matchService.createMatch(createMatchDto, client),
-    };
+    //기존 매핑 삭제
+    this._socketIdToUserId.delete(client.id);
   }
 
   @SubscribeMessage("subscribe")
-  subscribe(
-    @MessageBody() subscribeCategoryDto: SubscribeCategoryDto,
-    @ConnectedSocket() client: Socket
-  ): Ack<MatchInfo[]> {
-    if (
-      !this.authService.verifySession(subscribeCategoryDto.userId, client.handshake.auth.token)
-    ) {
+  async subscribe(@MessageBody() _subscribeMatchDto: any, @ConnectedSocket() client: Socket) {
+    let subscribeMatchDto;
+    if (typeof _subscribeMatchDto === "string") {
+      subscribeMatchDto = JSON.parse(_subscribeMatchDto);
+    } else {
+      subscribeMatchDto = _subscribeMatchDto;
+    }
+
+    console.log(typeof subscribeMatchDto);
+
+    console.log(subscribeMatchDto);
+    const user = await this.userService.findUserById(
+        await this._socketIdToUserId.get(client.id)
+    );
+    console.log(await this._socketIdToUserId.get(client.id));
+    console.log(this._socketIdToUserId);
+
+    if (!user) {
+      console.log("user not found at subscribe");
+      client.disconnect();
       return {
         status: 401,
-        data: [],
+        data: {},
       };
     }
 
-    let matches: Match[] = this.matchService.subscribeByCategory(subscribeCategoryDto, client);
+    let matches: Match[] = this.matchService.subscribeByCategory(subscribeMatchDto, client);
+    console.log(matches);
     return {
       status: 200,
       data: matches.map((match): MatchInfo => {
         return {
           id: match.id,
-          shopName: match.shopName,
-          section: match.targetSection,
+          shopName: match.info.shopName,
+          section: match.info.section,
           total: match.totalPrice,
-          tip: match.deliveryTip,
+          priceAtLeast: match.atLeast,
+          purchaserName: match.info.purchaser.name,
+          createdAt: match.info.createdAt,
         };
       }),
-    };
-  }
-
-  @SubscribeMessage("join")
-  join(
-    @MessageBody() joinMatchDto: JoinMatchDto,
-    @ConnectedSocket() client: Socket
-  ): Ack<null> {
-    return {
-      status: 200,
-      data: null,
     };
   }
 }
