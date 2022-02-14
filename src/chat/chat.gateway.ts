@@ -12,14 +12,16 @@ import { Server, Socket } from "socket.io";
 import { ChatService } from "./chat.service";
 
 @WebSocketGateway({ namespace: "/chat" })
-export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+export class ChatGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
   constructor(private chatService: ChatService) {}
 
   @WebSocketServer() public server: Server;
   private logger: Logger = new Logger("ChatGateway");
 
   afterInit(server: Server) {
-    this.chatService.socket = server;
+    this.chatService.server = server;
   }
 
   handleDisconnect(client: Socket) {

@@ -1,10 +1,9 @@
-import RoomOrder from "../../../domain/room/order/order";
 import { SystemBody } from "./message.response";
 
 export class OrderFixedResponse implements SystemBody {
   readonly action = "order-fixed";
   data: {};
-  static from(roomOrder: RoomOrder) {
+  static from() {
     return new OrderFixedResponse();
   }
 }
@@ -16,7 +15,7 @@ export class OrderCheckedResponse implements SystemBody {
     deliveryTipTotal: number;
     tipForIndividual: number;
   };
-  static from(roomOrder: RoomOrder) {
+  static from() {
     const r = new OrderCheckedResponse();
     r.data = {
       screenshot: null,
@@ -30,7 +29,7 @@ export class OrderCheckedResponse implements SystemBody {
 export class OrderDoneResponse implements SystemBody {
   readonly action = "order-finished";
   data: {};
-  static from(roomOrder: RoomOrder) {
+  static from() {
     return new OrderDoneResponse();
   }
 }

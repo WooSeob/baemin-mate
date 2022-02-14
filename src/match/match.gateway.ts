@@ -12,12 +12,10 @@ import { Logger } from "@nestjs/common";
 import { Server, Socket } from "socket.io";
 import { MatchService } from "./match.service";
 import { AuthService } from "src/auth/auth.service";
-import { MatchSender } from "./match.sender";
 import MatchInfo from "./dto/response/match-info.interface";
-import { Match } from "../domain/match/match";
 import { UserService } from "../user/user.service";
-import { SubscribeMatchDto } from "./dto/request/subscribe-match.dto";
 import { User } from "src/user/entity/user.entity";
+import { Match } from "../entities/Match";
 
 const metadata = {
   namespace: "/match",
@@ -25,12 +23,13 @@ const metadata = {
   allowEIO3: true,
 };
 @WebSocketGateway(metadata)
-export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+export class MatchGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
   private _socketIdToUserId: Map<string, Promise<string>> = new Map();
   constructor(
     private matchService: MatchService,
     private authService: AuthService,
-    private matchSender: MatchSender,
     private userService: UserService
   ) {}
 
@@ -39,22 +38,23 @@ export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
 
   afterInit(server: Server) {
     this.matchService.server = server;
-    this.matchSender.server = server;
   }
 
   async handleConnection(client: Socket, ...args: any[]) {
-    this.logger.log(`Client connected: ${client.id} (${client.handshake.auth.token})`);
+    this.logger.log(
+      `Client connected: ${client.id} (${client.handshake.auth.token})`
+    );
 
     const foundUserPromise: Promise<User> = this.authService.validate(
-        client.handshake.auth.token
+      client.handshake.auth.token
     );
 
     // Socket id <-> user id 매핑 셋
     this._socketIdToUserId.set(
-        client.id,
-        new Promise((res, rej) => {
-          foundUserPromise.then((u) => res(u.id)).catch((e) => rej(e));
-        })
+      client.id,
+      new Promise((res, rej) => {
+        foundUserPromise.then((u) => res(u.id)).catch((e) => rej(e));
+      })
     );
 
     foundUserPromise.then((user) => {
@@ -71,14 +71,19 @@ export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
   }
 
   async handleDisconnect(client: Socket) {
-    this.logger.log(`Client disconnected: ${client.id} (${client.handshake.auth.token})`);
+    this.logger.log(
+      `Client disconnected: ${client.id} (${client.handshake.auth.token})`
+    );
 
     //기존 매핑 삭제
     this._socketIdToUserId.delete(client.id);
   }
 
   @SubscribeMessage("subscribe")
-  async subscribe(@MessageBody() _subscribeMatchDto: any, @ConnectedSocket() client: Socket) {
+  async subscribe(
+    @MessageBody() _subscribeMatchDto: any,
+    @ConnectedSocket() client: Socket
+  ) {
     let subscribeMatchDto;
     if (typeof _subscribeMatchDto === "string") {
       subscribeMatchDto = JSON.parse(_subscribeMatchDto);
@@ -90,7 +95,7 @@ export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
 
     console.log(subscribeMatchDto);
     const user = await this.userService.findUserById(
-        await this._socketIdToUserId.get(client.id)
+      await this._socketIdToUserId.get(client.id)
     );
     console.log(await this._socketIdToUserId.get(client.id));
     console.log(this._socketIdToUserId);
@@ -104,19 +109,22 @@ export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
       };
     }
 
-    let matches: Match[] = this.matchService.subscribeByCategory(subscribeMatchDto, client);
+    let matches: Match[] = await this.matchService.subscribeByCategory(
+      subscribeMatchDto,
+      client
+    );
     console.log(matches);
     return {
       status: 200,
       data: matches.map((match): MatchInfo => {
         return {
           id: match.id,
-          shopName: match.info.shopName,
-          section: match.info.section,
-          total: match.totalPrice,
-          priceAtLeast: match.atLeast,
-          purchaserName: match.info.purchaser.name,
-          createdAt: match.info.createdAt,
+          shopName: match.room.shopName,
+          section: match.room.section,
+          total: match.room.getTotalPrice(),
+          priceAtLeast: match.room.atLeastPrice,
+          purchaserName: match.room.purchaser.name,
+          createdAt: match.room.createdAt,
         };
       }),
     };

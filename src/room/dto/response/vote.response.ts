@@ -1,7 +1,6 @@
 import RoomUserView from "./user-view.dto";
-import KickVote from "../../../domain/room/vote/KickVote";
-import ResetVote from "../../../domain/room/vote/ResetVote";
 import { SystemBody } from "./message.response";
+import RoomVote from "../../../entities/RoomVote";
 
 export class KickVoteCreatedResponse implements SystemBody {
   readonly action = "vote-kick-created";
@@ -9,11 +8,11 @@ export class KickVoteCreatedResponse implements SystemBody {
     voteId: string;
     targetUser: RoomUserView;
   };
-  static from(kickVote: KickVote) {
+  static from(kickVote: RoomVote) {
     const r = new KickVoteCreatedResponse();
     r.data = {
       voteId: kickVote.id,
-      targetUser: RoomUserView.from(kickVote.target),
+      targetUser: RoomUserView.from(kickVote.targetUser),
     };
     return r;
   }
@@ -26,11 +25,11 @@ export class KickVoteFinishedResponse implements SystemBody {
     target: RoomUserView;
     result: boolean;
   };
-  static from(kickVote: KickVote) {
+  static from(kickVote: RoomVote) {
     const r = new KickVoteFinishedResponse();
     r.data = {
       voteId: kickVote.id,
-      target: RoomUserView.from(kickVote.target),
+      target: RoomUserView.from(kickVote.targetUser),
       result: kickVote.result,
     };
     return r;
@@ -42,7 +41,7 @@ export class ResetVoteCreatedResponse implements SystemBody {
   data: {
     voteId: string;
   };
-  static from(resetVote: ResetVote) {
+  static from(resetVote: RoomVote) {
     const r = new ResetVoteCreatedResponse();
     r.data = {
       voteId: resetVote.id,
@@ -57,7 +56,7 @@ export class ResetVoteFinishedResponse implements SystemBody {
     voteId: string;
     result: boolean;
   };
-  static from(resetVote: ResetVote) {
+  static from(resetVote: RoomVote) {
     const r = new ResetVoteFinishedResponse();
     r.data = {
       voteId: resetVote.id,

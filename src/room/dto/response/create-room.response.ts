@@ -1,5 +1,5 @@
-import { Room } from "src/domain/room/room";
 import { ApiProperty } from "@nestjs/swagger";
+import { Room } from "../../../entities/Room";
 
 export default class CreateRoomResponse {
   @ApiProperty({ description: "room id" })

@@ -1,164 +1,626 @@
-import { HttpException, HttpStatus, Inject, Injectable, Logger } from "@nestjs/common";
-import { Server, Socket } from "socket.io";
-import { IMatchContainer } from "src/core/container/IMatchContainer";
-import { IUserContainer } from "src/core/container/IUserContainer";
-import { Room } from "src/domain/room/room";
+import { Injectable, Logger } from "@nestjs/common";
+import { Server } from "socket.io";
 import { CreateRoomDto } from "./dto/request/create-room.dto";
-import { IRoomContainer } from "../core/container/IRoomContainer";
-import { MenuItem } from "../match/interfaces/shop.interface";
-import { RoomBuilder } from "../domain/room/room-builder";
 import { CheckOrderDto } from "./dto/request/check-order.dto";
-import { RoomState } from "../domain/room/context/context";
+import { RoomState } from "../entities/RoomState";
 import { User } from "../user/entity/user.entity";
-import { RoomSender } from "./room.sender";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Connection, QueryRunner, Repository } from "typeorm";
+import { Room } from "../entities/Room";
+import { Participant } from "../entities/Participant";
+import { Menu } from "../entities/Menu";
+import { AddMenuDto } from "../user/dto/request/add-menu.dto";
+import { UpdateMenuDto } from "../user/dto/request/update-menu.dto";
 
+import { RoomBlackListReason } from "../entities/RoomBlackList";
+import RoomVote, { RoomVoteType } from "../entities/RoomVote";
+import KickVoteFactory from "../entities/Vote/KickVote/KickVoteFactory";
+import ResetVoteFactory from "../entities/Vote/ResetVote/ResetVoteFactory";
+import { RoomEventType } from "../entities/RoomEventType";
+import { StrictEventEmitter } from "socket.io-client/build/typed-events";
+import RoomEvents from "../common/RoomEvents";
+import { EventEmitter } from "stream";
+
+//StrictEventEmitter<RoomEvents, RoomEvents>
 @Injectable()
-export class RoomService {
+export class RoomService extends EventEmitter {
   public server: Server = null;
   private logger = new Logger("RoomService");
   constructor(
-    @Inject("IUserContainer") private userContainer: IUserContainer,
-    @Inject("IMatchContainer") private matchContainer: IMatchContainer,
-    @Inject("IRoomContainer") private roomContainer: IRoomContainer,
-    private roomSender: RoomSender
-  ) {}
+    public connection: Connection,
+    @InjectRepository(Room) private roomRepository: Repository<Room>,
+    @InjectRepository(User) private userRepository: Repository<User>,
+    @InjectRepository(Participant)
+    private participantRepository: Repository<Participant>,
+    @InjectRepository(Menu) private menuRepository: Repository<Menu>
+  ) {
+    super();
+  }
+
+  async clear() {
+    const rooms = await this.roomRepository.find();
+    for (const room of rooms) {
+      await this.roomRepository.remove(room);
+    }
+  }
 
   isParticipant(user: User, room: Room) {
-    return room.users.has(user);
+    // return room.users.has(user);
   }
 
-  findRoomById(id: string): Room {
-    const room = this.roomContainer.findById(id);
-    return room;
+  async findRoomById(id: string): Promise<Room> {
+    return await this.roomRepository.findOne(id);
   }
 
-  getMenus(room: Room) {
-    const map: Map<User, MenuItem[]> = new Map();
-    for (const user of room.users.getUserList()) {
-      map.set(user, room.menus.getMenusByUser(user));
+  async getMenuById(id: string): Promise<Menu> {
+    return this.menuRepository.findOne(id);
+  }
+
+  getParticipants(room: Room): Promise<Participant[]> {
+    return this.participantRepository.find({ where: { room: room } });
+  }
+
+  // RoomService
+  async joinRoom(roomId: string, userId: string) {
+    const queryRunner = this.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const room = await queryRunner.manager.findOne<Room>(Room, roomId);
+      const userWithRooms: User = await queryRunner.manager
+        .createQueryBuilder(User, "user")
+        .leftJoinAndSelect("user.rooms", "participation")
+        .leftJoinAndSelect("participation.room", "room")
+        .where("user.id = :id", { id: userId })
+        .getOne();
+
+      room.join(userWithRooms);
+
+      this.emit(RoomEventType.USER_ENTER, roomId, userWithRooms.id);
+
+      // TODO 소켓 join 처리
+      const created = await queryRunner.manager.save(room);
+      await queryRunner.commitTransaction();
+      return created;
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
     }
-    return map;
   }
 
-  createRoom(purchaser: User, createRoomDto: CreateRoomDto): Room {
-    //사용자가 참여한 방에 OrderFix ~ OrderDone 단계의 방이 하나라도 있으면 안됨.
-    for (let room of purchaser.joinedRooms) {
-      room.policy.onlyFor(RoomState.prepare, RoomState.orderDone);
-    }
+  async createRoom(
+    userId: string,
+    createRoomDto: CreateRoomDto
+  ): Promise<Room> {
+    const queryRunner: QueryRunner = this.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    const room: Room = new RoomBuilder(createRoomDto).setPurchaser(purchaser).build();
+    let created;
+    try {
+      const userWithJoinedRooms: User = await queryRunner.manager
+        .createQueryBuilder(User, "user")
+        .leftJoinAndSelect("user.rooms", "participation")
+        .leftJoinAndSelect("participation.room", "room")
+        .where("user.id = :id", { id: userId })
+        .getOne();
 
-    this.roomContainer.push(room);
-    this.logger.log(`Room - ${room.info.shopName}(${room.id}) created`);
-    this.roomSender.register(room);
-    if (Reflect.has(purchaser, "socket")) {
-      (Reflect.get(purchaser, "socket") as Socket).join(room.id);
-    }
-    return room;
-  }
-
-  leaveRoom(room: Room, user: User) {
-    // 방 참여자만 나갈 수 있음
-    room.policy.onlyParticipant(user);
-    // prepare || orderDone 상태에만 나갈 수 있음
-    room.policy.onlyFor(RoomState.prepare, RoomState.orderDone);
-    // ready == false 일때만 나갈 수 있음.
-    room.policy.onlyNotReady(user);
-
-    // 방장은 참여자가 1명 일때만 나갈 수 있음.
-    if (user == room.info.purchaser && room.users.getUserCount() > 1){
-      throw new HttpException(
-          "purchaser can leave when there is only one participant in the room.",
-          HttpStatus.BAD_REQUEST
+      created = await queryRunner.manager.save(
+        Room.create(userWithJoinedRooms, createRoomDto)
       );
+
+      // this.emit(RoomEventType.CREATE, created);
+
+      // TODO 소켓 join 처리
+      await queryRunner.commitTransaction();
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
     }
 
-    //나가기 처리
-    if (Reflect.has(user, "socket")) {
-      (Reflect.get(user, "socket") as Socket).leave(room.id);
-    }
-    room.users.delete(user);
+    return created;
+  }
 
-    //모두 나가면 방 삭제
-    if (room.users.getUserCount() == 0){
-      this.roomContainer.delete(room);
+  async leaveRoom(roomId: string, userId: string) {
+    // update room state? when?
+
+    const queryRunner = this.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const room = await queryRunner.manager.findOne<Room>(Room, roomId);
+
+      const toRemove: Participant = room.leave(userId);
+
+      await queryRunner.manager.remove(toRemove);
+
+      this.emit(RoomEventType.USER_LEAVE, roomId, toRemove.userId);
+
+      // TODO 소켓 leave 처리
+      if (room.getUserCount() == 0) {
+        this.emit(RoomEventType.DELETED, room);
+        //모두 나가면 방 삭제
+        await queryRunner.manager.remove(room);
+      } else {
+        //퇴장 수행 저장
+        await queryRunner.manager.save(room);
+      }
+      await queryRunner.commitTransaction();
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
     }
   }
 
-  getRoomById(id: string) {
-    const room = this.roomContainer.findById(id);
-    return room;
+  getRoomById(id: string): Promise<Room> {
+    return this.roomRepository.findOne(id);
   }
 
-  closeMatchWait(matchId: string, client: Socket) {
-    //인증 필요
-    let closed = this.matchContainer.findById(matchId);
-    this.matchContainer.delete(closed);
+  private aFewMinutesLater() {
+    return new Promise((res, rej) => {
+      setTimeout(() => {
+        res(1);
+      }, 300);
+    });
   }
 
   // only purchaser
-  fixOrder(room: Room, user: User) {
-    room.policy.onlyBeforeOrderFix();
-    room.policy.onlyPurchaser(user);
-    //TODO ALL ready시에만 가능
-    room.order.fix();
-  }
+  async fixOrder(roomId: string, userId: string) {
+    const queryRunner = this.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-  checkOrder(room: Room, user: User, checkOrderDto: CheckOrderDto) {
-    //TODO 구현하기
-    room.policy.onlyForOrderFix();
-    room.policy.onlyPurchaser(user);
-    if (!room.order.screenshotUploaded) {
-      throw new HttpException("screenshot not uploaded", HttpStatus.BAD_REQUEST);
+    try {
+      const room = await queryRunner.manager.findOne<Room>(Room, roomId);
+      room.changePhase(RoomState.ORDER_FIX);
+      this.emit(RoomEventType.ORDER_FIXED, roomId);
+
+      await queryRunner.manager.save(room);
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+    } finally {
+      await queryRunner.release();
     }
-    room.price.updateTip(checkOrderDto.tip);
-    room.order.check();
   }
 
-  doneOrder(room: Room, user: User) {
-    //TODO 구현하기
-    room.policy.onlyForOrderCheck();
-    room.policy.onlyPurchaser(user);
-    room.order.done();
+  async uploadOrderImages(roomId: string, images) {
+    //TODO 구현
   }
 
-  kick(room: Room, purchaser: User, target: User) {
-    // order-fix 이전만 수행 가능
-    room.policy.onlyBeforeOrderFix();
-    // 방장만 수행 가능한 액션
-    room.policy.onlyPurchaser(purchaser);
-    // 대상 유저가 같은 방 참여자
-    room.policy.onlyParticipant(target);
-    //퇴장 처리
-    room.users.delete(target);
+  async checkOrder(
+    roomId: string,
+    userId: string,
+    checkOrderDto: CheckOrderDto
+  ) {
+    const queryRunner = this.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const room = await queryRunner.manager.findOne<Room>(Room, roomId);
+      await room.checkOrder(checkOrderDto.tip);
+
+      this.emit(RoomEventType.ORDER_CHECKED, roomId);
+
+      await queryRunner.manager.save(room);
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+    } finally {
+      await queryRunner.release();
+    }
   }
 
-  //Vote
-  createKickVote(room: Room, targetUser: User): string {
-    // 방 상태는 order-fix 이후 단계
-    room.policy.onlyAfterOrderFix();
-    // 방 참가자
-    room.policy.onlyParticipant(targetUser);
-    // target user 가 자기 자신은 아닌지?
-    // KickVote 생성
-    room.vote.createKickVote(targetUser);
-    return room.vote.vid;
+  async doneOrder(roomId: string, userId: string) {
+    const queryRunner = this.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const room = await queryRunner.manager.findOne<Room>(Room, roomId);
+      room.changePhase(RoomState.ORDER_DONE);
+      this.emit(RoomEventType.ORDER_DONE, roomId);
+
+      await queryRunner.manager.save(room);
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+    } finally {
+      await queryRunner.release();
+    }
   }
 
-  createResetVote(room: Room): string {
-    // 방 상태는 order-fix 이후 단계
-    room.policy.onlyAfterOrderFix();
-    // ResetVote 생성
-    room.vote.createResetVote();
-    return room.vote.vid;
+  /**
+   * 레디에 관해서
+   * 1 - 1 직접적으로 레디 : true <
+   * 1 - 2 직접적으로 레디 : false <
+   * 2. 새로운 유저가 참가할 때
+   * 3. 어떤 유저가 스스로 나갈 때
+   * 4. 어떤 유저가 강퇴 당할 때
+   * */
+  async kick(roomId: string, userId: string, targetId: string) {
+    const queryRunner = this.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const room = await queryRunner.manager.findOne<Room>(Room, roomId);
+
+      const targetParticipant = room.kickUser(
+        targetId,
+        RoomBlackListReason.KICKED_BY_PURCHASER
+      );
+
+      this.emit(RoomEventType.USER_KICKED, roomId, targetParticipant.userId);
+
+      // TODO 소켓 leave 처리
+
+      await queryRunner.manager.remove(targetParticipant);
+      await queryRunner.manager.save(room);
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
-  doVote(room: Room, user: User, opinion: boolean) {
-    // 방 상태는 order-fix 이후 단계
-    room.policy.onlyAfterOrderFix();
-    // 참여자만 가능
-    room.policy.onlyParticipant(user);
-    // 투표 시행
-    room.vote.doVote(user, opinion);
+  async kickUserByVote(roomId: string, targetId: string) {
+    const queryRunner = this.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const room = await queryRunner.manager.findOne<Room>(Room, roomId);
+
+      const kicked = room.kickUser(
+        targetId,
+        RoomBlackListReason.KICKED_BY_VOTE
+      );
+
+      // TODO 소켓 leave 처리
+
+      await queryRunner.manager.remove(kicked);
+      await queryRunner.manager.save(room);
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
   }
+
+  async setReady(roomId: string, userId: string, readyState: boolean) {
+    const queryRunner = this.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const room = await queryRunner.manager.findOne<Room>(Room, roomId);
+      room.setReady(userId, readyState);
+
+      await queryRunner.manager.save(room);
+
+      await queryRunner.commitTransaction();
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  // async getMenus(room: Room, user: User): Promise<Menu[]> {
+  //   return (await this.getParticipant(room, user)).menus;
+  // }
+
+  async addMenu(
+    roomId: string,
+    userId: string,
+    addMenuDto: AddMenuDto
+  ): Promise<Menu> {
+    const queryRunner = this.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const participantWithRoom = await queryRunner.manager.findOne(
+        Participant,
+        {
+          roomId: roomId,
+          userId: userId,
+        },
+        { relations: ["room"] }
+      );
+
+      const menu: Menu = await this.menuRepository.save({
+        participant: participantWithRoom,
+        ...addMenuDto,
+      });
+
+      participantWithRoom.addMenu(menu);
+      // this.emit(RoomEventType.UPDATE, participantWithRoom.room);
+
+      await queryRunner.commitTransaction();
+
+      return menu;
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async updateMenu(
+    roomId: string,
+    userId: string,
+    menuId: string,
+    updateMenuDto: UpdateMenuDto
+  ) {
+    //prepare 에서만 변경 가능
+    //존재하는 메뉴여야함
+    //자신의 메뉴만 변경 가능
+    //수정 후 room의 가격 정보 반영
+
+    const queryRunner = this.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const participantWithRoom = await queryRunner.manager.findOne(
+        Participant,
+        {
+          roomId: roomId,
+          userId: userId,
+        },
+        { relations: ["room"] }
+      );
+
+      const menu: Menu = await this.menuRepository.create({
+        id: menuId,
+        ...updateMenuDto,
+      });
+
+      participantWithRoom.updateMenu(menu);
+      await queryRunner.manager.save(Participant, participantWithRoom);
+      // this.emit(RoomEventType.UPDATE, participantWithRoom.room);
+      await queryRunner.commitTransaction();
+
+      return menu;
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async deleteMenu(roomId: string, userId: string, menuId: string) {
+    const queryRunner = this.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const participantWithRoom = await queryRunner.manager.findOne(
+        Participant,
+        {
+          roomId: roomId,
+          userId: userId,
+        },
+        { relations: ["room"] }
+      );
+
+      participantWithRoom.deleteMenu(menuId);
+
+      await queryRunner.manager.delete(Menu, menuId);
+
+      await queryRunner.commitTransaction();
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async findMenusByParticipant(
+    roomId: string,
+    userId: string
+  ): Promise<Menu[]> {
+    return (
+      await this.participantRepository.findOne({
+        roomId: roomId,
+        userId: userId,
+      })
+    ).getMenus();
+  }
+
+  async findMenuByParticipant(
+    roomId: string,
+    userId: string,
+    menuId: string
+  ): Promise<Menu> {
+    return (
+      await this.participantRepository.findOne({
+        roomId: roomId,
+        userId: userId,
+      })
+    ).getMenuById(menuId);
+  }
+
+  async createKickVote(roomId, targetUserId: string): Promise<RoomVote> {
+    const queryRunner = this.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const room = await queryRunner.manager.findOne<Room>(Room, roomId);
+
+      // 강퇴 투표 생성
+      const created = await queryRunner.manager.save(
+        KickVoteFactory.create(room, targetUserId)
+      );
+
+      // 강퇴 투표 생성 이벤트 발생
+      this.emit(RoomEventType.KICK_VOTE_CREATED, created);
+
+      await queryRunner.commitTransaction();
+      return created;
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async createResetVote(roomId): Promise<RoomVote> {
+    const queryRunner = this.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const room = await queryRunner.manager.findOne<Room>(Room, roomId);
+
+      // 리셋 투표 생성
+      const created = await queryRunner.manager.save(
+        ResetVoteFactory.create(room)
+      );
+
+      // 리셋 투표 생성 이벤트 발생
+      this.emit(RoomEventType.RESET_VOTE_CREATED, created);
+
+      await queryRunner.commitTransaction();
+      return created;
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async doVote(voteId: string, userId: string, opinion: boolean) {
+    const queryRunner = this.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const voteWithRoomAndOpinions: RoomVote = await queryRunner.manager
+        .createQueryBuilder(RoomVote, "kickVote")
+        .leftJoinAndSelect("kickVote.room", "room")
+        .leftJoinAndSelect("kickVote.opinions", "voteOpinion")
+        .leftJoinAndSelect("voteOpinion.participant", "participant")
+        .where("kickVote.id = :id", { id: voteId })
+        .getOne();
+
+      // 투표 의견 제출
+      voteWithRoomAndOpinions.doVote(userId, opinion);
+
+      // 투표 종료시 이벤트 생성
+      if (voteWithRoomAndOpinions.finished) {
+        if (voteWithRoomAndOpinions.voteType === RoomVoteType.KICK) {
+          this.emit(RoomEventType.KICK_VOTE_FINISHED, voteWithRoomAndOpinions);
+          if (voteWithRoomAndOpinions.result) {
+            // this.kickUserByVote(
+            //   kickVoteWithRoomAndOpinions.roomId,
+            //   kickVoteWithRoomAndOpinions.targetUserId
+            // );
+          }
+        } else if (voteWithRoomAndOpinions.voteType === RoomVoteType.RESET) {
+          this.emit(RoomEventType.RESET_VOTE_FINISHED, voteWithRoomAndOpinions);
+          if (voteWithRoomAndOpinions.result) {
+            // 리셋 처리
+            // this.resetRoom(resetVoteWithRoomAndOpinions.roomId);
+          }
+        }
+      }
+
+      await queryRunner.manager.save(voteWithRoomAndOpinions);
+      await queryRunner.commitTransaction();
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async resetRoom(roomId: string) {
+    //TODO
+    const queryRunner = this.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const room = await queryRunner.manager.findOne<Room>(Room, roomId);
+      room.reset();
+      await queryRunner.manager.save(room);
+      await queryRunner.commitTransaction();
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  getVoteById(voteId: string): Promise<RoomVote> {
+    return this.connection.manager
+      .createQueryBuilder(RoomVote, "kickVote")
+      .leftJoinAndSelect("kickVote.room", "room")
+      .leftJoinAndSelect("kickVote.opinions", "voteOpinion")
+      .leftJoinAndSelect("voteOpinion.participant", "participant")
+      .where("kickVote.id = :id", { id: voteId })
+      .getOne();
+  }
+  getRoomVotes(roomId: string): Promise<RoomVote[]> {
+    return this.connection.manager
+      .createQueryBuilder(RoomVote, "kickVote")
+      .leftJoinAndSelect("kickVote.room", "room")
+      .leftJoinAndSelect("kickVote.opinions", "voteOpinion")
+      .leftJoinAndSelect("voteOpinion.participant", "participant")
+      .where("kickVote.room = :id", { id: roomId })
+      .getMany();
+  }
+
+  /**
+   * ParticipantService
+   * - get menus
+   * - get menu by id
+   * - add menu
+   * - update menu
+   * - delete menu
+   * - setReady(boolean)
+   *
+   * 특정 room phase 에만 추가/수정/삭제 가능
+   * 자기 자신 menu 만 조작 가능
+   * 수정 시 room 금액 등 반영
+   *
+   * RoomService
+   * - join room
+   * - leave room
+   * - create room
+   * - kick User
+   * - fix order
+   * - check order
+   * - done order
+   * - get receipt
+   *
+   * VoteService
+   * - createVote
+   * - doVote
+   * - getResult
+   *
+   * */
 }
+
+// @Inject() private eventService: EventService
+// @Inject("IUserContainer") private userContainer: IUserContainer, // @Inject("IMatchContainer") private matchContainer: IMatchContainer, // @Inject("IRoomContainer") private roomContainer: IRoomContainer,

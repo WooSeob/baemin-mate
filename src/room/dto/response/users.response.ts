@@ -1,7 +1,6 @@
 import RoomUserView from "./user-view.dto";
 import { User } from "../../../user/entity/user.entity";
 import { SystemBody } from "./message.response";
-import RoomUsers from "../../../domain/room/users/users";
 
 export class UserJoinedResponse implements SystemBody {
   readonly action = "users-new";
@@ -26,7 +25,7 @@ export class UserLeaveResponse implements SystemBody {
 export class UserAllReadyResponse implements SystemBody {
   readonly action = "all-ready";
   data: {};
-  static from(roomUsers: RoomUsers) {
+  static from() {
     return new UserAllReadyResponse();
   }
 }
@@ -34,7 +33,7 @@ export class UserAllReadyResponse implements SystemBody {
 export class UserAllReadyCanceledResponse implements SystemBody {
   readonly action = "all-ready-canceled";
   data: {};
-  static from(roomUsers: RoomUsers) {
+  static from() {
     return new UserAllReadyCanceledResponse();
   }
 }

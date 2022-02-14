@@ -6,7 +6,6 @@ import {
   Inject,
   Injectable,
 } from "@nestjs/common";
-import { IUserContainer } from "../core/container/IUserContainer";
 import { LoginDto } from "./dto/login.dto";
 import { LogoutDto } from "./dto/logout.dto";
 import axios, { AxiosResponse } from "axios";

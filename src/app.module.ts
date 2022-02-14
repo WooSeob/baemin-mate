@@ -3,27 +3,18 @@ import { MatchModule } from "./match/match.module";
 import { ChatModule } from "./chat/chat.module";
 import { AuthModule } from "./auth/auth.module";
 import { RoomModule } from "./room/room.module";
-import { ContainerModule } from "./core/container/container.module";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { User } from "./user/entity/user.entity";
+import { UserModule } from "./user/user.module";
+import { db as DbConfig } from "../config";
 
 @Module({
   imports: [
+    RoomModule,
+    UserModule,
+    AuthModule,
     MatchModule,
     ChatModule,
-    AuthModule,
-    RoomModule,
-    ContainerModule,
-    TypeOrmModule.forRoot({
-      type: "mysql",
-      host: "localhost",
-      port: 3306,
-      username: "test",
-      password: "12341234",
-      database: "test",
-      entities: [User],
-      synchronize: true,
-    }),
+    TypeOrmModule.forRoot(DbConfig),
   ],
   controllers: [],
   providers: [],

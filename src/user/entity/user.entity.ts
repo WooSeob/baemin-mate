@@ -1,6 +1,7 @@
-import { Entity, Column, PrimaryGeneratedColumn, PrimaryColumn } from "typeorm";
-import { SectionType } from "../interfaces/user";
-import { Room } from "../../domain/room/room";
+import { Column, Entity, OneToMany, PrimaryColumn } from "typeorm";
+import { Participant } from "../../entities/Participant";
+import { Room, RoomRole } from "../../entities/Room";
+import { RoomState } from "../../entities/RoomState";
 
 @Entity()
 export class User {
@@ -38,41 +39,37 @@ export class User {
   })
   mannerRate: number;
 
-  @Column({
-    nullable: true,
-  })
-  currentJoinedRoom: string;
+  @OneToMany(() => Participant, (p) => p.user)
+  rooms: Participant[];
 
   //TODO DB 칼럼 추가!!!
-  private _joinRoom: Room;
-  private _joinedRooms: Room[] = [];
+  // private _joinRoom: Room;
+  // private _joinedRooms: Room[] = [];
+}
 
-  get joinRoom(): Room {
-    return this._joinRoom;
+export class UserBuilder {
+  private readonly object: User;
+
+  constructor() {
+    this.object = new User();
   }
 
-  get joinedRooms() {
-    return this._joinedRooms;
+  setId(id: string): UserBuilder {
+    this.object.id = id;
+    return this;
   }
 
-  join(room: Room) {
-    this._joinRoom = room;
-    this._joinedRooms.push(room);
+  setName(name: string): UserBuilder {
+    this.object.name = name;
+    return this;
   }
 
-  leaveRoom(roomId: string) {
-    this._joinRoom = null;
+  setPhone(phone: string): UserBuilder {
+    this.object.phone = phone;
+    return this;
+  }
 
-    let toDeleteIdx = -1;
-    for (let i = 0; i < this._joinedRooms.length; i++) {
-      const room = this._joinedRooms[i];
-      if (room.id == roomId) {
-        toDeleteIdx = i;
-        break;
-      }
-    }
-    if (toDeleteIdx > -1) {
-      this._joinedRooms = this._joinedRooms.splice(toDeleteIdx, 1);
-    }
+  build(): User {
+    return this.object;
   }
 }

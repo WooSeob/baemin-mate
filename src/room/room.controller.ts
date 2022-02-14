@@ -6,6 +6,7 @@ import {
   HttpException,
   HttpStatus,
   Inject,
+  NotImplementedException,
   Param,
   Post,
   Query,
@@ -25,11 +26,15 @@ import RoomUserView from "./dto/response/user-view.dto";
 import CreateVoteDto from "./dto/request/create-vote-dto";
 import DoVoteDto from "./dto/request/do-vote.dto";
 import { UserService } from "../user/user.service";
-import { Room } from "../domain/room/room";
 import RoomView from "./dto/response/room-view.dto";
 import { NaverAuthGuard } from "../auth/guards/naver-auth.guard";
 import { Request } from "express";
-import {ApiBearerAuth, ApiBody, ApiConsumes, ApiCreatedResponse} from "@nestjs/swagger";
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiCreatedResponse,
+} from "@nestjs/swagger";
 import { CreateRoomDto } from "./dto/request/create-room.dto";
 import { User } from "../user/entity/user.entity";
 import { CheckOrderDto } from "./dto/request/check-order.dto";
@@ -43,91 +48,19 @@ import { join } from "path";
 import OrderReceiptResonse from "./dto/response/order-receipt.response";
 import OrderReceiptResponse from "./dto/response/order-receipt.response";
 import RoomStateResponse from "./dto/response/room-state.response";
-import {ChatBody, Message, SystemBody} from "./dto/response/message.response";
+import { ChatBody, Message, SystemBody } from "./dto/response/message.response";
 import RoomUser from "./dto/response/user.response";
-import {ApiImplicitFile} from "@nestjs/swagger/dist/decorators/api-implicit-file.decorator";
+import { ApiImplicitFile } from "@nestjs/swagger/dist/decorators/api-implicit-file.decorator";
+import { ChatService } from "../chat/chat.service";
 
 @Controller("room")
 export class RoomController {
   constructor(
     private authService: AuthService,
     private roomService: RoomService,
+    private chatService: ChatService,
     @Inject(forwardRef(() => UserService)) private userService: UserService
   ) {}
-
-  private _roleParticipant(user: User, room: Room) {
-    // 방 참여자가 아니라면 exception
-    if (!this.roomService.isParticipant(user, room)) {
-      throw new HttpException(`not member of room`, HttpStatus.BAD_REQUEST);
-    }
-  }
-
-  /**
-   * 새로운 Room 을 생성합니다.
-   * */
-  @ApiCreatedResponse({
-    description: "fixOrderTest",
-  })
-  @Get("/test/:rid/order-fix")
-  async fixOrderTest(@Param("rid") rid: string) {
-    const room = await this.roomService.findRoomById(rid);
-    if (!room) {
-      throw new HttpException("room not found", HttpStatus.NOT_FOUND);
-    }
-    this.roomService.fixOrder(room, room.info.purchaser);
-  }
-
-  /**
-   * test 입장
-   * */
-  @ApiCreatedResponse({
-    description: "test입장",
-  })
-  @Get("/test/:rid/join")
-  async joinTestRoom(@Param("rid") rid: string) {
-    const user = await this.userService.findUserById(
-      "s1zP0trpx0OusFQekHGBIaDsvuOy-AxmwCCskEJBwc0"
-    );
-    const room = await this.roomService.findRoomById(rid);
-    room.users.add(user);
-  }
-
-  /**
-   * 새로운 Room 을 생성합니다.
-   * */
-  @ApiCreatedResponse({
-    description: "rid 에 test 메시지를 broadcast 합니다.",
-    type: CreateRoomResponse,
-  })
-  @Get("/test/:rid/send/:msg")
-  async makeTestChatBroadcast(@Param("rid") rid: string, @Param("msg") msg: string) {
-    const room = await this.roomService.findRoomById(rid);
-    room.chat.receive(room.info.purchaser, msg);
-  }
-
-  /**
-   * 새로운 Room 을 생성합니다.
-   * */
-  @ApiCreatedResponse({
-    description: "새로운 TEST Room 을 생성합니다.",
-    type: CreateRoomResponse,
-  })
-  @Get("/test/:uid")
-  async makeTestRoom(@Param("uid") uid: string): Promise<CreateRoomResponse> {
-    const createRoomDto: CreateRoomDto = {
-      shopName: "테스트샵",
-      deliveryPriceAtLeast: 777,
-      shopLink: "naver.com",
-      category: CATEGORY.KOREAN,
-      section: SECTION.NARAE,
-    };
-    const hostUser = await this.userService.findUserById(uid);
-    if (!hostUser) {
-      throw new HttpException("host not found", HttpStatus.NOT_FOUND);
-    }
-    const room = this.roomService.createRoom(hostUser, createRoomDto);
-    return CreateRoomResponse.from(room);
-  }
 
   //유저 in Room 상태 정보
   @UseGuards(NaverAuthGuard)
@@ -137,23 +70,29 @@ export class RoomController {
     type: RoomStateResponse,
   })
   @Get("/:rid/state")
-  async getJoinedRooms(@Req() request: Request, @Param("rid") rid: string): Promise<RoomStateResponse> {
+  async getJoinedRooms(
+    @Req() request: Request,
+    @Param("rid") rid: string
+  ): Promise<RoomStateResponse> {
     const user = request.user as User;
     if (!user) {
       throw new HttpException("user not found", HttpStatus.NOT_FOUND);
     }
 
-    const room = this.roomService.findRoomById(rid);
+    const room = await this.roomService.findRoomById(rid);
     if (!room) {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
 
+    const participant = room.getParticipant(user.id);
+
     return {
-      state: room.ctx.state,
-      role: room.info.purchaser == user ? "purchaser" : "member",
-      isReady: room.users.getIsReady(user),
+      state: room.phase,
+      role: participant.role,
+      isReady: participant.isReady,
     };
   }
+
   /**
    * rid를 id로 하는 room의 정보를 가져옵니다.
    * */
@@ -164,8 +103,11 @@ export class RoomController {
     type: RoomView,
   })
   @Get("/:rid")
-  async getRoom(@Req() request: Request, @Param("rid") rid: string): Promise<RoomView> {
-    const room = this.roomService.findRoomById(rid);
+  async getRoom(
+    @Req() request: Request,
+    @Param("rid") rid: string
+  ): Promise<RoomView> {
+    const room = await this.roomService.findRoomById(rid);
     if (!room) {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
@@ -181,17 +123,13 @@ export class RoomController {
   })
   @Get("/:rid/participants")
   async getParticipants(@Param("rid") rid: string): Promise<RoomUser[]> {
-    const room = this.roomService.findRoomById(rid);
+    const room = await this.roomService.findRoomById(rid);
     if (!room) {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
-    const users = room.users.getUserList();
 
-    return users.map((user) => {
-      return {
-        id: user.id,
-        name: user.name,
-      };
+    return room.participants.map((p) => {
+      return { id: p.user.id, name: p.user.name };
     });
   }
 
@@ -207,14 +145,12 @@ export class RoomController {
     @Param("rid") rid: string,
     @Param("idx") idx: number
   ): Promise<Message<ChatBody | SystemBody>[]> {
-    const room = this.roomService.findRoomById(rid);
+    const room = await this.roomService.findRoomById(rid);
     if (!room) {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
 
-    const user = request.user as User;
-
-    return room.chat.getMessagesFromIdx(idx);
+    return this.chatService.getAllMessagesResponse(room.id);
   }
 
   /**
@@ -231,7 +167,10 @@ export class RoomController {
     @Req() request: Request,
     @Body(new ValidationPipe()) createRoomDto: CreateRoomDto
   ): Promise<CreateRoomResponse> {
-    const room = this.roomService.createRoom(request.user as User, createRoomDto);
+    const room = await this.roomService.createRoom(
+      (request.user as User).id,
+      createRoomDto
+    );
     return CreateRoomResponse.from(room);
   }
 
@@ -250,7 +189,7 @@ export class RoomController {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
 
-    this.roomService.leaveRoom(room, request.user as User);
+    return this.roomService.leaveRoom(rid, (request.user as User).id);
   }
 
   /**
@@ -276,32 +215,35 @@ export class RoomController {
     if (!targetUser) {
       throw new HttpException("target user not found", HttpStatus.NOT_FOUND);
     }
-    room.users.delete(targetUser);
+
+    return this.roomService.kick(rid, (request.user as User).id, uid);
   }
 
-  /**
-   * uid를 에 해당하는 유저를 강퇴시킵니다.
-   * */
-  @ApiCreatedResponse({
-    description: "uid를 에 해당하는 유저를 ready set합니다.",
-  })
-  @Get("/:rid/ready")
-  async setReadyUser(
-    @Req() request: Request,
-    @Param("rid") rid: string,
-    @Query("uid") uid: string
-  ) {
-    const room = this.roomService.findRoomById(rid);
-    if (!room) {
-      throw new HttpException("room not found", HttpStatus.NOT_FOUND);
-    }
-
-    const targetUser = await this.userService.findUserById(uid);
-    if (!targetUser) {
-      throw new HttpException("target user not found", HttpStatus.NOT_FOUND);
-    }
-    room.users.setReady(targetUser, true);
-  }
+  // /**
+  //  * uid를 에 해당하는 유저를 ready set합니다.
+  //  * */
+  // @ApiCreatedResponse({
+  //   description: "uid를 에 해당하는 유저를 ready set합니다.",
+  // })
+  // @Get("/:rid/ready")
+  // async setReadyUser(
+  //   @Req() request: Request,
+  //   @Param("rid") rid: string,
+  //   @Query("uid") uid: string
+  // ) {
+  //   const room = await this.roomService.findRoomById(rid);
+  //   if (!room) {
+  //     throw new HttpException("room not found", HttpStatus.NOT_FOUND);
+  //   }
+  //
+  //   const targetUser = await this.userService.findUserById(uid);
+  //   if (!targetUser) {
+  //     throw new HttpException("target user not found", HttpStatus.NOT_FOUND);
+  //   }
+  //   room.users.setReady(targetUser, true);
+  //
+  //   this.roomService.setReady();
+  // }
 
   /**
    * rid를 id로 하는 room의 전체 menu들에 대한 정보를 가져옵니다.
@@ -317,19 +259,26 @@ export class RoomController {
     //유효한 room 인지?
     //해당 room에 접근권한이 있는지?
 
-    const room = this.roomService.findRoomById(rid);
+    const room = await this.roomService.findRoomById(rid);
     if (!room) {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
 
-    const menuMap = this.roomService.getMenus(room);
-
-    return Array.from(menuMap.entries()).map((e) => {
+    return room.participants.map((p) => {
       return {
-        user: RoomUserView.from(e[0]),
-        menus: e[1],
+        user: RoomUserView.from(p.user),
+        menus: p.menus,
       };
     });
+
+    // const menuMap = this.roomService.getMenus(room);
+    //
+    // return Array.from(menuMap.entries()).map((e) => {
+    //   return {
+    //     user: RoomUserView.from(e[0]),
+    //     menus: e[1],
+    //   };
+    // });
   }
 
   @UseGuards(NaverAuthGuard)
@@ -359,15 +308,22 @@ export class RoomController {
     //현재 진행중인 투표가 있는지?
     const targetUser = await this.userService.findUserById(targetId);
     if (!targetUser) {
-      throw new HttpException("user(target_uid) not found", HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        "user(target_uid) not found",
+        HttpStatus.NOT_FOUND
+      );
     }
 
-    this._roleParticipant(targetUser, room);
+    // this._roleParticipant(targetUser, room);
+
     try {
-      let vid = this.roomService.createKickVote(room, targetUser);
-      return vid;
+      let vote = await this.roomService.createKickVote(room, targetId);
+      return vote.id;
     } catch (e) {
-      throw new HttpException(`vote is unavailable now`, HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        `vote is unavailable now`,
+        HttpStatus.BAD_REQUEST
+      );
     }
   }
 
@@ -390,10 +346,13 @@ export class RoomController {
     //방의 상태가 투표를 시행할 수 있는 상태인지?
     //현재 진행중인 투표가 있는지?
     try {
-      let vid = this.roomService.createResetVote(room);
-      return vid;
+      let vote = await this.roomService.createResetVote(room);
+      return vote.id;
     } catch (e) {
-      throw new HttpException(`vote is unavailable now`, HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        `vote is unavailable now`,
+        HttpStatus.BAD_REQUEST
+      );
     }
   }
 
@@ -417,7 +376,7 @@ export class RoomController {
     if (!room) {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
-    this.roomService.doVote(room, request.user as User, isAgree);
+    await this.roomService.doVote(vid, (request.user as User).id, isAgree);
   }
 
   @UseGuards(NaverAuthGuard)
@@ -434,7 +393,7 @@ export class RoomController {
     if (!room) {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
-    this.roomService.fixOrder(room, request.user as User);
+    return this.roomService.fixOrder(rid, (request.user as User).id);
   }
 
   @UseGuards(NaverAuthGuard)
@@ -454,7 +413,9 @@ export class RoomController {
     if (!room) {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
-    this.roomService.checkOrder(room, request.user as User, { tip: deliveryTip });
+    return this.roomService.checkOrder(rid, (request.user as User).id, {
+      tip: deliveryTip,
+    });
   }
 
   @UseGuards(NaverAuthGuard)
@@ -469,19 +430,19 @@ export class RoomController {
     if (!room) {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
-    this.roomService.doneOrder(room, request.user as User);
+    return this.roomService.doneOrder(rid, (request.user as User).id);
   }
 
   @UseGuards(NaverAuthGuard)
   @ApiBearerAuth("swagger-auth")
-  @ApiConsumes('multipart/form-data')
+  @ApiConsumes("multipart/form-data")
   @ApiBody({
     schema: {
-      type: 'object',
+      type: "object",
       properties: {
         purchase_screenshot: {
-          type: 'string',
-          format: 'binary',
+          type: "string",
+          format: "binary",
         },
       },
     },
@@ -496,20 +457,25 @@ export class RoomController {
     @Req() request: Request,
     @UploadedFile() file: Express.Multer.File
   ) {
+    throw new NotImplementedException("");
     const room = await this.roomService.findRoomById(rid);
     if (!room) {
       console.log("room not found");
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
 
-    //TODO interceptor 관리, 확장자 필터링하기, S3 or db 연동하기
-    writeFile(join(process.cwd(), `${room.id}.jpg`), file.buffer, function (err) {
-      if (err) {
-        return console.log(err);
-      }
-      room.order.upload();
-      console.log("The file was saved!");
-    });
+    // //TODO interceptor 관리, 확장자 필터링하기, S3 or db 연동하기
+    // writeFile(
+    //   join(process.cwd(), `${room.id}.jpg`),
+    //   file.buffer,
+    //   function (err) {
+    //     if (err) {
+    //       return console.log(err);
+    //     }
+    //     room.order.upload();
+    //     console.log("The file was saved!");
+    //   }
+    // );
   }
 
   @UseGuards(NaverAuthGuard)
@@ -523,6 +489,8 @@ export class RoomController {
     @Req() request: Request,
     @Response({ passthrough: true }) res
   ) {
+    throw new NotImplementedException("");
+
     const room = await this.roomService.findRoomById(rid);
     if (!room) {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
@@ -538,8 +506,9 @@ export class RoomController {
   @UseGuards(NaverAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
-    description: '개개인의 주문 정보를 반환합니다. 결제정보 스크린샷은 포함되어 있지 않으며, ' +
-        '개개인의 메뉴, 배달팁, 총 금액, purchaser의 계좌 정보를 반환합니다.',
+    description:
+      "개개인의 주문 정보를 반환합니다. 결제정보 스크린샷은 포함되어 있지 않으며, " +
+      "개개인의 메뉴, 배달팁, 총 금액, purchaser의 계좌 정보를 반환합니다.",
     type: OrderReceiptResonse,
   })
   @Get("/:rid/receipt")
@@ -553,18 +522,9 @@ export class RoomController {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
 
-    const menus = room.menus.getMenusByUser(request.user as User);
-
-    let totalMenuPrice = 0;
-
-    for (let menu of menus) {
-      totalMenuPrice += menu.price * menu.quantity;
-    }
-
     return {
-      menus: room.menus.getMenusByUser(request.user as User),
-      tipForUser: Math.ceil(room.price.tip / room.users.getUserCount()),
-      totalPrice: totalMenuPrice + Math.ceil(room.price.tip / room.users.getUserCount()),
+      ...room.getReceiptForUser((request.user as User).id),
+      menus: room.getParticipant((request.user as User).id).menus,
       accountNumber: "353-104387-01-010",
       accountBank: "기업은행",
       accountUserName: "변우섭",
