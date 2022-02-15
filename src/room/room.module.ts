@@ -1,7 +1,6 @@
 import { forwardRef, Module } from "@nestjs/common";
 import { AuthModule } from "src/auth/auth.module";
 import { RoomGateway } from "./room.gateway";
-import { EventService } from "./event.service";
 import { RoomService } from "./room.service";
 import { RoomController } from "./room.controller";
 import { UserModule } from "../user/user.module";
@@ -21,7 +20,7 @@ import { Menu } from "../entities/Menu";
     forwardRef(() => UserModule),
     forwardRef(() => ChatModule),
   ],
-  providers: [RoomGateway, RoomService, EventService],
+  providers: [RoomGateway, RoomService],
   controllers: [RoomController],
   exports: [RoomService],
 })

@@ -1,5 +1,4 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { Server } from "socket.io";
 import { CreateRoomDto } from "./dto/request/create-room.dto";
 import { CheckOrderDto } from "./dto/request/check-order.dto";
 import { RoomState } from "../entities/RoomState";
@@ -24,7 +23,6 @@ import { EventEmitter } from "stream";
 //StrictEventEmitter<RoomEvents, RoomEvents>
 @Injectable()
 export class RoomService extends EventEmitter {
-  public server: Server = null;
   private logger = new Logger("RoomService");
   constructor(
     public connection: Connection,
@@ -49,7 +47,14 @@ export class RoomService extends EventEmitter {
   }
 
   async findRoomById(id: string): Promise<Room> {
-    return await this.roomRepository.findOne(id);
+    return await this.roomRepository
+      .createQueryBuilder("room")
+      .leftJoinAndSelect("room.purchaser", "purchaser")
+      .leftJoinAndSelect("room.participants", "participants")
+      .leftJoinAndSelect("participants.user", "user")
+      .leftJoinAndSelect("participants.menus", "menu")
+      .where({ id: id })
+      .getOne();
   }
 
   async getMenuById(id: string): Promise<Menu> {
@@ -112,7 +117,7 @@ export class RoomService extends EventEmitter {
         Room.create(userWithJoinedRooms, createRoomDto)
       );
 
-      // this.emit(RoomEventType.CREATE, created);
+      this.emit(RoomEventType.CREATE, created);
 
       // TODO 소켓 join 처리
       await queryRunner.commitTransaction();

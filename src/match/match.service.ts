@@ -28,7 +28,16 @@ export class MatchService {
   ) {
     // 룸이 새로 생성되었을 때
     // 노출 가능 상태가 되었을 때(-> prepare, -> all ready)
-    roomService.on(RoomEventType.CREATE, this.handleCreateEvent);
+    roomService.on(RoomEventType.CREATE, async (room: Room) => {
+      // 매치 영속화
+      const match = new Match();
+      match.room = room;
+      const created = await this.matchRepository.save(match);
+      console.log(created);
+      this.server
+        .to(this.socketRoomStringResolver(room.category, room.section))
+        .emit(MatchNamespace.CREATE, MatchService.toMatchInfo(match));
+    });
 
     // 룸 변경
     // 합계 금액이 변경되었을 떄
@@ -95,12 +104,12 @@ export class MatchService {
     });
   }
 
-  private static toMatchInfo(match: Match): MatchInfo {
+  static toMatchInfo(match: Match): MatchInfo {
     return {
       id: match.id,
       shopName: match.room.shopName,
       section: match.room.section,
-      total: match.room.getTotalPrice(),
+      total: 1, //TODO 수정할것
       priceAtLeast: match.room.atLeastPrice,
       purchaserName: match.room.purchaser.name,
       createdAt: match.room.createdAt,
@@ -135,15 +144,16 @@ export class MatchService {
     const queryBuilder = await this.matchRepository
       .createQueryBuilder("match")
       .leftJoinAndSelect("match.room", "room")
-      .leftJoinAndSelect("room.purchaser", "purchaser");
+      .leftJoinAndSelect("room.purchaser", "purchaser")
+      .leftJoinAndSelect("room.participants", "participant");
 
-    for (const option of options) {
-      const [section, category] = option;
-      queryBuilder.orWhere("room.section = :section", { section: section });
-      queryBuilder.andWhere("room.category = :category", {
-        category: category,
-      });
-    }
+    // for (const option of options) {
+    //   const [section, category] = option;
+    //   queryBuilder.orWhere("room.section = :section", { section: section });
+    //   queryBuilder.andWhere("room.category = :category", {
+    //     category: category,
+    //   });
+    // }
 
     const matches = await queryBuilder.getMany();
 
@@ -158,6 +168,12 @@ export class MatchService {
   }
 
   findMatchById(id: string): Promise<Match> {
-    return this.matchRepository.findOne(id);
+    return this.matchRepository
+      .createQueryBuilder("match")
+      .leftJoinAndSelect("match.room", "room")
+      .leftJoinAndSelect("room.purchaser", "purchaser")
+      .leftJoinAndSelect("room.participants", "participant")
+      .where({ id: id })
+      .getOne();
   }
 }

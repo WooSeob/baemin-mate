@@ -5,6 +5,7 @@ import {
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
+  ValueTransformer,
 } from "typeorm";
 import { RoomState } from "./RoomState";
 import { User } from "../user/entity/user.entity";
@@ -21,6 +22,11 @@ export enum RoomRole {
   PURCHASER = "purchaser",
   MEMBER = "member",
 }
+
+export const bigint: ValueTransformer = {
+  to: (entityValue: number) => entityValue,
+  from: (databaseValue: string): number => parseInt(databaseValue, 10),
+};
 
 @Entity()
 export class Room {
@@ -78,6 +84,7 @@ export class Room {
     nullable: false,
     type: "bigint",
     default: Date.now(),
+    transformer: [bigint],
   })
   createdAt: number;
 
@@ -315,6 +322,10 @@ export class Room {
     const isInBlackList = this.blackList.find((b) => b.userId === user.id);
     if (isInBlackList) {
       throw new Error("강제퇴장 당한 이용자 입니다.");
+    }
+
+    if (this.getParticipant(user.id)) {
+      throw new Error("이미 입장한 방입니다.");
     }
 
     // 유저 기준 조건

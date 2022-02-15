@@ -12,7 +12,6 @@ import { RoomService } from "./room.service";
 import { Server, Socket } from "socket.io";
 import Ack from "src/core/interfaces/ack.interface";
 import None from "src/core/interfaces/none.interface";
-import { EventService } from "./event.service";
 import { Logger } from "@nestjs/common";
 import { UserService } from "../user/user.service";
 import { ChatService } from "../chat/chat.service";
@@ -23,18 +22,18 @@ export class RoomGateway
 {
   private _socketIdToUserId: Map<string, string> = new Map();
   private logger = new Logger("RoomGateway");
+  private server: Server;
 
   constructor(
     private roomService: RoomService,
     private authService: AuthService,
-    private roomSender: EventService,
     private userService: UserService,
     private chatService: ChatService
   ) {}
 
   afterInit(server: Server) {
-    this.roomService.server = server;
-    this.roomSender.server = server;
+    this.server = server;
+    this.chatService.server = server;
   }
 
   async handleConnection(client: Socket, ...args: any[]) {
@@ -113,6 +112,7 @@ export class RoomGateway
       };
     }
 
+    this.chatService.server = this.server;
     await this.chatService.receiveChat(
       room.id,
       user.id,

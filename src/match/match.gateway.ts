@@ -117,15 +117,7 @@ export class MatchGateway
     return {
       status: 200,
       data: matches.map((match): MatchInfo => {
-        return {
-          id: match.id,
-          shopName: match.room.shopName,
-          section: match.room.section,
-          total: match.room.getTotalPrice(),
-          priceAtLeast: match.room.atLeastPrice,
-          purchaserName: match.room.purchaser.name,
-          createdAt: match.room.createdAt,
-        };
+        return MatchService.toMatchInfo(match);
       }),
     };
   }

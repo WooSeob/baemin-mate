@@ -80,10 +80,9 @@ export class MatchController {
       throw new HttpException("match not found", HttpStatus.NOT_FOUND);
     }
 
-    const room = await this.roomService.joinRoom(
-      match.roomId,
-      (request.user as User).id
-    );
+    await this.roomService.joinRoom(match.roomId, (request.user as User).id);
+
+    const room = await this.roomService.findRoomById(match.roomId);
 
     return {
       id: room.id,

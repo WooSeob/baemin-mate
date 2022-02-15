@@ -41,10 +41,7 @@ import RoomUser from "../room/dto/response/user.response";
 
 @Injectable()
 export class ChatService {
-  private _server: Server;
-  set server(socketServer: Server) {
-    this._server = socketServer;
-  }
+  public server: Server;
 
   private _createUserEventData(
     type: RoomEventType,
@@ -131,7 +128,10 @@ export class ChatService {
       );
       this.broadcastChat(
         roomId,
-        SystemMessageResponse.from(roomChat, UserAllReadyResponse.from())
+        SystemMessageResponse.from(
+          roomChat,
+          UserAllReadyCanceledResponse.from()
+        )
       );
     });
 
