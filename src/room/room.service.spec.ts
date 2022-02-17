@@ -5,32 +5,22 @@ import { Room } from "../entities/Room";
 
 import { CreateRoomDto } from "./dto/request/create-room.dto";
 import { User } from "../user/entity/user.entity";
-import { EmailAuth } from "../auth/entity/email-auth.entity";
 import { Participant } from "../entities/Participant";
 import { Menu } from "../entities/Menu";
-import { Match } from "../entities/Match";
-import { ImageFile } from "../entities/ImageFile";
 import { AddMenuDto } from "../user/dto/request/add-menu.dto";
 import { RoomState } from "../entities/RoomState";
-import RoomBlackList from "../entities/RoomBlackList";
-import RoomVote from "../entities/RoomVote";
-import VoteOpinion from "../entities/VoteOpinion";
-import { EventService } from "./event.service";
-import RoomChat from "../entities/RoomChat";
-import { db } from "../../config";
+import { db_test } from "../../config";
+import { RoomBlackListReason } from "../entities/RoomBlackList";
+import { RoomEventType } from "../entities/RoomEventType";
+import AlreadyJoinedError from "../common/AlreadyJoinedError";
 
-let connection;
-const mockConnection = () => ({
-  transaction: jest.fn(),
-});
-
-describe("RoomService", () => {
+describe("생성 테스트", () => {
   let service: RoomService;
 
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [
-        TypeOrmModule.forRoot(db),
+        TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
         TypeOrmModule.forFeature([Room, Participant, Menu, User]),
       ],
       providers: [RoomService],
@@ -44,79 +34,153 @@ describe("RoomService", () => {
     await service.clear();
   });
 
-  it("should be defined", () => {
-    expect(service.connection).toBeDefined();
+  it("생성시 생성 이벤트와 참가 이벤트가 발생해야 한다.", async () => {
+    const serviceSpy = jest.spyOn(service, "emit");
+    const room = await service.createRoom(userOneId, createRoomDto);
+
+    expect(room.purchaserId).toBe(userOneId);
+    expect(serviceSpy).toBeCalledTimes(2);
+    expect(serviceSpy).toBeCalledWith(RoomEventType.CREATE, room);
   });
 
-  it("레디 테스트", async () => {
-    const purchaser: User = new User();
-    purchaser.id = "SjnUHiH9NfWidFhhnCiZ1JgjKsriQ_7H9NFW3gPZJQc";
-    const room = await service.createRoom(purchaser.id, createRoomDto);
-    const roomId = room.id;
-    expect((await service.findRoomById(roomId)).getUserCount()).toBe(1);
+  it("orderFix 이전 상태인 개설 방이 있는 경우 생성할 수 없다.", async () => {
+    //given
+    await service.createRoom(userOneId, createRoomDto);
 
-    await service.joinRoom(roomId, "abc");
-    expect((await service.findRoomById(roomId)).getUserCount()).toBe(2);
-    await service.setReady(roomId, "abc", true);
-    expect((await service.findRoomById(roomId)).phase).toBe(
+    await expect(
+      service.createRoom(userOneId, createRoomDto)
+    ).rejects.toThrowError(AlreadyJoinedError);
+  });
+
+  it("진행 상태(orderFix, orderCheck)인 개설 방이 있는 경우 생성할 수 없다.", async () => {
+    //given
+    const room = await service.createRoom(userOneId, createRoomDto);
+    await service.joinRoom(room.id, userTwoId);
+    await service.setReady(room.id, userTwoId, true);
+    await service.fixOrder(room.id, userOneId);
+
+    await expect(
+      service.createRoom(userOneId, createRoomDto)
+    ).rejects.toThrowError(AlreadyJoinedError);
+  });
+
+  it("진행 상태(orderFix, orderCheck)에 있는 방에 참여중인 경우 생성할 수 없다.", async () => {
+    const firstRoom = await service.createRoom(userTwoId, createRoomDto);
+    await service.joinRoom(firstRoom.id, userOneId);
+    await service.setReady(firstRoom.id, userOneId, true);
+    await service.fixOrder(firstRoom.id, userTwoId);
+
+    await expect(
+      service.createRoom(userOneId, createRoomDto)
+    ).rejects.toThrowError(AlreadyJoinedError);
+  });
+
+  it("진행 전(prepare, allready)인 방 중 준비완료한 방이 있으면 생성할 수 없다.", async () => {
+    const firstRoom = await service.createRoom(userTwoId, createRoomDto);
+    await service.joinRoom(firstRoom.id, userOneId);
+    await service.setReady(firstRoom.id, userOneId, true);
+
+    await expect(
+      service.createRoom(userOneId, createRoomDto)
+    ).rejects.toThrowError(AlreadyJoinedError);
+  });
+});
+
+describe("레디 테스트", () => {
+  let service: RoomService;
+
+  beforeAll(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      imports: [
+        TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
+        TypeOrmModule.forFeature([Room, Participant, Menu, User]),
+      ],
+      providers: [RoomService],
+    }).compile();
+
+    service = module.get<RoomService>(RoomService);
+    await service.clear();
+  });
+
+  beforeEach(async () => {
+    await service.clear();
+  });
+
+  it("레디", async () => {
+    const room = await service.createRoom(userOneId, createRoomDto);
+    await service.joinRoom(room.id, userTwoId);
+    await service.setReady(room.id, userTwoId, true);
+
+    expect((await service.findRoomById(room.id)).phase).toBe(
       RoomState.ALL_READY
     );
+  });
 
-    await service.joinRoom(roomId, "xyz");
-    expect((await service.findRoomById(roomId)).phase).toBe(RoomState.PREPARE);
-    expect((await service.findRoomById(roomId)).getUserCount()).toBe(3);
-    await service.setReady(roomId, "xyz", true);
-    expect((await service.findRoomById(roomId)).phase).toBe(
-      RoomState.ALL_READY
+  it("새로운 유저가 들어오면 all ready가 해제된다.", async () => {
+    const room = await service.createRoom(userOneId, createRoomDto);
+    await service.joinRoom(room.id, userTwoId);
+
+    const serviceSpy = jest.spyOn(service, "emit");
+    await service.setReady(room.id, userTwoId, true);
+
+    await service.joinRoom(room.id, userThreeId);
+
+    expect(serviceSpy).toBeCalledWith(RoomEventType.ALL_READY, room.id);
+    expect(serviceSpy).toBeCalledWith(
+      RoomEventType.ALL_READY_CANCELED,
+      room.id
     );
 
-    await service.setReady(roomId, "xyz", false);
-    expect((await service.findRoomById(roomId)).phase).toBe(RoomState.PREPARE);
-
-    // await service.leaveRoom(roomId, "xyz");
-    // expect((await service.findRoomById(roomId)).phase).toBe(
-    //   RoomState.ALL_READY
-    // );
-
-    await service.setReady(roomId, "abc", false);
-    await service.leaveRoom(roomId, "abc");
-    expect((await service.findRoomById(room.id)).getUserCount()).toBe(2);
-    console.log(await service.findRoomById(roomId));
+    expect((await service.findRoomById(room.id)).phase).toBe(RoomState.PREPARE);
   });
 
-  it("생성 테스트 - 이미 다른 방 참여", async () => {
-    // given
-    const firstRoom = await service.createRoom(userOneId, createRoomDto);
-    await service.joinRoom(firstRoom.id, userTwoId);
+  it("유일하게 레디 안한 유저 강퇴하면 all ready 상태가 된다.", async () => {
+    const room = await service.createRoom(userOneId, createRoomDto);
+    await service.joinRoom(room.id, userTwoId);
+    await service.joinRoom(room.id, userThreeId);
 
-    try {
-      // when
-      await service.createRoom(userTwoId, createRoomDto);
-      expect(false).toBe(true);
-    } catch (e) {
-      // then
-      console.log(e.message);
-      expect(e.message).toBe("cant do at phase");
-    }
+    await service.setReady(room.id, userTwoId, true);
+
+    const serviceSpy = jest.spyOn(service, "emit");
+    await service.kick(
+      room.id,
+      userThreeId,
+      RoomBlackListReason.KICKED_BY_PURCHASER
+    );
+
+    expect(serviceSpy).toBeCalledWith(
+      RoomEventType.USER_LEAVE,
+      room.id,
+      userThreeId
+    );
+    expect(serviceSpy).toBeCalledWith(RoomEventType.ALL_READY, room.id);
+    expect((await service.findRoomById(room.id)).phase).toBe(
+      RoomState.ALL_READY
+    );
+  });
+});
+
+describe("참가 테스트", () => {
+  let service: RoomService;
+
+  beforeAll(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      imports: [
+        TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
+        TypeOrmModule.forFeature([Room, Participant, Menu, User]),
+      ],
+      providers: [RoomService],
+    }).compile();
+
+    service = module.get<RoomService>(RoomService);
+    await service.clear();
   });
 
-  it("생성 테스트 - 이미 다른 방 방장", async () => {
-    // given
-    const firstRoom = await service.createRoom(userOneId, createRoomDto);
-    const secondRoom = await service.createRoom(userTwoId, createRoomDto);
-
-    try {
-      // when
-      await service.createRoom(userTwoId, createRoomDto);
-      expect(false).toBe(true);
-    } catch (e) {
-      // then
-      console.log(e.message);
-      expect(e.message).toBe("cant do at phase");
-    }
+  beforeEach(async () => {
+    await service.clear();
   });
 
-  it("참가 테스트 - 이미 다른 방 방장", async () => {
+  it("이미 다른 방 방장", async () => {
     // given
     const firstRoom = await service.createRoom(userOneId, createRoomDto);
     const secondRoom = await service.createRoom(userTwoId, createRoomDto);
@@ -131,7 +195,7 @@ describe("RoomService", () => {
     }
   });
 
-  it("참가 테스트 - 이미 다른 방 레디", async () => {
+  it("이미 다른 방 레디", async () => {
     // given
     const firstRoom = await service.createRoom(userOneId, createRoomDto);
     const secondRoom = await service.createRoom(userTwoId, createRoomDto);
@@ -149,11 +213,34 @@ describe("RoomService", () => {
     }
   });
 
-  it("참가 테스트 - 강퇴 이력이 있는 유저", async () => {
+  it("이미 참여한 방엔 입장할 수 없다.", async () => {
     // given
     const firstRoom = await service.createRoom(userOneId, createRoomDto);
     await service.joinRoom(firstRoom.id, userTwoId);
-    await service.kick(firstRoom.id, userOneId, userTwoId);
+
+    await expect(service.joinRoom(firstRoom.id, userTwoId)).rejects.toThrow(
+      Error
+    );
+  });
+
+  it("자기 자신이 방장인 곳엔 입장할 수 없다.", async () => {
+    // given
+    const firstRoom = await service.createRoom(userOneId, createRoomDto);
+
+    await expect(service.joinRoom(firstRoom.id, userOneId)).rejects.toThrow(
+      Error
+    );
+  });
+
+  it("강퇴 이력이 있는 유저", async () => {
+    // given
+    const firstRoom = await service.createRoom(userOneId, createRoomDto);
+    await service.joinRoom(firstRoom.id, userTwoId);
+    await service.kick(
+      firstRoom.id,
+      userTwoId,
+      RoomBlackListReason.KICKED_BY_PURCHASER
+    );
 
     try {
       // when
@@ -165,13 +252,139 @@ describe("RoomService", () => {
     }
   });
 
-  it("강퇴 테스트 - 레디 안한 유저", async () => {
+  it("진행 전(prepare, allready)인 방에만 입장할 수 있다.", async () => {
+    // given
+    const firstRoom = await service.createRoom(userTwoId, createRoomDto);
+
+    await service.joinRoom(firstRoom.id, userOneId);
+    await service.setReady(firstRoom.id, userOneId, true);
+
+    const promises = [];
+    promises.push(service.fixOrder(firstRoom.id, userTwoId));
+    promises.push(service.joinRoom(firstRoom.id, userThreeId));
+
+    await expect(Promise.all(promises)).rejects.toThrowError(Error);
+  });
+
+  it("방에 참가하면 참여 이벤트가 발생해야 한다.", async () => {
+    // given
+
+    const firstRoom = await service.createRoom(userOneId, createRoomDto);
+
+    const serviceSpy = jest.spyOn(service, "emit");
+    await service.joinRoom(firstRoom.id, userTwoId);
+    expect(serviceSpy).toBeCalledWith(
+      RoomEventType.USER_ENTER,
+      firstRoom.id,
+      userTwoId
+    );
+
+    expect(serviceSpy).toBeCalledTimes(1);
+  });
+});
+
+describe("퇴장 테스트", () => {
+  let service: RoomService;
+
+  beforeAll(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      imports: [
+        TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
+        TypeOrmModule.forFeature([Room, Participant, Menu, User]),
+      ],
+      providers: [RoomService],
+    }).compile();
+
+    service = module.get<RoomService>(RoomService);
+    await service.clear();
+  });
+
+  beforeEach(async () => {
+    await service.clear();
+  });
+
+  it("진행 상태(orderFix, orderCheck)인 경우 나갈 수 없다.", async () => {
+    const room = await service.createRoom(userOneId, createRoomDto);
+    await service.joinRoom(room.id, userTwoId);
+    await service.setReady(room.id, userTwoId, true);
+    await service.fixOrder(room.id, userOneId);
+
+    await expect(service.leaveRoom(room.id, userTwoId)).rejects.toThrowError(
+      Error
+    );
+  });
+
+  it("방장은 방에 혼자 있을때만 나갈 수 있다.", async () => {
+    const room = await service.createRoom(userOneId, createRoomDto);
+    await service.joinRoom(room.id, userTwoId);
+    await service.setReady(room.id, userTwoId, true);
+    await service.fixOrder(room.id, userOneId);
+
+    await expect(service.leaveRoom(room.id, userOneId)).rejects.toThrowError(
+      Error
+    );
+  });
+
+  it("방에 유저가 모두 나가면 방은 삭제된다.", async () => {
+    const room = await service.createRoom(userOneId, createRoomDto);
+    await service.joinRoom(room.id, userTwoId);
+    await service.leaveRoom(room.id, userTwoId);
+
+    const serviceSpy = jest.spyOn(service, "emit");
+    const after = await service.leaveRoom(room.id, userOneId);
+
+    const found = await service.findRoomById(room.id);
+    expect(found).toBeUndefined();
+    expect(serviceSpy).toBeCalledWith(RoomEventType.DELETED, after);
+  });
+
+  it("유저가 나가면 퇴장 이벤트가 발생한다.", async () => {
+    const room = await service.createRoom(userOneId, createRoomDto);
+    await service.joinRoom(room.id, userTwoId);
+
+    const serviceSpy = jest.spyOn(service, "emit");
+    await service.leaveRoom(room.id, userTwoId);
+
+    expect(serviceSpy).toBeCalledWith(
+      RoomEventType.USER_LEAVE,
+      room.id,
+      userTwoId
+    );
+  });
+});
+
+describe("강퇴 테스트", () => {
+  let service: RoomService;
+
+  beforeAll(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      imports: [
+        TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
+        TypeOrmModule.forFeature([Room, Participant, Menu, User]),
+      ],
+      providers: [RoomService],
+    }).compile();
+
+    service = module.get<RoomService>(RoomService);
+    await service.clear();
+  });
+
+  beforeEach(async () => {
+    await service.clear();
+  });
+
+  it("레디 안한 유저 강퇴", async () => {
     // given
     const firstRoom = await service.createRoom(userOneId, createRoomDto);
     await service.joinRoom(firstRoom.id, userTwoId);
 
     //when
-    await service.kick(firstRoom.id, userOneId, userTwoId);
+    await service.kick(
+      firstRoom.id,
+
+      userTwoId,
+      RoomBlackListReason.KICKED_BY_PURCHASER
+    );
 
     //then
     expect(
@@ -179,14 +392,19 @@ describe("RoomService", () => {
     ).toBe(false);
   });
 
-  it("강퇴 테스트 - 레디 한 유저", async () => {
+  it("레디 한 유저 강퇴", async () => {
     // given
     const firstRoom = await service.createRoom(userOneId, createRoomDto);
     await service.joinRoom(firstRoom.id, userTwoId);
     await service.setReady(firstRoom.id, userTwoId, true);
 
     //when
-    await service.kick(firstRoom.id, userOneId, userTwoId);
+    await service.kick(
+      firstRoom.id,
+
+      userTwoId,
+      RoomBlackListReason.KICKED_BY_PURCHASER
+    );
 
     //then
     expect(
@@ -194,7 +412,22 @@ describe("RoomService", () => {
     ).toBe(false);
   });
 
-  it("강퇴 테스트 - OrderFix 상태에서", async () => {
+  it("방장은 강퇴시킬 수 없다.", async () => {
+    // given
+    const firstRoom = await service.createRoom(userOneId, createRoomDto);
+    await service.joinRoom(firstRoom.id, userTwoId);
+
+    //when
+    await expect(
+      service.kick(
+        firstRoom.id,
+        userOneId,
+        RoomBlackListReason.KICKED_BY_PURCHASER
+      )
+    ).rejects.toThrow(Error); //then
+  });
+
+  it("OrderFix 상태에서", async () => {
     // given
     const firstRoom = await service.createRoom(userOneId, createRoomDto);
     await service.joinRoom(firstRoom.id, userTwoId);
@@ -205,15 +438,41 @@ describe("RoomService", () => {
 
     try {
       //when
-      await service.kick(firstRoom.id, userOneId, userTwoId);
+      await service.kick(
+        firstRoom.id,
+
+        userTwoId,
+        RoomBlackListReason.KICKED_BY_PURCHASER
+      );
       expect(false).toBe(true);
     } catch (e) {
       //then
       expect(e.message).toBe("cant do at phase");
     }
   });
+});
 
-  it("강퇴 투표 - 생성", async () => {
+describe("강퇴 투표 테스트", () => {
+  let service: RoomService;
+
+  beforeAll(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      imports: [
+        TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
+        TypeOrmModule.forFeature([Room, Participant, Menu, User]),
+      ],
+      providers: [RoomService],
+    }).compile();
+
+    service = module.get<RoomService>(RoomService);
+    await service.clear();
+  });
+
+  beforeEach(async () => {
+    await service.clear();
+  });
+
+  it("생성", async () => {
     // given
     const firstRoom = await service.createRoom(userOneId, createRoomDto);
     await service.joinRoom(firstRoom.id, userTwoId);
@@ -223,14 +482,15 @@ describe("RoomService", () => {
     await service.fixOrder(firstRoom.id, userOneId);
 
     //when
+    const serviceSpy = jest.spyOn(service, "emit");
     const created = await service.createKickVote(firstRoom.id, userTwoId);
 
-    console.log(created);
     //then
     expect(created.targetUserId).toBe(userTwoId);
+    expect(serviceSpy).toBeCalledWith(RoomEventType.KICK_VOTE_CREATED, created);
   });
 
-  it("강퇴 투표 - 의견 제출", async () => {
+  it("의견 제출", async () => {
     // given
     const firstRoom = await service.createRoom(userOneId, createRoomDto);
     await service.joinRoom(firstRoom.id, userTwoId);
@@ -247,7 +507,7 @@ describe("RoomService", () => {
     expect(true).toBe(true);
   });
 
-  it("강퇴 투표 - 결과(승인)", async () => {
+  it("결과(승인)", async () => {
     // given
     const firstRoom = await service.createRoom(userOneId, createRoomDto);
     await service.joinRoom(firstRoom.id, userTwoId);
@@ -258,17 +518,23 @@ describe("RoomService", () => {
     const vote = await service.createKickVote(firstRoom.id, userTwoId);
 
     //when
+    const serviceSpy = jest.spyOn(service, "emit");
+    const kickMethod = jest.spyOn(service, "kick");
     await service.doVote(vote.id, userOneId, true);
     await service.doVote(vote.id, userThreeId, true);
 
     //then
     const result = await service.getRoomVotes(firstRoom.id);
-    console.log(result);
     expect(result[0].finished).toBe(true);
     expect(result[0].result).toBe(true);
+    expect(serviceSpy).toBeCalledWith(
+      RoomEventType.KICK_VOTE_FINISHED,
+      result[0]
+    );
+    expect(kickMethod).toBeCalledTimes(1);
   });
 
-  it("강퇴 투표 - 결과(거절)", async () => {
+  it("결과(거절)", async () => {
     // given
     const firstRoom = await service.createRoom(userOneId, createRoomDto);
     await service.joinRoom(firstRoom.id, userTwoId);
@@ -279,6 +545,8 @@ describe("RoomService", () => {
     const vote = await service.createKickVote(firstRoom.id, userTwoId);
 
     //when
+    const serviceSpy = jest.spyOn(service, "emit");
+    const kickMethod = jest.spyOn(service, "kick");
     await service.doVote(vote.id, userOneId, false);
     await service.doVote(vote.id, userThreeId, true);
 
@@ -287,91 +555,165 @@ describe("RoomService", () => {
     console.log(result);
     expect(result[0].finished).toBe(true);
     expect(result[0].result).toBe(false);
+    expect(serviceSpy).toBeCalledWith(
+      RoomEventType.KICK_VOTE_FINISHED,
+      result[0]
+    );
+    expect(kickMethod).toBeCalledTimes(0);
+  });
+});
+
+describe("리셋 투표 테스트", () => {
+  let service: RoomService;
+
+  beforeAll(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      imports: [
+        TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
+        TypeOrmModule.forFeature([Room, Participant, Menu, User]),
+      ],
+      providers: [RoomService],
+    }).compile();
+
+    service = module.get<RoomService>(RoomService);
+    await service.clear();
   });
 
-  it("리셋 투표 - 생성", async () => {
-    // given
+  beforeEach(async () => {
+    await service.clear();
+  });
+
+  const prepareFixRoom = async () => {
     const firstRoom = await service.createRoom(userOneId, createRoomDto);
     await service.joinRoom(firstRoom.id, userTwoId);
     await service.setReady(firstRoom.id, userTwoId, true);
     await service.joinRoom(firstRoom.id, userThreeId);
     await service.setReady(firstRoom.id, userThreeId, true);
     await service.fixOrder(firstRoom.id, userOneId);
-    const vote = await service.createResetVote(firstRoom.id);
+    return firstRoom;
+  };
 
+  it("생성", async () => {
+    // given
+    const room = await prepareFixRoom();
     //when
-    await service.doVote(vote.id, userThreeId, true);
+    const serviceSpy = jest.spyOn(service, "emit");
+    const vote = await service.createResetVote(room.id);
+
     //then
-    // expect(created.target.userId).toBe(userTwoId);
-    expect(true).toBe(true);
+    expect(vote).toBeDefined();
+    expect(serviceSpy).toBeCalledWith(RoomEventType.RESET_VOTE_CREATED, vote);
   });
 
-  // it("트랜잭션 테스트", async () => {
-  //   const purchaser: User = new User();
-  //   purchaser.id = "SjnUHiH9NfWidFhhnCiZ1JgjKsriQ_7H9NFW3gPZJQc";
-  //   const dto: CreateRoomDto = {
-  //     shopName: "testshop",
-  //     deliveryPriceAtLeast: 200,
-  //     shopLink: "asdf",
-  //     category: "korean",
-  //     section: "Narae",
-  //   };
-  //   const room = await service.createRoom(purchaser.id, dto);
-  //   const roomId = room.id;
-  //   expect((await service.findRoomById(roomId)).getUserCount()).toBe(1);
-  //
-  //   await service.joinRoom(roomId, "abc");
-  //   await service.joinRoom(roomId, "xyz");
-  //   service.setReady(roomId, "xyz", true);
-  //   service.setReady(roomId, "abc", true);
-  //   await aFewSecondsLater(200);
-  //   service.fixOrder(roomId, "");
-  //
-  //   try {
-  //     //에러 뱉어야 성공
-  //     service.setReady(roomId, "xyz", false);
-  //
-  //     await aFewSecondsLater(1500);
-  //     expect(true).toBe(false);
-  //   } catch (e) {
-  //     expect(e.message).toBe("cant do at phase");
-  //   }
-  // });
+  it("결과(승인)", async () => {
+    //TODO 투표 조건 수정하기
+    // given
+    const room = await prepareFixRoom();
+    const vote = await service.createResetVote(room.id);
 
-  it("메뉴 CRUD 테스트", async () => {
-    const purchaser: User = new User();
-    purchaser.id = "SjnUHiH9NfWidFhhnCiZ1JgjKsriQ_7H9NFW3gPZJQc";
-    const dto: CreateRoomDto = {
-      shopName: "testshop",
-      deliveryPriceAtLeast: 200,
-      shopLink: "asdf",
-      category: "korean",
-      section: "Narae",
-    };
-    const room = await service.createRoom(purchaser.id, dto);
-    const roomId = room.id;
+    const serviceSpy = jest.spyOn(service, "emit");
+    const resetMethod = jest.spyOn(service, "resetRoom");
 
-    await service.joinRoom(roomId, "abc");
+    //when
+    await service.doVote(vote.id, userOneId, true);
+    await service.doVote(vote.id, userTwoId, true);
+    await service.doVote(vote.id, userThreeId, true);
+
+    //then
+    const result = await service.getVoteById(vote.id);
+    expect(serviceSpy).toBeCalledWith(
+      RoomEventType.RESET_VOTE_FINISHED,
+      result
+    );
+    expect(resetMethod).toBeCalledTimes(1);
+  });
+
+  it("결과(거절)", async () => {
+    //TODO 투표 조건 수정하기
+    // given
+    const room = await prepareFixRoom();
+    const vote = await service.createResetVote(room.id);
+
+    const serviceSpy = jest.spyOn(service, "emit");
+    const resetMethod = jest.spyOn(service, "resetRoom");
+
+    //when
+    await service.doVote(vote.id, userOneId, true);
+    await service.doVote(vote.id, userTwoId, false);
+    await service.doVote(vote.id, userThreeId, false);
+
+    //then
+    const result = await service.getVoteById(vote.id);
+    expect(serviceSpy).toBeCalledWith(
+      RoomEventType.RESET_VOTE_FINISHED,
+      result
+    );
+    expect(resetMethod).toBeCalledTimes(0);
+  });
+});
+
+describe("메뉴 테스트", () => {
+  let service: RoomService;
+
+  beforeAll(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      imports: [
+        TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
+        TypeOrmModule.forFeature([Room, Participant, Menu, User]),
+      ],
+      providers: [RoomService],
+    }).compile();
+
+    service = module.get<RoomService>(RoomService);
+    await service.clear();
+  });
+
+  beforeEach(async () => {
+    await service.clear();
+  });
+
+  it("생성", async () => {
+    const room = await service.createRoom(userOneId, createRoomDto);
+    await service.joinRoom(room.id, userTwoId);
 
     // Create
-    const created = await service.addMenu(roomId, "abc", sampleMenu);
-    expect(await service.findMenusByParticipant(roomId, "abc")).toHaveLength(1);
+    const created = await service.addMenu(room.id, userTwoId, sampleMenu);
+    expect(
+      await service.findMenusByParticipant(room.id, userTwoId)
+    ).toHaveLength(1);
 
     expect(created.name).toBe(sampleMenu.name);
+  });
 
-    // // Update
-    // await service.updateMenu(roomId, "abc", created.id, sampleMenu2);
-    // expect(await service.findMenusByParticipant(roomId, "abc")).toHaveLength(1);
-    // const updated = await service.findMenuByParticipant(
-    //   roomId,
-    //   "abc",
-    //   created.id
-    // );
-    // expect(updated.name).toBe(sampleMenu2.name);
-    //
-    // // Delete
-    // await service.deleteMenu(roomId, "abc", created.id);
-    // expect(await service.findMenusByParticipant(roomId, "abc")).toHaveLength(0);
+  it("수정", async () => {
+    const room = await service.createRoom(userOneId, createRoomDto);
+    await service.joinRoom(room.id, userTwoId);
+    const created = await service.addMenu(room.id, userTwoId, sampleMenu);
+
+    // Update
+    await service.updateMenu(room.id, userTwoId, created.id, sampleMenu2);
+    expect(
+      await service.findMenusByParticipant(room.id, userTwoId)
+    ).toHaveLength(1);
+
+    const updated = await service.findMenuByParticipant(
+      room.id,
+      userTwoId,
+      created.id
+    );
+    expect(updated.name).toBe(sampleMenu2.name);
+  });
+
+  it("삭제", async () => {
+    const room = await service.createRoom(userOneId, createRoomDto);
+    await service.joinRoom(room.id, userTwoId);
+    const created = await service.addMenu(room.id, userTwoId, sampleMenu);
+
+    // Delete
+    await service.deleteMenu(room.id, userTwoId, created.id);
+    expect(
+      await service.findMenusByParticipant(room.id, userTwoId)
+    ).toHaveLength(0);
   });
 });
 
