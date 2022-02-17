@@ -10,30 +10,70 @@ import {
 import { AuthService } from "src/auth/auth.service";
 import { RoomService } from "./room.service";
 import { Server, Socket } from "socket.io";
-import Ack from "src/core/interfaces/ack.interface";
-import None from "src/core/interfaces/none.interface";
+import Ack from "src/common/interfaces/ack.interface";
+import None from "src/common/interfaces/none.interface";
 import { Logger } from "@nestjs/common";
 import { UserService } from "../user/user.service";
 import { ChatService } from "../chat/chat.service";
+import { RoomEventType } from "../entities/RoomEventType";
 
 @WebSocketGateway({ namespace: "/room", cors: { origin: "*" } })
 export class RoomGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
   private _socketIdToUserId: Map<string, string> = new Map();
+  private _userIdToSocketId: Map<string, string[]> = new Map();
+
   private logger = new Logger("RoomGateway");
-  private server: Server;
+
+  private static _server: Server;
+
+  static get server() {
+    return RoomGateway._server;
+  }
 
   constructor(
     private roomService: RoomService,
     private authService: AuthService,
     private userService: UserService,
     private chatService: ChatService
-  ) {}
+  ) {
+    roomService.on(RoomEventType.USER_ENTER, (roomId, userId) => {
+      const socketIds = this._userIdToSocketId.get(userId);
+      socketIds.forEach(async (sid) => {
+        // console.log(RoomGateway._server.);
+
+        const sockets = await RoomGateway._server.in(sid).fetchSockets();
+        console.log(sockets);
+        sockets.forEach((socket) => {
+          socket.join(roomId);
+        });
+      });
+    });
+  }
 
   afterInit(server: Server) {
-    this.server = server;
-    this.chatService.server = server;
+    RoomGateway._server = server;
+  }
+
+  private addToLookup(clientId: string, userId: string) {
+    this._socketIdToUserId.set(clientId, userId);
+    if (!this._userIdToSocketId.has(userId)) {
+      this._userIdToSocketId.set(userId, []);
+    }
+    this._userIdToSocketId.get(userId).push(clientId);
+  }
+
+  private removeFromLookup(clientId: string, userId: string) {
+    this._socketIdToUserId.delete(clientId);
+    if (!this._userIdToSocketId.has(userId)) {
+      const cIds = this._userIdToSocketId.get(userId);
+      const idx = cIds.findIndex((cId) => cId == clientId);
+      if (idx < 0) {
+        return;
+      }
+      cIds.splice(idx, 1);
+    }
   }
 
   async handleConnection(client: Socket, ...args: any[]) {
@@ -49,10 +89,8 @@ export class RoomGateway
     }
 
     // Socket id <-> user id 매핑 셋
-    this._socketIdToUserId.set(client.id, user.id);
-
-    //유저 객체에 소켓 클라이언트 첨부
-    Reflect.set(user, "socket", client);
+    // this._socketToUid.set(client, user.id);
+    this.addToLookup(client.id, user.id);
 
     //이미 참가중인 방에 대해서 socket join 처리
     (await this.userService.getJoinedRoomIds(user.id)).forEach((roomId) => {
@@ -68,11 +106,13 @@ export class RoomGateway
     const user = await this.userService.findUserById(
       this._socketIdToUserId.get(client.id)
     );
+
     //기존 매핑 삭제
-    this._socketIdToUserId.delete(client.id);
-    if (!user) {
-      return;
-    }
+    this.removeFromLookup(client.id, user.id);
+
+    // if (!user) {
+    //   return;
+    // }
     //최종 포인터 기록
     //TODO 구현하기
     // user.joinedRooms.forEach((room) => {
@@ -91,7 +131,6 @@ export class RoomGateway
     } else {
       chatRequestDto = _chatRequestDto;
     }
-
     console.log(chatRequestDto);
     const user = await this.userService.findUserById(
       this._socketIdToUserId.get(client.id)
@@ -112,7 +151,6 @@ export class RoomGateway
       };
     }
 
-    this.chatService.server = this.server;
     await this.chatService.receiveChat(
       room.id,
       user.id,

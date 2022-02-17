@@ -1,4 +1,10 @@
-import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from "typeorm";
 import { Room } from "./Room";
 import { RoomEventType } from "./RoomEventType";
 
@@ -32,6 +38,7 @@ export default class RoomChat {
   roomId: string;
 
   @ManyToOne(() => Room, { onDelete: "CASCADE" })
+  @JoinColumn()
   room: Room;
 }
 

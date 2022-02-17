@@ -83,7 +83,6 @@ export class MatchController {
     await this.roomService.joinRoom(match.roomId, (request.user as User).id);
 
     const room = await this.roomService.findRoomById(match.roomId);
-
     return {
       id: room.id,
       purchaserId: room.purchaser.id,

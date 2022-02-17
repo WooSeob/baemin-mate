@@ -21,7 +21,8 @@ export default class RoomBlackList {
   @Column({ nullable: false })
   reason: RoomBlackListReason;
 
-  @Column()
+  // 회원 탈퇴해도 블랙리스트 기록은 남아야함
+  @Column({ nullable: true })
   userId: string;
 
   @ManyToOne(() => Room, (r) => r.blackList, {
@@ -29,10 +30,7 @@ export default class RoomBlackList {
   })
   room: Room;
 
-  @ManyToOne(() => User, {
-    onDelete: "CASCADE",
-  })
-  @JoinColumn()
+  @ManyToOne(() => User)
   user: User;
 
   constructor(room: Room, userId: string, reason: RoomBlackListReason) {

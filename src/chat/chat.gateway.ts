@@ -20,9 +20,7 @@ export class ChatGateway
   @WebSocketServer() public server: Server;
   private logger: Logger = new Logger("ChatGateway");
 
-  afterInit(server: Server) {
-    this.chatService.server = server;
-  }
+  afterInit(server: Server) {}
 
   handleDisconnect(client: Socket) {
     this.logger.log(`Client disconnected: ${client.id}`);

@@ -29,14 +29,7 @@ export class MatchService {
     // 룸이 새로 생성되었을 때
     // 노출 가능 상태가 되었을 때(-> prepare, -> all ready)
     roomService.on(RoomEventType.CREATE, async (room: Room) => {
-      // 매치 영속화
-      const match = new Match();
-      match.room = room;
-      const created = await this.matchRepository.save(match);
-      console.log(created);
-      this.server
-        .to(this.socketRoomStringResolver(room.category, room.section))
-        .emit(MatchNamespace.CREATE, MatchService.toMatchInfo(match));
+      await this.handleCreateEvent(room);
     });
 
     // 룸 변경
@@ -44,18 +37,17 @@ export class MatchService {
     // 유저가 입장 했을 때
     // 유저가 퇴장 했을 때
     roomService.on(RoomEventType.USER_ENTER, async (roomId, userId) => {
-      const room = await roomService.findRoomById(roomId);
-      return this.handleUpdateEvent(room);
+      return this.handleUpdateEvent(roomId);
     });
 
     roomService.on(RoomEventType.USER_LEAVE, async (roomId, userId) => {
-      const room = await roomService.findRoomById(roomId);
-      return this.handleUpdateEvent(room);
+      return this.handleUpdateEvent(roomId);
     });
 
     // 메뉴 추가 수정 삭제
-    // TODO 나중에 꼮하기 !
-    // roomService.on(RoomEventType.UPDATE, this.handleUpdateEvent);
+    roomService.on(RoomEventType.MENU_UPDATE, async (roomId: string) => {
+      await this.handleUpdateEvent(roomId);
+    });
 
     //TODO
     // roomService.on(RoomEventType.USER_KICKED, async (roomId, userId) => {
@@ -65,55 +57,47 @@ export class MatchService {
 
     // 룸 자체가 삭제 되었을 때
     // 비 노출 상태가 되었을 때 (-> orderfix )
-    roomService.on(RoomEventType.DELETED, this.handleDeleteEvent);
+    roomService.on(RoomEventType.DELETED, async (roomId) => {
+      await this.handleDeleteEvent(roomId);
+    });
     roomService.on(RoomEventType.ORDER_FIXED, async (roomId) => {
-      const room = await roomService.findRoomById(roomId);
-      // match 삭제해 주기
-      return this.handleDeleteEvent(room);
+      await this.handleDeleteEvent(roomId);
     });
   }
 
   async handleCreateEvent(room: Room) {
     // 매치 영속화
-    const match = new Match();
-    match.room = room;
-    await this.matchRepository.save(match);
-
+    const created = await this.matchRepository.save(Match.create(room));
     this.server
       .to(this.socketRoomStringResolver(room.category, room.section))
-      .emit(MatchNamespace.CREATE, MatchService.toMatchInfo(match));
+      .emit(MatchNamespace.CREATE, MatchInfo.from(created));
   }
 
-  async handleDeleteEvent(room: Room) {
-    //TODO 최적화
-    const matches = await this.matchRepository.find({ roomId: room.id });
+  async handleDeleteEvent(roomId: string) {
+    const matches = await this.matchRepository.find({ roomId: roomId });
 
     matches.forEach((match) => {
       this.server
-        .to(this.socketRoomStringResolver(room.category, room.section))
-        .emit(MatchNamespace.DELETE, MatchService.toMatchInfo(match));
+        .to(this.socketRoomStringResolver(match.category, match.section))
+        .emit(MatchNamespace.DELETE, MatchInfo.from(match));
     });
+
+    await this.matchRepository.remove(matches);
   }
 
-  async handleUpdateEvent(room: Room) {
-    const matches = await this.matchRepository.find({ roomId: room.id });
-    matches.forEach((match) => {
+  async handleUpdateEvent(roomId: string) {
+    const room = await this.roomService.findRoomById(roomId);
+
+    const matches = await this.matchRepository.find({ roomId: roomId });
+    const updatedMatches = await this.matchRepository.save(
+      matches.map((match) => match.update(room))
+    );
+
+    updatedMatches.forEach((match) => {
       this.server
-        .to(this.socketRoomStringResolver(room.category, room.section))
-        .emit(MatchNamespace.UPDATE, MatchService.toMatchInfo(match));
+        .to(this.socketRoomStringResolver(match.category, match.section))
+        .emit(MatchNamespace.UPDATE, MatchInfo.from(match));
     });
-  }
-
-  static toMatchInfo(match: Match): MatchInfo {
-    return {
-      id: match.id,
-      shopName: match.room.shopName,
-      section: match.room.section,
-      total: 1, //TODO 수정할것
-      priceAtLeast: match.room.atLeastPrice,
-      purchaserName: match.room.purchaser.name,
-      createdAt: match.room.createdAt,
-    };
   }
 
   private socketRoomStringResolver(category: string, section: string) {
@@ -128,36 +112,11 @@ export class MatchService {
       client.leave(room);
     }
 
-    const sections = subscribeMatchDto.section;
-    const categorise = subscribeMatchDto.category;
+    const matches = await this.findMatches(
+      subscribeMatchDto.section,
+      subscribeMatchDto.category
+    );
 
-    const cartesianProduct = (a, b) =>
-      a.reduce((p, x) => [...p, ...b.map((y) => [x, y])], []);
-    const options = cartesianProduct(sections, categorise);
-
-    // section  bibong, narae
-    // category korean, chicken
-
-    // product
-    // (bibong, korean) ,(bibong, chicken), (narea, korean), (narea, chicken)
-
-    const queryBuilder = await this.matchRepository
-      .createQueryBuilder("match")
-      .leftJoinAndSelect("match.room", "room")
-      .leftJoinAndSelect("room.purchaser", "purchaser")
-      .leftJoinAndSelect("room.participants", "participant");
-
-    // for (const option of options) {
-    //   const [section, category] = option;
-    //   queryBuilder.orWhere("room.section = :section", { section: section });
-    //   queryBuilder.andWhere("room.category = :category", {
-    //     category: category,
-    //   });
-    // }
-
-    const matches = await queryBuilder.getMany();
-
-    // TODO 데이터 중복 가능성?
     for (let category of subscribeMatchDto.category) {
       for (let section of subscribeMatchDto.section) {
         client.join(this.socketRoomStringResolver(category, section));
@@ -165,6 +124,27 @@ export class MatchService {
     }
 
     return matches;
+  }
+
+  async findMatches(
+    sections: SectionType[],
+    categories: CategoryType[]
+  ): Promise<Match[]> {
+    if (sections.length == 0 || categories.length == 0) {
+      return Promise.resolve([]);
+    }
+
+    const queryBuilder = await this.matchRepository.createQueryBuilder("match");
+
+    queryBuilder.where("match.section IN (:...sections)", {
+      sections: sections,
+    });
+    queryBuilder.andWhere("match.category IN (:...categories)", {
+      categories: categories,
+    });
+    queryBuilder.andWhere("match.roomId IS NOT NULL");
+
+    return queryBuilder.getMany();
   }
 
   findMatchById(id: string): Promise<Match> {

@@ -1,7 +1,7 @@
 export enum RoomEventType {
   CREATE = "create",
   DELETED = "delete",
-  UPDATE = "update",
+  MENU_UPDATE = "menuUpdate",
   USER_ENTER = "userJoin",
   USER_LEAVE = "userLeave",
   USER_KICKED = "userKicked",

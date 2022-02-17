@@ -11,12 +11,12 @@ import { RoomState } from "./RoomState";
 import { User } from "../user/entity/user.entity";
 import { CategoryType } from "../match/interfaces/category.interface";
 import { SectionType } from "../user/interfaces/user";
-import { Match } from "./Match";
 import { Participant, ParticipantBuilder } from "./Participant";
 import { ImageFile } from "./ImageFile";
 import { CreateRoomDto } from "../room/dto/request/create-room.dto";
 import { NotFoundException } from "@nestjs/common";
 import RoomBlackList, { RoomBlackListReason } from "./RoomBlackList";
+import AlreadyJoinedError from "../common/AlreadyJoinedError";
 
 export enum RoomRole {
   PURCHASER = "purchaser",
@@ -70,10 +70,6 @@ export class Room {
   })
   atLeastPrice: number;
 
-  /**
-   * runtime 중 생기는 정보들
-   * */
-
   @Column({
     nullable: false,
     default: RoomState.PREPARE,
@@ -87,12 +83,6 @@ export class Room {
     transformer: [bigint],
   })
   createdAt: number;
-
-  @OneToMany(() => Match, (match) => match.room, {
-    cascade: true,
-    lazy: true,
-  })
-  matches: Promise<Match[]>;
 
   //TODO 유저가 탈퇴해버리면?
   @OneToMany(() => Participant, (participant) => participant.room, {
@@ -148,16 +138,19 @@ export class Room {
   }
 
   private isAllReady(): boolean {
-    return this.participants
-      .filter((participant) => {
-        return this.purchaserId != participant.userId;
-      })
-      .map((participant) => {
-        return participant.isReady;
-      })
-      .reduce((prev, current) => {
-        return prev && current;
-      }, true);
+    return (
+      this.participants.length > 1 &&
+      this.participants
+        .filter((participant) => {
+          return this.purchaserId != participant.userId;
+        })
+        .map((participant) => {
+          return participant.isReady;
+        })
+        .reduce((prev, current) => {
+          return prev && current;
+        }, true)
+    );
   }
 
   updateAllReadyState() {
@@ -289,11 +282,16 @@ export class Room {
     // 방장만 수행 가능한 액션
     // 대상 유저가 참여자
     // order-fix 이전만 수행 가능
-    this.onlyAt(RoomState.PREPARE, RoomState.ALL_READY);
-
     const idx = this.participants.findIndex((p) => p.userId === targetUserId);
     if (idx < 0) {
-      throw Error("해당 유저가 없습니다.");
+      throw new Error("해당 유저가 없습니다.");
+    }
+
+    if (reason == RoomBlackListReason.KICKED_BY_PURCHASER) {
+      this.onlyAt(RoomState.PREPARE, RoomState.ALL_READY);
+      if (targetUserId === this.purchaserId) {
+        throw new Error("방장은 강퇴할 수 없습니다.");
+      }
     }
 
     //블랙리스트 추가
@@ -324,7 +322,7 @@ export class Room {
       throw new Error("강제퇴장 당한 이용자 입니다.");
     }
 
-    if (this.getParticipant(user.id)) {
+    if (this.participants.findIndex((p) => p.userId === user.id) > -1) {
       throw new Error("이미 입장한 방입니다.");
     }
 
@@ -340,6 +338,7 @@ export class Room {
         .build()
     );
 
+    console.log(this);
     this.updateAllReadyState();
   }
 
@@ -366,7 +365,11 @@ export class Room {
     //사용자가 참여한 방에 준비완료한 방이 있으면 안됨(OrderDone 제외)
     //기존 참여 방중 방장으로서 활성 상태(order done 이하)인 방도 있으면 안됨.
     for (const participation of user.rooms) {
-      participation.room.onlyAt(RoomState.ORDER_DONE);
+      try {
+        participation.room.onlyAt(RoomState.ORDER_DONE);
+      } catch (e) {
+        throw new AlreadyJoinedError("이미 참여중인 방이 있습니다.");
+      }
     }
 
     const room = new Room();

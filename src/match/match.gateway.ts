@@ -117,7 +117,7 @@ export class MatchGateway
     return {
       status: 200,
       data: matches.map((match): MatchInfo => {
-        return MatchService.toMatchInfo(match);
+        return MatchInfo.from(match);
       }),
     };
   }

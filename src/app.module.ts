@@ -5,7 +5,7 @@ import { AuthModule } from "./auth/auth.module";
 import { RoomModule } from "./room/room.module";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { UserModule } from "./user/user.module";
-import { db as DbConfig } from "../config";
+import { db } from "../config";
 
 @Module({
   imports: [
@@ -14,7 +14,7 @@ import { db as DbConfig } from "../config";
     AuthModule,
     MatchModule,
     ChatModule,
-    TypeOrmModule.forRoot(DbConfig),
+    TypeOrmModule.forRoot(db),
   ],
   controllers: [],
   providers: [],

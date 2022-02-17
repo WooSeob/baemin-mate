@@ -10,9 +10,7 @@ import {
   Param,
   Post,
   Query,
-  Render,
   Req,
-  Res,
   Response,
   StreamableFile,
   UploadedFile,
@@ -23,8 +21,6 @@ import {
 import { AuthService } from "../auth/auth.service";
 import { RoomService } from "./room.service";
 import RoomUserView from "./dto/response/user-view.dto";
-import CreateVoteDto from "./dto/request/create-vote-dto";
-import DoVoteDto from "./dto/request/do-vote.dto";
 import { UserService } from "../user/user.service";
 import RoomView from "./dto/response/room-view.dto";
 import { NaverAuthGuard } from "../auth/guards/naver-auth.guard";
@@ -37,21 +33,17 @@ import {
 } from "@nestjs/swagger";
 import { CreateRoomDto } from "./dto/request/create-room.dto";
 import { User } from "../user/entity/user.entity";
-import { CheckOrderDto } from "./dto/request/check-order.dto";
-import MenusResponseDto, { UserMenus } from "./dto/response/menus.response.dto";
+import { UserMenus } from "./dto/response/menus.response.dto";
 import CreateRoomResponse from "./dto/response/create-room.response";
-import { CATEGORY } from "src/match/interfaces/category.interface";
-import { SECTION } from "src/user/interfaces/user";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { createReadStream, writeFile } from "fs";
+import { createReadStream } from "fs";
 import { join } from "path";
 import OrderReceiptResonse from "./dto/response/order-receipt.response";
-import OrderReceiptResponse from "./dto/response/order-receipt.response";
 import RoomStateResponse from "./dto/response/room-state.response";
 import { ChatBody, Message, SystemBody } from "./dto/response/message.response";
 import RoomUser from "./dto/response/user.response";
-import { ApiImplicitFile } from "@nestjs/swagger/dist/decorators/api-implicit-file.decorator";
 import { ChatService } from "../chat/chat.service";
+import { RoomBlackListReason } from "../entities/RoomBlackList";
 
 @Controller("room")
 export class RoomController {
@@ -216,7 +208,11 @@ export class RoomController {
       throw new HttpException("target user not found", HttpStatus.NOT_FOUND);
     }
 
-    return this.roomService.kick(rid, (request.user as User).id, uid);
+    return this.roomService.kick(
+      rid,
+      uid,
+      RoomBlackListReason.KICKED_BY_PURCHASER
+    );
   }
 
   // /**
@@ -270,15 +266,6 @@ export class RoomController {
         menus: p.menus,
       };
     });
-
-    // const menuMap = this.roomService.getMenus(room);
-    //
-    // return Array.from(menuMap.entries()).map((e) => {
-    //   return {
-    //     user: RoomUserView.from(e[0]),
-    //     menus: e[1],
-    //   };
-    // });
   }
 
   @UseGuards(NaverAuthGuard)
@@ -294,15 +281,10 @@ export class RoomController {
     type: String,
   })
   @Post("/:rid/vote-kick")
-  async createkickVote(
+  async createKickVote(
     @Param("rid") rid: string,
     @Query("targetId") targetId: string
   ): Promise<string> {
-    const room = await this.roomService.findRoomById(rid);
-    if (!room) {
-      throw new HttpException("room not found", HttpStatus.NOT_FOUND);
-    }
-
     //투표 제기자가 방 참여인원인지?
     //방의 상태가 투표를 시행할 수 있는 상태인지?
     //현재 진행중인 투표가 있는지?
@@ -316,15 +298,8 @@ export class RoomController {
 
     // this._roleParticipant(targetUser, room);
 
-    try {
-      let vote = await this.roomService.createKickVote(room, targetId);
-      return vote.id;
-    } catch (e) {
-      throw new HttpException(
-        `vote is unavailable now`,
-        HttpStatus.BAD_REQUEST
-      );
-    }
+    let vote = await this.roomService.createKickVote(rid, targetId);
+    return vote.id;
   }
 
   @UseGuards(NaverAuthGuard)
@@ -337,23 +312,12 @@ export class RoomController {
   })
   @Post("/:rid/vote-reset")
   async createResetVote(@Param("rid") rid: string): Promise<string> {
-    const room = await this.roomService.findRoomById(rid);
-    if (!room) {
-      throw new HttpException("room not found", HttpStatus.NOT_FOUND);
-    }
-
     //투표 제기자가 방 참여인원인지?
     //방의 상태가 투표를 시행할 수 있는 상태인지?
     //현재 진행중인 투표가 있는지?
-    try {
-      let vote = await this.roomService.createResetVote(room);
-      return vote.id;
-    } catch (e) {
-      throw new HttpException(
-        `vote is unavailable now`,
-        HttpStatus.BAD_REQUEST
-      );
-    }
+
+    let vote = await this.roomService.createResetVote(rid);
+    return vote.id;
   }
 
   @UseGuards(NaverAuthGuard)

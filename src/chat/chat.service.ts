@@ -37,12 +37,10 @@ import {
   SystemMessageResponse,
 } from "../room/dto/response/chat.response";
 import RoomUserView from "../room/dto/response/user-view.dto";
-import RoomUser from "../room/dto/response/user.response";
+import { RoomGateway } from "../room/room.gateway";
 
 @Injectable()
 export class ChatService {
-  public server: Server;
-
   private _createUserEventData(
     type: RoomEventType,
     roomId: string,
@@ -111,6 +109,7 @@ export class ChatService {
         new SystemMessageBuilder()
           .setRoom(roomId)
           .setType(RoomEventType.ALL_READY)
+          .setMetadataId("empty")
           .build()
       );
       this.broadcastChat(
@@ -124,6 +123,7 @@ export class ChatService {
         new SystemMessageBuilder()
           .setRoom(roomId)
           .setType(RoomEventType.ALL_READY_CANCELED)
+          .setMetadataId("empty")
           .build()
       );
       this.broadcastChat(
@@ -141,6 +141,7 @@ export class ChatService {
         new SystemMessageBuilder()
           .setRoom(roomId)
           .setType(RoomEventType.ORDER_FIXED)
+          .setMetadataId("empty")
           .build()
       );
       this.broadcastChat(
@@ -154,6 +155,7 @@ export class ChatService {
         new SystemMessageBuilder()
           .setRoom(roomId)
           .setType(RoomEventType.ORDER_CHECKED)
+          .setMetadataId("empty")
           .build()
       );
       this.broadcastChat(
@@ -167,6 +169,7 @@ export class ChatService {
         new SystemMessageBuilder()
           .setRoom(roomId)
           .setType(RoomEventType.ORDER_DONE)
+          .setMetadataId("empty")
           .build()
       );
       this.broadcastChat(
@@ -371,11 +374,13 @@ export class ChatService {
     );
   }
 
-  private broadcastChat(
+  private async broadcastChat(
     roomId: string,
     message: Message<ChatBody | SystemBody>
   ) {
-    this.server.to(roomId).emit(RoomEventType.CHAT, {
+    console.log(roomId);
+    console.log(message);
+    RoomGateway.server.to(roomId).emit(RoomEventType.CHAT, {
       rid: roomId,
       messages: [message],
     });

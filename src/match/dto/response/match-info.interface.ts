@@ -1,4 +1,6 @@
-export default interface MatchInfo {
+import { Match } from "../../../entities/Match";
+
+export default class MatchInfo {
   id: string;
   shopName: string;
   section: string;
@@ -6,12 +8,16 @@ export default interface MatchInfo {
   priceAtLeast: number;
   purchaserName: string;
   createdAt: number;
-}
 
-// export default interface MatchInfo {
-//   id: string;
-//   shopName: string;
-//   section: string;
-//   total: number;
-//   tip: number;
-// }
+  static from(match: Match): MatchInfo {
+    const res = new MatchInfo();
+    res.id = match.id;
+    res.shopName = match.shopName;
+    res.section = match.section;
+    res.total = match.totalPrice;
+    res.priceAtLeast = match.atLeastPrice;
+    res.purchaserName = match.purchaserName;
+    res.createdAt = match.createdAt;
+    return res;
+  }
+}

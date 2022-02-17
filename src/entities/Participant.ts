@@ -50,6 +50,9 @@ export class Participant {
   menus!: Menu[];
 
   getTotalPrice() {
+    if (!this.menus) {
+      return 0;
+    }
     return this.menus
       .map((menu) => menu.getPriceSum())
       .reduce((prev, current) => prev + current, 0);

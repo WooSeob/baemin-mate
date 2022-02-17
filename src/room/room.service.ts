@@ -16,8 +16,6 @@ import RoomVote, { RoomVoteType } from "../entities/RoomVote";
 import KickVoteFactory from "../entities/Vote/KickVote/KickVoteFactory";
 import ResetVoteFactory from "../entities/Vote/ResetVote/ResetVoteFactory";
 import { RoomEventType } from "../entities/RoomEventType";
-import { StrictEventEmitter } from "socket.io-client/build/typed-events";
-import RoomEvents from "../common/RoomEvents";
 import { EventEmitter } from "stream";
 
 //StrictEventEmitter<RoomEvents, RoomEvents>
@@ -46,8 +44,8 @@ export class RoomService extends EventEmitter {
     // return room.users.has(user);
   }
 
-  async findRoomById(id: string): Promise<Room> {
-    return await this.roomRepository
+  findRoomById(id: string): Promise<Room> {
+    return this.roomRepository
       .createQueryBuilder("room")
       .leftJoinAndSelect("room.purchaser", "purchaser")
       .leftJoinAndSelect("room.participants", "participants")
@@ -64,12 +62,35 @@ export class RoomService extends EventEmitter {
   getParticipants(room: Room): Promise<Participant[]> {
     return this.participantRepository.find({ where: { room: room } });
   }
+  // create
+  // join
+  // leave
+  // kick
+  // kick
 
+  private checkAllReadyOrCanceled(
+    prevState: RoomState,
+    currentState: RoomState,
+    roomId: string
+  ) {
+    if (prevState == RoomState.ALL_READY) {
+      if (currentState == RoomState.PREPARE) {
+        this.emit(RoomEventType.ALL_READY_CANCELED, roomId);
+      }
+    } else if (prevState == RoomState.PREPARE) {
+      if (currentState == RoomState.ALL_READY) {
+        this.emit(RoomEventType.ALL_READY, roomId);
+      }
+    }
+  }
+  private forwardEvent() {}
   // RoomService
   async joinRoom(roomId: string, userId: string) {
+    await this.aFewMinutesLater(100);
+
     const queryRunner = this.connection.createQueryRunner();
     await queryRunner.connect();
-    await queryRunner.startTransaction();
+    await queryRunner.startTransaction("SERIALIZABLE");
 
     try {
       const room = await queryRunner.manager.findOne<Room>(Room, roomId);
@@ -80,16 +101,19 @@ export class RoomService extends EventEmitter {
         .where("user.id = :id", { id: userId })
         .getOne();
 
+      const prevState = room.phase;
       room.join(userWithRooms);
 
-      this.emit(RoomEventType.USER_ENTER, roomId, userWithRooms.id);
-
-      // TODO 소켓 join 처리
       const created = await queryRunner.manager.save(room);
       await queryRunner.commitTransaction();
+
+      this.emit(RoomEventType.USER_ENTER, roomId, userWithRooms.id);
+      this.checkAllReadyOrCanceled(prevState, room.phase, roomId);
+
       return created;
     } catch (err) {
       await queryRunner.rollbackTransaction();
+      console.log(err);
       throw err;
     } finally {
       await queryRunner.release();
@@ -117,10 +141,10 @@ export class RoomService extends EventEmitter {
         Room.create(userWithJoinedRooms, createRoomDto)
       );
 
-      this.emit(RoomEventType.CREATE, created);
-
-      // TODO 소켓 join 처리
       await queryRunner.commitTransaction();
+
+      this.emit(RoomEventType.CREATE, created);
+      this.emit(RoomEventType.USER_ENTER, created.id, userId);
     } catch (err) {
       await queryRunner.rollbackTransaction();
       throw err;
@@ -140,6 +164,7 @@ export class RoomService extends EventEmitter {
 
     try {
       const room = await queryRunner.manager.findOne<Room>(Room, roomId);
+      const prevState = room.phase;
 
       const toRemove: Participant = room.leave(userId);
 
@@ -157,6 +182,9 @@ export class RoomService extends EventEmitter {
         await queryRunner.manager.save(room);
       }
       await queryRunner.commitTransaction();
+
+      this.checkAllReadyOrCanceled(prevState, room.phase, roomId);
+      return room;
     } catch (err) {
       await queryRunner.rollbackTransaction();
       throw err;
@@ -169,11 +197,11 @@ export class RoomService extends EventEmitter {
     return this.roomRepository.findOne(id);
   }
 
-  private aFewMinutesLater() {
+  private aFewMinutesLater(m) {
     return new Promise((res, rej) => {
       setTimeout(() => {
         res(1);
-      }, 300);
+      }, m);
     });
   }
 
@@ -181,16 +209,20 @@ export class RoomService extends EventEmitter {
   async fixOrder(roomId: string, userId: string) {
     const queryRunner = this.connection.createQueryRunner();
     await queryRunner.connect();
-    await queryRunner.startTransaction();
+    await queryRunner.startTransaction("SERIALIZABLE");
 
     try {
       const room = await queryRunner.manager.findOne<Room>(Room, roomId);
       room.changePhase(RoomState.ORDER_FIX);
-      this.emit(RoomEventType.ORDER_FIXED, roomId);
 
       await queryRunner.manager.save(room);
+      await queryRunner.commitTransaction();
+
+      this.emit(RoomEventType.ORDER_FIXED, roomId);
     } catch (err) {
       await queryRunner.rollbackTransaction();
+      console.log(err);
+      throw err;
     } finally {
       await queryRunner.release();
     }
@@ -213,9 +245,10 @@ export class RoomService extends EventEmitter {
       const room = await queryRunner.manager.findOne<Room>(Room, roomId);
       await room.checkOrder(checkOrderDto.tip);
 
-      this.emit(RoomEventType.ORDER_CHECKED, roomId);
-
       await queryRunner.manager.save(room);
+      await queryRunner.commitTransaction();
+
+      this.emit(RoomEventType.ORDER_CHECKED, roomId);
     } catch (err) {
       await queryRunner.rollbackTransaction();
     } finally {
@@ -231,9 +264,11 @@ export class RoomService extends EventEmitter {
     try {
       const room = await queryRunner.manager.findOne<Room>(Room, roomId);
       room.changePhase(RoomState.ORDER_DONE);
-      this.emit(RoomEventType.ORDER_DONE, roomId);
 
       await queryRunner.manager.save(room);
+      await queryRunner.commitTransaction();
+
+      this.emit(RoomEventType.ORDER_DONE, roomId);
     } catch (err) {
       await queryRunner.rollbackTransaction();
     } finally {
@@ -249,50 +284,25 @@ export class RoomService extends EventEmitter {
    * 3. 어떤 유저가 스스로 나갈 때
    * 4. 어떤 유저가 강퇴 당할 때
    * */
-  async kick(roomId: string, userId: string, targetId: string) {
+  async kick(roomId: string, targetId: string, reason: RoomBlackListReason) {
     const queryRunner = this.connection.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
       const room = await queryRunner.manager.findOne<Room>(Room, roomId);
+      const prevState = room.phase;
 
-      const targetParticipant = room.kickUser(
-        targetId,
-        RoomBlackListReason.KICKED_BY_PURCHASER
-      );
-
-      this.emit(RoomEventType.USER_KICKED, roomId, targetParticipant.userId);
-
-      // TODO 소켓 leave 처리
+      const targetParticipant = room.kickUser(targetId, reason);
 
       await queryRunner.manager.remove(targetParticipant);
       await queryRunner.manager.save(room);
-    } catch (err) {
-      await queryRunner.rollbackTransaction();
-      throw err;
-    } finally {
-      await queryRunner.release();
-    }
-  }
+      await queryRunner.commitTransaction();
 
-  async kickUserByVote(roomId: string, targetId: string) {
-    const queryRunner = this.connection.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
+      this.emit(RoomEventType.USER_KICKED, roomId, targetParticipant.userId);
+      this.emit(RoomEventType.USER_LEAVE, roomId, targetParticipant.userId);
 
-    try {
-      const room = await queryRunner.manager.findOne<Room>(Room, roomId);
-
-      const kicked = room.kickUser(
-        targetId,
-        RoomBlackListReason.KICKED_BY_VOTE
-      );
-
-      // TODO 소켓 leave 처리
-
-      await queryRunner.manager.remove(kicked);
-      await queryRunner.manager.save(room);
+      this.checkAllReadyOrCanceled(prevState, room.phase, roomId);
     } catch (err) {
       await queryRunner.rollbackTransaction();
       throw err;
@@ -308,11 +318,13 @@ export class RoomService extends EventEmitter {
 
     try {
       const room = await queryRunner.manager.findOne<Room>(Room, roomId);
+      const prevState = room.phase;
       room.setReady(userId, readyState);
 
       await queryRunner.manager.save(room);
 
       await queryRunner.commitTransaction();
+      this.checkAllReadyOrCanceled(prevState, room.phase, roomId);
     } catch (err) {
       await queryRunner.rollbackTransaction();
       throw err;
@@ -350,10 +362,10 @@ export class RoomService extends EventEmitter {
       });
 
       participantWithRoom.addMenu(menu);
-      // this.emit(RoomEventType.UPDATE, participantWithRoom.room);
 
       await queryRunner.commitTransaction();
 
+      this.emit(RoomEventType.MENU_UPDATE, participantWithRoom.room.id);
       return menu;
     } catch (err) {
       await queryRunner.rollbackTransaction();
@@ -369,11 +381,6 @@ export class RoomService extends EventEmitter {
     menuId: string,
     updateMenuDto: UpdateMenuDto
   ) {
-    //prepare 에서만 변경 가능
-    //존재하는 메뉴여야함
-    //자신의 메뉴만 변경 가능
-    //수정 후 room의 가격 정보 반영
-
     const queryRunner = this.connection.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -395,9 +402,9 @@ export class RoomService extends EventEmitter {
 
       participantWithRoom.updateMenu(menu);
       await queryRunner.manager.save(Participant, participantWithRoom);
-      // this.emit(RoomEventType.UPDATE, participantWithRoom.room);
       await queryRunner.commitTransaction();
 
+      this.emit(RoomEventType.MENU_UPDATE, participantWithRoom.room.id);
       return menu;
     } catch (err) {
       await queryRunner.rollbackTransaction();
@@ -427,6 +434,7 @@ export class RoomService extends EventEmitter {
       await queryRunner.manager.delete(Menu, menuId);
 
       await queryRunner.commitTransaction();
+      this.emit(RoomEventType.MENU_UPDATE, participantWithRoom.room.id);
     } catch (err) {
       await queryRunner.rollbackTransaction();
       throw err;
@@ -460,7 +468,10 @@ export class RoomService extends EventEmitter {
     ).getMenuById(menuId);
   }
 
-  async createKickVote(roomId, targetUserId: string): Promise<RoomVote> {
+  async createKickVote(
+    roomId: string,
+    targetUserId: string
+  ): Promise<RoomVote> {
     const queryRunner = this.connection.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -486,7 +497,7 @@ export class RoomService extends EventEmitter {
     }
   }
 
-  async createResetVote(roomId): Promise<RoomVote> {
+  async createResetVote(roomId: string): Promise<RoomVote> {
     const queryRunner = this.connection.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -534,16 +545,18 @@ export class RoomService extends EventEmitter {
         if (voteWithRoomAndOpinions.voteType === RoomVoteType.KICK) {
           this.emit(RoomEventType.KICK_VOTE_FINISHED, voteWithRoomAndOpinions);
           if (voteWithRoomAndOpinions.result) {
-            // this.kickUserByVote(
-            //   kickVoteWithRoomAndOpinions.roomId,
-            //   kickVoteWithRoomAndOpinions.targetUserId
-            // );
+            console.log(voteWithRoomAndOpinions);
+            this.kick(
+              voteWithRoomAndOpinions.roomId,
+              voteWithRoomAndOpinions.targetUserId,
+              RoomBlackListReason.KICKED_BY_VOTE
+            );
           }
         } else if (voteWithRoomAndOpinions.voteType === RoomVoteType.RESET) {
           this.emit(RoomEventType.RESET_VOTE_FINISHED, voteWithRoomAndOpinions);
           if (voteWithRoomAndOpinions.result) {
             // 리셋 처리
-            // this.resetRoom(resetVoteWithRoomAndOpinions.roomId);
+            this.resetRoom(voteWithRoomAndOpinions.roomId);
           }
         }
       }
