@@ -110,6 +110,7 @@ export class MatchGateway
     }
 
     let matches: Match[] = await this.matchService.subscribeByCategory(
+      user,
       subscribeMatchDto,
       client
     );

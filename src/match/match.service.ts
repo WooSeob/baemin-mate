@@ -69,7 +69,13 @@ export class MatchService {
     // 매치 영속화
     const created = await this.matchRepository.save(Match.create(room));
     this.server
-      .to(this.socketRoomStringResolver(room.category, room.section))
+      .to(
+        this.socketRoomStringResolver(
+          room.targetUnivId,
+          room.category,
+          room.section
+        )
+      )
       .emit(MatchNamespace.CREATE, MatchInfo.from(created));
   }
 
@@ -78,7 +84,13 @@ export class MatchService {
 
     matches.forEach((match) => {
       this.server
-        .to(this.socketRoomStringResolver(match.category, match.section))
+        .to(
+          this.socketRoomStringResolver(
+            match.targetUnivId,
+            match.category,
+            match.section
+          )
+        )
         .emit(MatchNamespace.DELETE, MatchInfo.from(match));
     });
 
@@ -95,16 +107,27 @@ export class MatchService {
 
     updatedMatches.forEach((match) => {
       this.server
-        .to(this.socketRoomStringResolver(match.category, match.section))
+        .to(
+          this.socketRoomStringResolver(
+            match.targetUnivId,
+            match.category,
+            match.section
+          )
+        )
         .emit(MatchNamespace.UPDATE, MatchInfo.from(match));
     });
   }
 
-  private socketRoomStringResolver(category: string, section: string) {
-    return `${category} - ${section}`;
+  private socketRoomStringResolver(
+    univ: number,
+    category: string,
+    section: string
+  ) {
+    return `${univ} - ${section} - ${category}`;
   }
 
   async subscribeByCategory(
+    user: User,
     subscribeMatchDto: SubscribeMatchDto,
     client: Socket
   ) {
@@ -112,14 +135,18 @@ export class MatchService {
       client.leave(room);
     }
 
+    console.log(user);
     const matches = await this.findMatches(
+      user.universityId,
       subscribeMatchDto.section,
       subscribeMatchDto.category
     );
 
     for (let category of subscribeMatchDto.category) {
       for (let section of subscribeMatchDto.section) {
-        client.join(this.socketRoomStringResolver(category, section));
+        client.join(
+          this.socketRoomStringResolver(user.universityId, category, section)
+        );
       }
     }
 
@@ -127,6 +154,7 @@ export class MatchService {
   }
 
   async findMatches(
+    univId: number,
     sections: SectionType[],
     categories: CategoryType[]
   ): Promise<Match[]> {
@@ -136,7 +164,8 @@ export class MatchService {
 
     const queryBuilder = await this.matchRepository.createQueryBuilder("match");
 
-    queryBuilder.where("match.section IN (:...sections)", {
+    queryBuilder.where("match.targetUnivId = :id", { id: univId });
+    queryBuilder.andWhere("match.section IN (:...sections)", {
       sections: sections,
     });
     queryBuilder.andWhere("match.category IN (:...categories)", {

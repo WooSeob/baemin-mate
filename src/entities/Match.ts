@@ -59,6 +59,9 @@ export class Match {
   })
   createdAt: number;
 
+  @Column({ nullable: false })
+  targetUnivId: number;
+
   @Column({ nullable: true })
   roomId: string;
 
@@ -76,6 +79,7 @@ export class Match {
     this.section = room.section;
     this.atLeastPrice = room.atLeastPrice;
     this.totalPrice = room.getTotalPrice();
+    this.targetUnivId = room.targetUnivId;
     this.room = room;
     return this;
   }

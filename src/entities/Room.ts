@@ -17,6 +17,7 @@ import { CreateRoomDto } from "../room/dto/request/create-room.dto";
 import { NotFoundException } from "@nestjs/common";
 import RoomBlackList, { RoomBlackListReason } from "./RoomBlackList";
 import AlreadyJoinedError from "../common/AlreadyJoinedError";
+import University from "../university/entity/University";
 
 export enum RoomRole {
   PURCHASER = "purchaser",
@@ -83,6 +84,13 @@ export class Room {
     transformer: [bigint],
   })
   createdAt: number;
+
+  @Column()
+  targetUnivId: number;
+
+  @ManyToOne(() => University)
+  @JoinColumn()
+  targetUniv: University;
 
   //TODO 유저가 탈퇴해버리면?
   @OneToMany(() => Participant, (participant) => participant.room, {
@@ -329,6 +337,11 @@ export class Room {
     // 유저 기준 조건
     Room.validateJoin(user);
 
+    // 같은 대학의 방에만 참가 가능
+    if (this.targetUnivId !== user.universityId) {
+      throw new Error("다른 대학의 방에는 참여할 수 없습니다.");
+    }
+
     // 참가자 추가
     this.participants.push(
       new ParticipantBuilder()
@@ -379,6 +392,7 @@ export class Room {
     room.section = dto.section;
     room.linkFor3rdApp = dto.shopLink;
     room.atLeastPrice = dto.deliveryPriceAtLeast;
+    room.targetUnivId = user.universityId;
     room.participants = [
       new ParticipantBuilder()
         .setRoom(room)

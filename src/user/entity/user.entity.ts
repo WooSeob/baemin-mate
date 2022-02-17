@@ -1,7 +1,13 @@
-import { Column, Entity, OneToMany, PrimaryColumn } from "typeorm";
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  PrimaryColumn,
+} from "typeorm";
 import { Participant } from "../../entities/Participant";
-import { Room, RoomRole } from "../../entities/Room";
-import { RoomState } from "../../entities/RoomState";
+import University from "../../university/entity/University";
 
 @Entity()
 export class User {
@@ -39,12 +45,15 @@ export class User {
   })
   mannerRate: number;
 
+  @Column()
+  universityId: number;
+
   @OneToMany(() => Participant, (p) => p.user)
   rooms: Participant[];
 
-  //TODO DB 칼럼 추가!!!
-  // private _joinRoom: Room;
-  // private _joinedRooms: Room[] = [];
+  @ManyToOne(() => University, { onDelete: "NO ACTION" })
+  @JoinColumn()
+  university: University;
 }
 
 export class UserBuilder {
