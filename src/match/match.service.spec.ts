@@ -5,8 +5,8 @@ import { CategoryType } from "./interfaces/category.interface";
 import { User } from "../user/entity/user.entity";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { db_test } from "../../config";
-import { Room } from "../entities/Room";
-import { Match } from "../entities/Match";
+import { Room } from "../room/entity/Room";
+import { Match } from "./entity/Match";
 import { CreateRoomDto } from "../room/dto/request/create-room.dto";
 
 const sections = [

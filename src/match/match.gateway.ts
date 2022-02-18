@@ -15,7 +15,7 @@ import { AuthService } from "src/auth/auth.service";
 import MatchInfo from "./dto/response/match-info.interface";
 import { UserService } from "../user/user.service";
 import { User } from "src/user/entity/user.entity";
-import { Match } from "../entities/Match";
+import { Match } from "./entity/Match";
 
 const metadata = {
   namespace: "/match",

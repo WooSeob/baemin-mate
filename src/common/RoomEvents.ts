@@ -1,6 +1,6 @@
-import { Room } from "../entities/Room";
+import { Room } from "../room/entity/Room";
 import { User } from "../user/entity/user.entity";
-import RoomVote from "../entities/RoomVote";
+import RoomVote from "../room/entity/RoomVote";
 
 export default interface RoomEvents {
   create: (room: Room) => void;

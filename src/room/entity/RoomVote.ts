@@ -7,7 +7,7 @@ import {
 } from "typeorm";
 import { Room } from "./Room";
 import VoteOpinion from "./VoteOpinion";
-import { User } from "../user/entity/user.entity";
+import { User } from "../../user/entity/user.entity";
 import VoteStrategyFactory from "./Vote/VoteStrategyFactory";
 
 export enum RoomVoteType {

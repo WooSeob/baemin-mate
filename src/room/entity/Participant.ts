@@ -5,10 +5,10 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from "typeorm";
-import { User } from "../user/entity/user.entity";
+import { User } from "../../user/entity/user.entity";
 import { Menu } from "./Menu";
 import { Room, RoomRole } from "./Room";
-import { RoomState } from "./RoomState";
+import { RoomState } from "../const/RoomState";
 
 @Entity()
 export class Participant {

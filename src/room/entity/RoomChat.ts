@@ -6,7 +6,7 @@ import {
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { Room } from "./Room";
-import { RoomEventType } from "./RoomEventType";
+import { RoomEventType } from "../const/RoomEventType";
 
 @Entity()
 export default class RoomChat {

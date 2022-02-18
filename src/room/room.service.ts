@@ -1,21 +1,21 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { CreateRoomDto } from "./dto/request/create-room.dto";
 import { CheckOrderDto } from "./dto/request/check-order.dto";
-import { RoomState } from "../entities/RoomState";
+import { RoomState } from "./const/RoomState";
 import { User } from "../user/entity/user.entity";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Connection, QueryRunner, Repository } from "typeorm";
-import { Room } from "../entities/Room";
-import { Participant } from "../entities/Participant";
-import { Menu } from "../entities/Menu";
+import { Room } from "./entity/Room";
+import { Participant } from "./entity/Participant";
+import { Menu } from "./entity/Menu";
 import { AddMenuDto } from "../user/dto/request/add-menu.dto";
 import { UpdateMenuDto } from "../user/dto/request/update-menu.dto";
 
-import { RoomBlackListReason } from "../entities/RoomBlackList";
-import RoomVote, { RoomVoteType } from "../entities/RoomVote";
-import KickVoteFactory from "../entities/Vote/KickVote/KickVoteFactory";
-import ResetVoteFactory from "../entities/Vote/ResetVote/ResetVoteFactory";
-import { RoomEventType } from "../entities/RoomEventType";
+import { RoomBlackListReason } from "./entity/RoomBlackList";
+import RoomVote, { RoomVoteType } from "./entity/RoomVote";
+import KickVoteFactory from "./entity/Vote/KickVote/KickVoteFactory";
+import ResetVoteFactory from "./entity/Vote/ResetVote/ResetVoteFactory";
+import { RoomEventType } from "./const/RoomEventType";
 import { EventEmitter } from "stream";
 
 //StrictEventEmitter<RoomEvents, RoomEvents>

@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import RoomUserView from "../../../room/dto/response/user-view.dto";
-import { Match } from "../../../entities/Match";
+import { Match } from "../../entity/Match";
 
 export default class MatchDetailResponseDto {
   @ApiProperty({ description: "room id" })

@@ -16,7 +16,7 @@ import MatchDetailResponseDto from "./dto/response/detail.response.dto";
 import RoomDetailForUser from "../user/dto/response/room";
 import { SECTION } from "../user/interfaces/user";
 import { RoomService } from "../room/room.service";
-import { RoomRole } from "../entities/Room";
+import { RoomRole } from "../room/entity/Room";
 import { SessionAuthGuard } from "../auth/guards/SessionAuthGuard";
 
 @Controller("match")

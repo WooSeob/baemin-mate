@@ -7,10 +7,10 @@ import {
   PrimaryGeneratedColumn,
   ValueTransformer,
 } from "typeorm";
-import { Room } from "./Room";
-import { SectionType } from "../user/interfaces/user";
-import { CategoryType } from "../match/interfaces/category.interface";
-import { BigIntTransformer } from "../common/BigIntTransformer";
+import { Room } from "../../room/entity/Room";
+import { SectionType } from "../../user/interfaces/user";
+import { CategoryType } from "../interfaces/category.interface";
+import { BigIntTransformer } from "../../common/BigIntTransformer";
 
 @Entity("match_entity")
 export class Match {

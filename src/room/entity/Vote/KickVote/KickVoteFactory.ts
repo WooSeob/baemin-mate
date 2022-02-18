@@ -1,5 +1,5 @@
 import { Room } from "../../Room";
-import { RoomState } from "../../RoomState";
+import { RoomState } from "../../../const/RoomState";
 import VoteOpinion from "../../VoteOpinion";
 import RoomVote, { RoomVoteType } from "../../RoomVote";
 

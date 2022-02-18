@@ -1,4 +1,4 @@
-import { RoomState } from "src/entities/RoomState";
+import { RoomState } from "src/room/const/RoomState";
 import { ApiProperty } from "@nestjs/swagger";
 
 export default class RoomDetailForUser {

@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { RoomState } from "../../../entities/RoomState";
+import { RoomState } from "../../const/RoomState";
 
 export default class RoomStateResponse {
   @ApiProperty({ description: "방 진행 상태" })

@@ -1,6 +1,6 @@
 import RoomUserView from "./user-view.dto";
 import { SystemBody } from "./message.response";
-import RoomVote from "../../../entities/RoomVote";
+import RoomVote from "../../entity/RoomVote";
 
 export class KickVoteCreatedResponse implements SystemBody {
   readonly action = "vote-kick-created";

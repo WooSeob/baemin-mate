@@ -7,18 +7,18 @@ import {
   PrimaryGeneratedColumn,
   ValueTransformer,
 } from "typeorm";
-import { RoomState } from "./RoomState";
-import { User } from "../user/entity/user.entity";
-import { CategoryType } from "../match/interfaces/category.interface";
-import { SectionType } from "../user/interfaces/user";
+import { RoomState } from "../const/RoomState";
+import { User } from "../../user/entity/user.entity";
+import { CategoryType } from "../../match/interfaces/category.interface";
+import { SectionType } from "../../user/interfaces/user";
 import { Participant, ParticipantBuilder } from "./Participant";
 import { ImageFile } from "./ImageFile";
-import { CreateRoomDto } from "../room/dto/request/create-room.dto";
+import { CreateRoomDto } from "../dto/request/create-room.dto";
 import { NotFoundException } from "@nestjs/common";
 import RoomBlackList, { RoomBlackListReason } from "./RoomBlackList";
-import AlreadyJoinedError from "../common/AlreadyJoinedError";
-import University from "../university/entity/University";
-import { BigIntTransformer } from "../common/BigIntTransformer";
+import AlreadyJoinedError from "../../common/AlreadyJoinedError";
+import University from "../../university/entity/University";
+import { BigIntTransformer } from "../../common/BigIntTransformer";
 
 export enum RoomRole {
   PURCHASER = "purchaser",

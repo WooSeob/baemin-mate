@@ -1,17 +1,17 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { RoomService } from "./room.service";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { Room } from "../entities/Room";
+import { Room } from "./entity/Room";
 
 import { CreateRoomDto } from "./dto/request/create-room.dto";
 import { User } from "../user/entity/user.entity";
-import { Participant } from "../entities/Participant";
-import { Menu } from "../entities/Menu";
+import { Participant } from "./entity/Participant";
+import { Menu } from "./entity/Menu";
 import { AddMenuDto } from "../user/dto/request/add-menu.dto";
-import { RoomState } from "../entities/RoomState";
+import { RoomState } from "./const/RoomState";
 import { db_test } from "../../config";
-import { RoomBlackListReason } from "../entities/RoomBlackList";
-import { RoomEventType } from "../entities/RoomEventType";
+import { RoomBlackListReason } from "./entity/RoomBlackList";
+import { RoomEventType } from "./const/RoomEventType";
 import AlreadyJoinedError from "../common/AlreadyJoinedError";
 
 describe("생성 테스트", () => {

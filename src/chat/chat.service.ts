@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { Server } from "socket.io";
 import { RoomService } from "../room/room.service";
-import { RoomEventType } from "../entities/RoomEventType";
+import { RoomEventType } from "../room/const/RoomEventType";
 import { Repository } from "typeorm";
 
 import {
@@ -18,7 +18,7 @@ import {
 import RoomChat, {
   ChatMessageBuilder,
   SystemMessageBuilder,
-} from "../entities/RoomChat";
+} from "../room/entity/RoomChat";
 import { InjectRepository } from "@nestjs/typeorm";
 import { UserService } from "../user/user.service";
 import {

@@ -15,7 +15,7 @@ import None from "src/common/interfaces/none.interface";
 import { Logger } from "@nestjs/common";
 import { UserService } from "../user/user.service";
 import { ChatService } from "../chat/chat.service";
-import { RoomEventType } from "../entities/RoomEventType";
+import { RoomEventType } from "./const/RoomEventType";
 
 @WebSocketGateway({ namespace: "/room", cors: { origin: "*" } })
 export class RoomGateway

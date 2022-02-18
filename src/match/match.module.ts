@@ -6,7 +6,7 @@ import { MatchController } from "./match.controller";
 import { UserModule } from "../user/user.module";
 import { RoomModule } from "../room/room.module";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { Match } from "../entities/Match";
+import { Match } from "./entity/Match";
 
 @Module({
   imports: [

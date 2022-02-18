@@ -43,7 +43,7 @@ import RoomStateResponse from "./dto/response/room-state.response";
 import { ChatBody, Message, SystemBody } from "./dto/response/message.response";
 import RoomUser from "./dto/response/user.response";
 import { ChatService } from "../chat/chat.service";
-import { RoomBlackListReason } from "../entities/RoomBlackList";
+import { RoomBlackListReason } from "./entity/RoomBlackList";
 import { SessionAuthGuard } from "../auth/guards/SessionAuthGuard";
 
 @Controller("room")

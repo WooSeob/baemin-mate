@@ -1,4 +1,4 @@
-import { RoomState } from "../../RoomState";
+import { RoomState } from "../../../const/RoomState";
 import { NotFoundException } from "@nestjs/common";
 import RoomVote from "../../RoomVote";
 import VoteStrategy from "../VoteStrategy";

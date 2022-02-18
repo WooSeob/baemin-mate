@@ -6,7 +6,7 @@ import {
   OneToMany,
   PrimaryColumn,
 } from "typeorm";
-import { Participant } from "../../entities/Participant";
+import { Participant } from "../../room/entity/Participant";
 import University from "../../university/entity/University";
 
 @Entity()

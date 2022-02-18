@@ -24,7 +24,7 @@ import RoomDetailForUser from "./dto/response/room";
 import OrderReceiptResonse from "../room/dto/response/order-receipt.response";
 import RoomUserView from "../room/dto/response/user-view.dto";
 import { MenuItem } from "../match/interfaces/shop.interface";
-import { Room } from "../entities/Room";
+import { Room } from "../room/entity/Room";
 import { SessionAuthGuard } from "../auth/guards/SessionAuthGuard";
 
 // 로그인이 안되어 있으면 exception

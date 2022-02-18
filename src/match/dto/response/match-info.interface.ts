@@ -1,4 +1,4 @@
-import { Match } from "../../../entities/Match";
+import { Match } from "../../entity/Match";
 
 export default class MatchInfo {
   id: string;

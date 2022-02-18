@@ -5,10 +5,10 @@ import { RoomService } from "./room.service";
 import { RoomController } from "./room.controller";
 import { UserModule } from "../user/user.module";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { Room } from "../entities/Room";
-import { Participant } from "../entities/Participant";
+import { Room } from "./entity/Room";
+import { Participant } from "./entity/Participant";
 import { ChatModule } from "../chat/chat.module";
-import { Menu } from "../entities/Menu";
+import { Menu } from "./entity/Menu";
 
 @Module({
   imports: [

@@ -1,5 +1,5 @@
 import { ChatBody, Message, SystemBody } from "./message.response";
-import RoomChat from "../../../entities/RoomChat";
+import RoomChat from "../../entity/RoomChat";
 
 export class SystemMessageResponse implements Message<SystemBody> {
   at: string;

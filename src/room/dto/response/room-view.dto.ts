@@ -1,6 +1,6 @@
 import RoomUserView from "./user-view.dto";
 import { ApiProperty } from "@nestjs/swagger";
-import { Room } from "../../../entities/Room";
+import { Room } from "../../entity/Room";
 
 export default class RoomView {
   @ApiProperty({ description: "room id" })
