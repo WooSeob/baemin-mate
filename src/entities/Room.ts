@@ -18,16 +18,12 @@ import { NotFoundException } from "@nestjs/common";
 import RoomBlackList, { RoomBlackListReason } from "./RoomBlackList";
 import AlreadyJoinedError from "../common/AlreadyJoinedError";
 import University from "../university/entity/University";
+import { BigIntTransformer } from "../common/BigIntTransformer";
 
 export enum RoomRole {
   PURCHASER = "purchaser",
   MEMBER = "member",
 }
-
-export const bigint: ValueTransformer = {
-  to: (entityValue: number) => entityValue,
-  from: (databaseValue: string): number => parseInt(databaseValue, 10),
-};
 
 @Entity()
 export class Room {
@@ -81,7 +77,7 @@ export class Room {
     nullable: false,
     type: "bigint",
     default: Date.now(),
-    transformer: [bigint],
+    transformer: [BigIntTransformer],
   })
   createdAt: number;
 

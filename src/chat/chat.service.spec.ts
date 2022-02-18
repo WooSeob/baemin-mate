@@ -3,7 +3,7 @@ import { ChatService } from "./chat.service";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { Room } from "../entities/Room";
 import { User } from "../user/entity/user.entity";
-import { EmailAuth } from "../auth/entity/email-auth.entity";
+import { UniversityEmailAuth } from "../auth/entity/UniversityEmailAuth";
 import { Participant } from "../entities/Participant";
 import { Menu } from "../entities/Menu";
 import { Match } from "../entities/Match";

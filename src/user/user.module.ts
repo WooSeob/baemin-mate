@@ -4,9 +4,14 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { User } from "./entity/user.entity";
 import { UserController } from "./user.controller";
 import { RoomModule } from "../room/room.module";
+import { AuthModule } from "../auth/auth.module";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User]), forwardRef(() => RoomModule)],
+  imports: [
+    TypeOrmModule.forFeature([User]),
+    forwardRef(() => RoomModule),
+    forwardRef(() => AuthModule),
+  ],
   providers: [UserService],
   controllers: [UserController],
   exports: [UserService, TypeOrmModule],

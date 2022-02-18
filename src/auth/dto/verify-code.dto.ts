@@ -5,4 +5,8 @@ export class VerifyCodeDto {
   @ApiProperty()
   @IsString()
   authCode: string;
+
+  @ApiProperty()
+  @IsString()
+  oauthAccessToken: string;
 }

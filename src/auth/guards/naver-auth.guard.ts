@@ -10,13 +10,7 @@ import { Request } from "express";
 import axios, { AxiosResponse } from "axios";
 import { User } from "../../user/entity/user.entity";
 import { UserService } from "../../user/user.service";
-
-interface NaverAuthResponse {
-  id: string;
-  mobile: string;
-  mobile_e164: string;
-  name: string;
-}
+import { NaverAuthResponse } from "../interface/NaverAuthResponse";
 
 @Injectable()
 export class NaverAuthGuard implements CanActivate {
@@ -69,11 +63,11 @@ export class NaverAuthGuard implements CanActivate {
     const info: NaverAuthResponse = res.data.response;
     const found = await this.userService.findUserById(info.id);
     if (!found) {
-      return this.userService.createUserByNaver(
-        info.id,
-        info.name,
-        info.mobile_e164
-      );
+      // return this.userService.createUserByNaver(
+      //   info.id,
+      //   info.name,
+      //   info.mobile_e164
+      // );
     }
     return found;
   }

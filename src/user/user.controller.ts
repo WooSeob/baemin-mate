@@ -17,7 +17,6 @@ import {
 import { UserService } from "./user.service";
 import { AddMenuDto } from "./dto/request/add-menu.dto";
 import { UpdateMenuDto } from "./dto/request/update-menu.dto";
-import { NaverAuthGuard } from "../auth/guards/naver-auth.guard";
 import { ApiBearerAuth, ApiCreatedResponse } from "@nestjs/swagger";
 import { RoomService } from "../room/room.service";
 import { User } from "./entity/user.entity";
@@ -26,6 +25,7 @@ import OrderReceiptResonse from "../room/dto/response/order-receipt.response";
 import RoomUserView from "../room/dto/response/user-view.dto";
 import { MenuItem } from "../match/interfaces/shop.interface";
 import { Room } from "../entities/Room";
+import { SessionAuthGuard } from "../auth/guards/SessionAuthGuard";
 
 // 로그인이 안되어 있으면 exception
 
@@ -60,7 +60,7 @@ export class UserController {
   //   return { room, user };
   // }
 
-  @UseGuards(NaverAuthGuard)
+  @UseGuards(SessionAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description: "해당 유저의 해당 방에 추가한 메뉴들을 반환합니다.",
@@ -84,7 +84,7 @@ export class UserController {
   }
 
   // 유저 프로필
-  @UseGuards(NaverAuthGuard)
+  @UseGuards(SessionAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description: "해당 유저의 프로필 정보를 반환합니다.",
@@ -105,7 +105,7 @@ export class UserController {
   }
 
   //유저 참여 방 리스트
-  @UseGuards(NaverAuthGuard)
+  @UseGuards(SessionAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description: "해당 유저의 참여 방 정보를 반환합니다.",
@@ -143,7 +143,7 @@ export class UserController {
     });
   }
 
-  @UseGuards(NaverAuthGuard)
+  @UseGuards(SessionAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description: "해당 유저, 해당 방에 새 메뉴를 추가합니다.",
@@ -165,7 +165,7 @@ export class UserController {
     return (await this.roomService.addMenu(rid, uid, addMenuDto)).id;
   }
 
-  @UseGuards(NaverAuthGuard)
+  @UseGuards(SessionAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description:
@@ -185,7 +185,7 @@ export class UserController {
     return menu;
   }
 
-  @UseGuards(NaverAuthGuard)
+  @UseGuards(SessionAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description:
@@ -201,7 +201,7 @@ export class UserController {
     return this.roomService.updateMenu(rid, uid, mid, updateMenuDto);
   }
 
-  @UseGuards(NaverAuthGuard)
+  @UseGuards(SessionAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description:
@@ -216,7 +216,7 @@ export class UserController {
     return this.roomService.deleteMenu(rid, uid, mid);
   }
 
-  @UseGuards(NaverAuthGuard)
+  @UseGuards(SessionAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description:

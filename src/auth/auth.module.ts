@@ -4,16 +4,19 @@ import { AuthService } from "./auth.service";
 import { UserModule } from "../user/user.module";
 import { PassportModule } from "@nestjs/passport";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { EmailAuth } from "./entity/email-auth.entity";
+import { UniversityEmailAuth } from "./entity/UniversityEmailAuth";
+import { SessionAuthGuard } from "./guards/SessionAuthGuard";
+import { UniversityModule } from "../university/university.module";
 
 @Module({
   imports: [
     forwardRef(() => UserModule),
     PassportModule,
-    TypeOrmModule.forFeature([EmailAuth]),
+    TypeOrmModule.forFeature([UniversityEmailAuth]),
+    UniversityModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [AuthService, SessionAuthGuard],
   exports: [AuthService],
 })
 export class AuthModule {}

@@ -10,11 +10,7 @@ import {
 import { Room } from "./Room";
 import { SectionType } from "../user/interfaces/user";
 import { CategoryType } from "../match/interfaces/category.interface";
-
-export const bigint: ValueTransformer = {
-  to: (entityValue: number) => entityValue,
-  from: (databaseValue: string): number => parseInt(databaseValue, 10),
-};
+import { BigIntTransformer } from "../common/BigIntTransformer";
 
 @Entity("match_entity")
 export class Match {
@@ -55,7 +51,7 @@ export class Match {
     nullable: false,
     type: "bigint",
     default: Date.now(),
-    transformer: [bigint],
+    transformer: [BigIntTransformer],
   })
   createdAt: number;
 

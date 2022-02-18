@@ -17,12 +17,15 @@ export class UserService {
   async createUserByNaver(
     id: string,
     name: string,
-    mobile_e164: string
+    mobile_e164: string,
+    univId: number
   ): Promise<User> {
     const newUser = new User();
     newUser.id = id;
     newUser.name = name;
     newUser.phone = mobile_e164;
+    newUser.verified = true;
+    newUser.universityId = univId;
     await this.userRepository.save(newUser);
     return newUser;
   }
