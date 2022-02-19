@@ -12,6 +12,9 @@ export class ImageFile {
   @PrimaryGeneratedColumn()
   id: string;
 
+  @Column()
+  roomId: string;
+
   @ManyToOne(() => Room, (room) => room.orderCheckScreenShots)
   room: Room;
 

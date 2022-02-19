@@ -9,16 +9,20 @@ import { Room } from "./entity/Room";
 import { Participant } from "./entity/Participant";
 import { ChatModule } from "../chat/chat.module";
 import { Menu } from "./entity/Menu";
+import { S3Module } from "../infra/s3/s3.module";
+import { ImageFile } from "./entity/ImageFile";
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Room]),
     TypeOrmModule.forFeature([Participant]),
     TypeOrmModule.forFeature([Menu]),
+    TypeOrmModule.forFeature([ImageFile]),
 
     forwardRef(() => AuthModule),
     forwardRef(() => UserModule),
     forwardRef(() => ChatModule),
+    S3Module,
   ],
   providers: [RoomGateway, RoomService],
   controllers: [RoomController],

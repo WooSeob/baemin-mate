@@ -14,6 +14,7 @@ import {
   Response,
   StreamableFile,
   UploadedFile,
+  UploadedFiles,
   UseGuards,
   UseInterceptors,
   ValidationPipe,
@@ -35,9 +36,7 @@ import { CreateRoomDto } from "./dto/request/create-room.dto";
 import { User } from "../user/entity/user.entity";
 import { UserMenus } from "./dto/response/menus.response.dto";
 import CreateRoomResponse from "./dto/response/create-room.response";
-import { FileInterceptor } from "@nestjs/platform-express";
-import { createReadStream } from "fs";
-import { join } from "path";
+import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
 import OrderReceiptResonse from "./dto/response/order-receipt.response";
 import RoomStateResponse from "./dto/response/room-state.response";
 import { ChatBody, Message, SystemBody } from "./dto/response/message.response";
@@ -45,6 +44,9 @@ import RoomUser from "./dto/response/user.response";
 import { ChatService } from "../chat/chat.service";
 import { RoomBlackListReason } from "./entity/RoomBlackList";
 import { SessionAuthGuard } from "../auth/guards/SessionAuthGuard";
+import { v4 as uuid } from "uuid";
+import { ExtensionExtractor } from "../common/util/ExtensionExtractor";
+import { S3Service } from "../infra/s3/s3.service";
 
 @Controller("room")
 export class RoomController {
@@ -52,6 +54,7 @@ export class RoomController {
     private authService: AuthService,
     private roomService: RoomService,
     private chatService: ChatService,
+    private s3Service: S3Service,
     @Inject(forwardRef(() => UserService)) private userService: UserService
   ) {}
 
@@ -416,57 +419,66 @@ export class RoomController {
     description: `해당 room의 결제 정보 스크린샷 이미지를 업로드 합니다.`,
   })
   @Post("/:rid/purchase-screenshot")
-  @UseInterceptors(FileInterceptor("purchase_screenshot"))
+  @UseInterceptors(FilesInterceptor("purchase_screenshot", 3))
   async uploadPurchaseScreenshot(
     @Param("rid") rid: string,
-    @Req() request: Request,
-    @UploadedFile() file: Express.Multer.File
+    @UploadedFiles() files: Express.Multer.File[]
   ) {
-    throw new NotImplementedException("");
+    // TODO 파일 확장자 필터링
+
     const room = await this.roomService.findRoomById(rid);
     if (!room) {
       console.log("room not found");
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
 
-    // //TODO interceptor 관리, 확장자 필터링하기, S3 or db 연동하기
-    // writeFile(
-    //   join(process.cwd(), `${room.id}.jpg`),
-    //   file.buffer,
-    //   function (err) {
-    //     if (err) {
-    //       return console.log(err);
-    //     }
-    //     room.order.upload();
-    //     console.log("The file was saved!");
-    //   }
-    // );
+    const fileDTOs = files.map((file) => {
+      return {
+        file: file,
+        key: `${uuid()}.${ExtensionExtractor.from(file.originalname)}`,
+      };
+    });
+    await this.s3Service.upload(fileDTOs);
+
+    await this.roomService.uploadOrderImages(rid, fileDTOs);
   }
 
   @UseGuards(SessionAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
-    description: `해당 room의 결제 정보 스크린샷 이미지를 다운로드 합니다.`,
+    description: `해당 room의 결제 정보 스크린샷 이미지 url 들을 반환합니다.`,
   })
-  @Get("/:rid/purchase-screenshot")
-  async getPurchaseScreenshot(
-    @Param("rid") rid: string,
-    @Req() request: Request,
-    @Response({ passthrough: true }) res
-  ) {
-    throw new NotImplementedException("");
-
-    const room = await this.roomService.findRoomById(rid);
-    if (!room) {
-      throw new HttpException("room not found", HttpStatus.NOT_FOUND);
-    }
-    const file = createReadStream(join(process.cwd(), `${room.id}.jpg`));
-    res.set({
-      "Content-Type": "image/jpg",
-      "Content-Disposition": `attachment; filename="${room.id}.jpg"`,
-    });
-    return new StreamableFile(file);
+  @Get("/:rid/image-url")
+  async getOrderImageUrl(@Param("rid") rid: string) {
+    const keys: string[] = await this.roomService.getOrderImageKeys(rid);
+    return this.s3Service.getSignedUrls(keys);
   }
+
+  // TODO API 변경 문서화
+  // @UseGuards(SessionAuthGuard)
+  // @ApiBearerAuth("swagger-auth")
+  // @ApiCreatedResponse({
+  //   description: `해당 room의 결제 정보 스크린샷 이미지를 다운로드 합니다.`,
+  // })
+  // @Get("/:rid/purchase-screenshot")
+  // async getPurchaseScreenshot(
+  //   @Param("rid") rid: string,
+  //   @Req() request: Request,
+  //   @Response({ passthrough: true }) res
+  // ) {
+  //   throw new NotImplementedException("");
+  //
+  //   const room = await this.roomService.findRoomById(rid);
+  //   if (!room) {
+  //     throw new HttpException("room not found", HttpStatus.NOT_FOUND);
+  //   }
+  //   const file = createReadStream(join(process.cwd(), `${room.id}.jpg`));
+  //   res.set({
+  //     "Content-Type": "image/jpg",
+  //     "Content-Disposition": `attachment; filename="${room.id}.jpg"`,
+  //   });
+  //   return new StreamableFile(file);
+  // }
 
   @UseGuards(SessionAuthGuard)
   @ApiBearerAuth("swagger-auth")

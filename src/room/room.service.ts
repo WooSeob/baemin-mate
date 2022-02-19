@@ -17,18 +17,23 @@ import KickVoteFactory from "./entity/Vote/KickVote/KickVoteFactory";
 import ResetVoteFactory from "./entity/Vote/ResetVote/ResetVoteFactory";
 import { RoomEventType } from "./const/RoomEventType";
 import { EventEmitter } from "stream";
+import { UploadFileDto } from "../infra/s3/s3.service";
+import { ImageFile } from "./entity/ImageFile";
 
 //StrictEventEmitter<RoomEvents, RoomEvents>
 @Injectable()
 export class RoomService extends EventEmitter {
   private logger = new Logger("RoomService");
+
   constructor(
     public connection: Connection,
     @InjectRepository(Room) private roomRepository: Repository<Room>,
     @InjectRepository(User) private userRepository: Repository<User>,
     @InjectRepository(Participant)
     private participantRepository: Repository<Participant>,
-    @InjectRepository(Menu) private menuRepository: Repository<Menu>
+    @InjectRepository(Menu) private menuRepository: Repository<Menu>,
+    @InjectRepository(ImageFile)
+    private imageFileRepository: Repository<ImageFile>
   ) {
     super();
   }
@@ -228,8 +233,24 @@ export class RoomService extends EventEmitter {
     }
   }
 
-  async uploadOrderImages(roomId: string, images) {
+  async uploadOrderImages(rid: string, uploadFileDtos: UploadFileDto<any>[]) {
+    const room = await this.roomRepository.findOne(rid);
     //TODO 구현
+
+    for (const dto of uploadFileDtos) {
+      const imageFile = new ImageFile();
+      imageFile.room = room;
+      imageFile.s3url = dto.key;
+      await this.imageFileRepository.save(imageFile);
+    }
+  }
+
+  async getOrderImageKeys(rid: string) {
+    return (await this.imageFileRepository.find({ roomId: rid })).map(
+      (imageFile) => {
+        return imageFile.s3url;
+      }
+    );
   }
 
   async checkOrder(
