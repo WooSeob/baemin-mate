@@ -11,6 +11,7 @@ import { ChatModule } from "../chat/chat.module";
 import { Menu } from "./entity/Menu";
 import { S3Module } from "../infra/s3/s3.module";
 import { ImageFile } from "./entity/ImageFile";
+import { RoomAccount } from "./entity/RoomAccount";
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { ImageFile } from "./entity/ImageFile";
     TypeOrmModule.forFeature([Participant]),
     TypeOrmModule.forFeature([Menu]),
     TypeOrmModule.forFeature([ImageFile]),
+    TypeOrmModule.forFeature([RoomAccount]),
 
     forwardRef(() => AuthModule),
     forwardRef(() => UserModule),

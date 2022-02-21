@@ -5,7 +5,6 @@ import {
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
-  ValueTransformer,
 } from "typeorm";
 import { RoomState } from "../const/RoomState";
 import { User } from "../../user/entity/user.entity";
@@ -131,7 +130,7 @@ export class Room {
       RoomState.ORDER_CHECK,
       new Set([RoomState.ALL_READY, RoomState.ORDER_DONE])
     );
-    graph.set(RoomState.ORDER_CHECK, new Set());
+    graph.set(RoomState.ORDER_DONE, new Set());
     return graph;
   }
 
@@ -181,8 +180,8 @@ export class Room {
     }
   }
 
-  reset() {
-    this.phase = RoomState.PREPARE;
+  cancel() {
+    this.phase = RoomState.ORDER_CANCELED;
     this.participants.forEach((p) => {
       p.isReady = false;
     });
@@ -216,7 +215,7 @@ export class Room {
   }
 
   getReceiptForUser(userId: string) {
-    this.onlyAt(RoomState.ORDER_CHECK);
+    this.onlyAt(RoomState.ORDER_CHECK, RoomState.ORDER_DONE);
 
     const participant = this.participants.find((p) => p.userId === userId);
     if (!participant) {
@@ -224,9 +223,11 @@ export class Room {
     }
 
     //TODO DTO 만들기
+    const tipForUser = Math.floor(this.deliveryTip / this.getUserCount());
     return {
-      tipForUser: Math.floor(this.deliveryTip / this.getUserCount()),
-      totalPrice: participant.getTotalPrice(),
+      totalDeliveryTip: this.deliveryTip,
+      tipForUser: tipForUser,
+      totalPrice: participant.getTotalPrice() + tipForUser,
     };
   }
 

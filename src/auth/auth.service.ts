@@ -141,12 +141,9 @@ export class AuthService {
   async emailAuthVerify(userdata: NaverAuthResponse, authCode: string) {
     //TODO + 시도횟수 제한
     //TODO ? 여러번 인증 요청하면
-    const authInfo = await this.emailAuthRepository.findOne(
-      {
-        oauthId: userdata.id,
-      },
-      { order: { createdAt: "DESC" } }
-    );
+    const authInfo = await this.emailAuthRepository.findOne({
+      oauthId: userdata.id,
+    });
     //auth info 없음
     if (!authInfo) {
       throw new HttpException("authInfo not found", HttpStatus.NOT_FOUND);

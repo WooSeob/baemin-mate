@@ -47,6 +47,7 @@ import { SessionAuthGuard } from "../auth/guards/SessionAuthGuard";
 import { v4 as uuid } from "uuid";
 import { ExtensionExtractor } from "../common/util/ExtensionExtractor";
 import { S3Service } from "../infra/s3/s3.service";
+import { CheckOrderDto } from "./dto/request/check-order.dto";
 
 @Controller("room")
 export class RoomController {
@@ -287,7 +288,8 @@ export class RoomController {
   @Post("/:rid/vote-kick")
   async createKickVote(
     @Param("rid") rid: string,
-    @Query("targetId") targetId: string
+    @Query("targetId") targetId: string,
+    @Req() request: Request
   ): Promise<string> {
     //투표 제기자가 방 참여인원인지?
     //방의 상태가 투표를 시행할 수 있는 상태인지?
@@ -302,7 +304,11 @@ export class RoomController {
 
     // this._roleParticipant(targetUser, room);
 
-    let vote = await this.roomService.createKickVote(rid, targetId);
+    let vote = await this.roomService.createKickVote(
+      rid,
+      (request.user as User).id,
+      targetId
+    );
     return vote.id;
   }
 
@@ -315,12 +321,18 @@ export class RoomController {
     type: String,
   })
   @Post("/:rid/vote-reset")
-  async createResetVote(@Param("rid") rid: string): Promise<string> {
+  async createResetVote(
+    @Param("rid") rid: string,
+    @Req() request: Request
+  ): Promise<string> {
     //투표 제기자가 방 참여인원인지?
     //방의 상태가 투표를 시행할 수 있는 상태인지?
     //현재 진행중인 투표가 있는지?
 
-    let vote = await this.roomService.createResetVote(rid);
+    let vote = await this.roomService.createResetVote(
+      rid,
+      (request.user as User).id
+    );
     return vote.id;
   }
 
@@ -375,15 +387,17 @@ export class RoomController {
   async checkOrder(
     @Param("rid") rid: string,
     @Req() request: Request,
-    @Query("delivery_tip") deliveryTip: number
+    @Body() checkOrderDto: CheckOrderDto
   ) {
     const room = await this.roomService.findRoomById(rid);
     if (!room) {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
-    return this.roomService.checkOrder(rid, (request.user as User).id, {
-      tip: deliveryTip,
-    });
+    return this.roomService.checkOrder(
+      rid,
+      (request.user as User).id,
+      checkOrderDto
+    );
   }
 
   @UseGuards(SessionAuthGuard)
@@ -399,6 +413,17 @@ export class RoomController {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
     return this.roomService.doneOrder(rid, (request.user as User).id);
+  }
+
+  @UseGuards(SessionAuthGuard)
+  @ApiBearerAuth("swagger-auth")
+  @ApiCreatedResponse({
+    description: `해당 room의 결제 정보 스크린샷 이미지 url 들을 반환합니다.`,
+  })
+  @Get("/:rid/purchase-screenshot-urls")
+  async getOrderImageUrl(@Param("rid") rid: string) {
+    const keys: string[] = await this.roomService.getOrderImageKeys(rid);
+    return this.s3Service.getSignedUrls(keys);
   }
 
   @UseGuards(SessionAuthGuard)
@@ -443,17 +468,6 @@ export class RoomController {
     await this.roomService.uploadOrderImages(rid, fileDTOs);
   }
 
-  @UseGuards(SessionAuthGuard)
-  @ApiBearerAuth("swagger-auth")
-  @ApiCreatedResponse({
-    description: `해당 room의 결제 정보 스크린샷 이미지 url 들을 반환합니다.`,
-  })
-  @Get("/:rid/image-url")
-  async getOrderImageUrl(@Param("rid") rid: string) {
-    const keys: string[] = await this.roomService.getOrderImageKeys(rid);
-    return this.s3Service.getSignedUrls(keys);
-  }
-
   // TODO API 변경 문서화
   // @UseGuards(SessionAuthGuard)
   // @ApiBearerAuth("swagger-auth")
@@ -491,20 +505,23 @@ export class RoomController {
   @Get("/:rid/receipt")
   async getMyReceipt(
     @Param("rid") rid: string,
-    @Req() request: Request,
-    @Response({ passthrough: true }) res
+    @Req() request: Request
   ): Promise<OrderReceiptResonse> {
     const room = await this.roomService.findRoomById(rid);
     if (!room) {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
 
+    const accountInfo = await this.roomService.getAccountInfo(rid);
+    const receiptInfo = room.getReceiptForUser((request.user as User).id);
     return {
-      ...room.getReceiptForUser((request.user as User).id),
+      totalDeliveryTip: receiptInfo.totalDeliveryTip,
+      tipForUser: receiptInfo.tipForUser,
+      totalPrice: receiptInfo.totalPrice,
       menus: room.getParticipant((request.user as User).id).menus,
-      accountNumber: "353-104387-01-010",
-      accountBank: "기업은행",
-      accountUserName: "변우섭",
+      accountNumber: accountInfo.number,
+      accountBank: accountInfo.bank,
+      accountUserName: accountInfo.holderName,
     };
   }
 }

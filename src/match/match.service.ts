@@ -6,7 +6,7 @@ import { CategoryType } from "./interfaces/category.interface";
 import { SectionType } from "../user/interfaces/user";
 import { RoomEventType } from "../room/const/RoomEventType";
 import { RoomService } from "../room/room.service";
-import { Repository } from "typeorm";
+import { Connection, QueryRunner, Repository } from "typeorm";
 import { Match } from "./entity/Match";
 import MatchInfo from "./dto/response/match-info.interface";
 import { query } from "express";
@@ -23,6 +23,7 @@ export class MatchService {
   public server: Server = null;
 
   constructor(
+    private connection: Connection,
     private roomService: RoomService,
     @InjectRepository(Match) private matchRepository: Repository<Match>
   ) {

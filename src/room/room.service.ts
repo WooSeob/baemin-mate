@@ -19,6 +19,7 @@ import { RoomEventType } from "./const/RoomEventType";
 import { EventEmitter } from "stream";
 import { UploadFileDto } from "../infra/s3/s3.service";
 import { ImageFile } from "./entity/ImageFile";
+import { RoomAccount } from "./entity/RoomAccount";
 
 //StrictEventEmitter<RoomEvents, RoomEvents>
 @Injectable()
@@ -33,11 +34,17 @@ export class RoomService extends EventEmitter {
     private participantRepository: Repository<Participant>,
     @InjectRepository(Menu) private menuRepository: Repository<Menu>,
     @InjectRepository(ImageFile)
-    private imageFileRepository: Repository<ImageFile>
+    private imageFileRepository: Repository<ImageFile>,
+    @InjectRepository(RoomAccount)
+    private accountRepository: Repository<RoomAccount>
   ) {
     super();
   }
 
+  override emit(eventName: string | symbol, ...args: any[]): boolean {
+    this.logger.log(eventName, args);
+    return super.emit(eventName, ...args);
+  }
   async clear() {
     const rooms = await this.roomRepository.find();
     for (const room of rooms) {
@@ -66,6 +73,10 @@ export class RoomService extends EventEmitter {
 
   getParticipants(room: Room): Promise<Participant[]> {
     return this.participantRepository.find({ where: { room: room } });
+  }
+
+  getAccountInfo(rid: string): Promise<RoomAccount> {
+    return this.accountRepository.findOne({ roomId: rid });
   }
   // create
   // join
@@ -146,10 +157,9 @@ export class RoomService extends EventEmitter {
         Room.create(userWithJoinedRooms, createRoomDto)
       );
 
-      await queryRunner.commitTransaction();
-
       this.emit(RoomEventType.CREATE, created);
       this.emit(RoomEventType.USER_ENTER, created.id, userId);
+      await queryRunner.commitTransaction();
     } catch (err) {
       await queryRunner.rollbackTransaction();
       throw err;
@@ -175,12 +185,11 @@ export class RoomService extends EventEmitter {
 
       await queryRunner.manager.remove(toRemove);
 
-      this.emit(RoomEventType.USER_LEAVE, roomId, toRemove.userId);
-
       // TODO 소켓 leave 처리
       if (room.getUserCount() == 0) {
         this.emit(RoomEventType.DELETED, room);
         //모두 나가면 방 삭제
+        //TODO imagefile들 s3에서 삭제 후, 테이블 삭제
         await queryRunner.manager.remove(room);
       } else {
         //퇴장 수행 저장
@@ -188,6 +197,7 @@ export class RoomService extends EventEmitter {
       }
       await queryRunner.commitTransaction();
 
+      this.emit(RoomEventType.USER_LEAVE, roomId, toRemove.userId);
       this.checkAllReadyOrCanceled(prevState, room.phase, roomId);
       return room;
     } catch (err) {
@@ -264,14 +274,23 @@ export class RoomService extends EventEmitter {
 
     try {
       const room = await queryRunner.manager.findOne<Room>(Room, roomId);
-      await room.checkOrder(checkOrderDto.tip);
+      await room.checkOrder(checkOrderDto.deliveryTip);
 
+      const account = RoomAccount.create(
+        room,
+        checkOrderDto.accountBank,
+        checkOrderDto.accountNum,
+        checkOrderDto.accountHolderName
+      );
+      await queryRunner.manager.save(account);
       await queryRunner.manager.save(room);
+
       await queryRunner.commitTransaction();
 
       this.emit(RoomEventType.ORDER_CHECKED, roomId);
     } catch (err) {
       await queryRunner.rollbackTransaction();
+      throw err;
     } finally {
       await queryRunner.release();
     }
@@ -283,15 +302,21 @@ export class RoomService extends EventEmitter {
     await queryRunner.startTransaction();
 
     try {
+      console.log("done");
       const room = await queryRunner.manager.findOne<Room>(Room, roomId);
+      console.log(room);
+
       room.changePhase(RoomState.ORDER_DONE);
+      console.log(room);
 
       await queryRunner.manager.save(room);
       await queryRunner.commitTransaction();
+      console.log("commit");
 
       this.emit(RoomEventType.ORDER_DONE, roomId);
     } catch (err) {
       await queryRunner.rollbackTransaction();
+      throw err;
     } finally {
       await queryRunner.release();
     }
@@ -306,6 +331,7 @@ export class RoomService extends EventEmitter {
    * 4. 어떤 유저가 강퇴 당할 때
    * */
   async kick(roomId: string, targetId: string, reason: RoomBlackListReason) {
+    console.log("kick");
     const queryRunner = this.connection.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -491,6 +517,7 @@ export class RoomService extends EventEmitter {
 
   async createKickVote(
     roomId: string,
+    requestUserId: string,
     targetUserId: string
   ): Promise<RoomVote> {
     const queryRunner = this.connection.createQueryRunner();
@@ -502,7 +529,7 @@ export class RoomService extends EventEmitter {
 
       // 강퇴 투표 생성
       const created = await queryRunner.manager.save(
-        KickVoteFactory.create(room, targetUserId)
+        KickVoteFactory.create(room, requestUserId, targetUserId)
       );
 
       // 강퇴 투표 생성 이벤트 발생
@@ -518,7 +545,10 @@ export class RoomService extends EventEmitter {
     }
   }
 
-  async createResetVote(roomId: string): Promise<RoomVote> {
+  async createResetVote(
+    roomId: string,
+    requestUserId: string
+  ): Promise<RoomVote> {
     const queryRunner = this.connection.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -528,7 +558,7 @@ export class RoomService extends EventEmitter {
 
       // 리셋 투표 생성
       const created = await queryRunner.manager.save(
-        ResetVoteFactory.create(room)
+        ResetVoteFactory.create(room, requestUserId)
       );
 
       // 리셋 투표 생성 이벤트 발생
@@ -600,7 +630,7 @@ export class RoomService extends EventEmitter {
 
     try {
       const room = await queryRunner.manager.findOne<Room>(Room, roomId);
-      room.reset();
+      room.cancel();
       await queryRunner.manager.save(room);
       await queryRunner.commitTransaction();
     } catch (err) {

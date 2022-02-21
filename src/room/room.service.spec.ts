@@ -13,6 +13,8 @@ import { db_test } from "../../config";
 import { RoomBlackListReason } from "./entity/RoomBlackList";
 import { RoomEventType } from "./const/RoomEventType";
 import AlreadyJoinedError from "../common/AlreadyJoinedError";
+import { ImageFile } from "./entity/ImageFile";
+import { RoomAccount } from "./entity/RoomAccount";
 
 describe("생성 테스트", () => {
   let service: RoomService;
@@ -21,7 +23,14 @@ describe("생성 테스트", () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
-        TypeOrmModule.forFeature([Room, Participant, Menu, User]),
+        TypeOrmModule.forFeature([
+          Room,
+          Participant,
+          Menu,
+          User,
+          ImageFile,
+          RoomAccount,
+        ]),
       ],
       providers: [RoomService],
     }).compile();
@@ -93,7 +102,14 @@ describe("레디 테스트", () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
-        TypeOrmModule.forFeature([Room, Participant, Menu, User]),
+        TypeOrmModule.forFeature([
+          Room,
+          Participant,
+          Menu,
+          User,
+          ImageFile,
+          RoomAccount,
+        ]),
       ],
       providers: [RoomService],
     }).compile();
@@ -167,7 +183,14 @@ describe("참가 테스트", () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
-        TypeOrmModule.forFeature([Room, Participant, Menu, User]),
+        TypeOrmModule.forFeature([
+          Room,
+          Participant,
+          Menu,
+          User,
+          ImageFile,
+          RoomAccount,
+        ]),
       ],
       providers: [RoomService],
     }).compile();
@@ -290,7 +313,14 @@ describe("퇴장 테스트", () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
-        TypeOrmModule.forFeature([Room, Participant, Menu, User]),
+        TypeOrmModule.forFeature([
+          Room,
+          Participant,
+          Menu,
+          User,
+          ImageFile,
+          RoomAccount,
+        ]),
       ],
       providers: [RoomService],
     }).compile();
@@ -360,7 +390,14 @@ describe("강퇴 테스트", () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
-        TypeOrmModule.forFeature([Room, Participant, Menu, User]),
+        TypeOrmModule.forFeature([
+          Room,
+          Participant,
+          Menu,
+          User,
+          ImageFile,
+          RoomAccount,
+        ]),
       ],
       providers: [RoomService],
     }).compile();
@@ -455,20 +492,43 @@ describe("강퇴 테스트", () => {
 describe("강퇴 투표 테스트", () => {
   let service: RoomService;
 
-  beforeAll(async () => {
+  // beforeAll(async () => {
+  //   const module: TestingModule = await Test.createTestingModule({
+  //     imports: [
+  //       TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
+  //       TypeOrmModule.forFeature([
+  //         Room,
+  //         Participant,
+  //         Menu,
+  //         User,
+  //         ImageFile,
+  //         RoomAccount,
+  //       ]),
+  //     ],
+  //     providers: [RoomService],
+  //   }).compile();
+  //
+  //   service = module.get<RoomService>(RoomService);
+  //   await service.clear();
+  // });
+
+  beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
-        TypeOrmModule.forFeature([Room, Participant, Menu, User]),
+        TypeOrmModule.forFeature([
+          Room,
+          Participant,
+          Menu,
+          User,
+          ImageFile,
+          RoomAccount,
+        ]),
       ],
       providers: [RoomService],
     }).compile();
 
     service = module.get<RoomService>(RoomService);
-    await service.clear();
-  });
-
-  beforeEach(async () => {
     await service.clear();
   });
 
@@ -483,7 +543,11 @@ describe("강퇴 투표 테스트", () => {
 
     //when
     const serviceSpy = jest.spyOn(service, "emit");
-    const created = await service.createKickVote(firstRoom.id, userTwoId);
+    const created = await service.createKickVote(
+      firstRoom.id,
+      userTwoId,
+      userTwoId
+    );
 
     //then
     expect(created.targetUserId).toBe(userTwoId);
@@ -498,7 +562,11 @@ describe("강퇴 투표 테스트", () => {
     await service.joinRoom(firstRoom.id, userThreeId);
     await service.setReady(firstRoom.id, userThreeId, true);
     await service.fixOrder(firstRoom.id, userOneId);
-    const vote = await service.createKickVote(firstRoom.id, userTwoId);
+    const vote = await service.createKickVote(
+      firstRoom.id,
+      userOneId,
+      userTwoId
+    );
 
     //when
     await service.doVote(vote.id, userThreeId, true);
@@ -515,12 +583,15 @@ describe("강퇴 투표 테스트", () => {
     await service.joinRoom(firstRoom.id, userThreeId);
     await service.setReady(firstRoom.id, userThreeId, true);
     await service.fixOrder(firstRoom.id, userOneId);
-    const vote = await service.createKickVote(firstRoom.id, userTwoId);
+    const vote = await service.createKickVote(
+      firstRoom.id,
+      userOneId,
+      userTwoId
+    );
 
     //when
     const serviceSpy = jest.spyOn(service, "emit");
     const kickMethod = jest.spyOn(service, "kick");
-    await service.doVote(vote.id, userOneId, true);
     await service.doVote(vote.id, userThreeId, true);
 
     //then
@@ -542,23 +613,23 @@ describe("강퇴 투표 테스트", () => {
     await service.joinRoom(firstRoom.id, userThreeId);
     await service.setReady(firstRoom.id, userThreeId, true);
     await service.fixOrder(firstRoom.id, userOneId);
-    const vote = await service.createKickVote(firstRoom.id, userTwoId);
+    const vote = await service.createKickVote(
+      firstRoom.id,
+      userThreeId,
+      userTwoId
+    );
 
     //when
     const serviceSpy = jest.spyOn(service, "emit");
     const kickMethod = jest.spyOn(service, "kick");
     await service.doVote(vote.id, userOneId, false);
-    await service.doVote(vote.id, userThreeId, true);
 
     //then
-    const result = await service.getRoomVotes(firstRoom.id);
+    const result = await service.getVoteById(vote.id);
     console.log(result);
-    expect(result[0].finished).toBe(true);
-    expect(result[0].result).toBe(false);
-    expect(serviceSpy).toBeCalledWith(
-      RoomEventType.KICK_VOTE_FINISHED,
-      result[0]
-    );
+    expect(result.finished).toBe(true);
+    expect(result.result).toBe(false);
+    expect(serviceSpy).toBeCalledWith(RoomEventType.KICK_VOTE_FINISHED, result);
     expect(kickMethod).toBeCalledTimes(0);
   });
 });
@@ -566,20 +637,27 @@ describe("강퇴 투표 테스트", () => {
 describe("리셋 투표 테스트", () => {
   let service: RoomService;
 
-  beforeAll(async () => {
+  // beforeAll(async () => {
+  //
+  // });
+
+  beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
-        TypeOrmModule.forFeature([Room, Participant, Menu, User]),
+        TypeOrmModule.forFeature([
+          Room,
+          Participant,
+          Menu,
+          User,
+          ImageFile,
+          RoomAccount,
+        ]),
       ],
       providers: [RoomService],
     }).compile();
 
     service = module.get<RoomService>(RoomService);
-    await service.clear();
-  });
-
-  beforeEach(async () => {
     await service.clear();
   });
 
@@ -598,7 +676,7 @@ describe("리셋 투표 테스트", () => {
     const room = await prepareFixRoom();
     //when
     const serviceSpy = jest.spyOn(service, "emit");
-    const vote = await service.createResetVote(room.id);
+    const vote = await service.createResetVote(room.id, userOneId);
 
     //then
     expect(vote).toBeDefined();
@@ -609,7 +687,7 @@ describe("리셋 투표 테스트", () => {
     //TODO 투표 조건 수정하기
     // given
     const room = await prepareFixRoom();
-    const vote = await service.createResetVote(room.id);
+    const vote = await service.createResetVote(room.id, userOneId);
 
     const serviceSpy = jest.spyOn(service, "emit");
     const resetMethod = jest.spyOn(service, "resetRoom");
@@ -632,7 +710,7 @@ describe("리셋 투표 테스트", () => {
     //TODO 투표 조건 수정하기
     // given
     const room = await prepareFixRoom();
-    const vote = await service.createResetVote(room.id);
+    const vote = await service.createResetVote(room.id, userOneId);
 
     const serviceSpy = jest.spyOn(service, "emit");
     const resetMethod = jest.spyOn(service, "resetRoom");
@@ -659,7 +737,14 @@ describe("메뉴 테스트", () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
-        TypeOrmModule.forFeature([Room, Participant, Menu, User]),
+        TypeOrmModule.forFeature([
+          Room,
+          Participant,
+          Menu,
+          User,
+          ImageFile,
+          RoomAccount,
+        ]),
       ],
       providers: [RoomService],
     }).compile();
