@@ -20,11 +20,6 @@ export class User {
   name: string;
 
   @Column({
-    nullable: false,
-  })
-  phone: string;
-
-  @Column({
     nullable: true,
   })
   email: string;
@@ -70,11 +65,6 @@ export class UserBuilder {
 
   setName(name: string): UserBuilder {
     this.object.name = name;
-    return this;
-  }
-
-  setPhone(phone: string): UserBuilder {
-    this.object.phone = phone;
     return this;
   }
 

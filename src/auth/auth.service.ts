@@ -160,7 +160,6 @@ export class AuthService {
     await this.userService.createUserByNaver(
       userdata.id,
       userdata.name,
-      userdata.mobile_e164,
       authInfo.universityId
     );
   }
