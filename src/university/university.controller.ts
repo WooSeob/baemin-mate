@@ -14,4 +14,10 @@ export class UniversityController {
   async getUniversityById(@Param("id") universityId: number) {
     return this.universityService.getUniversityById(universityId);
   }
+
+  @Get("/:id/dormitory")
+  async getDormitories(@Param("id") universityId: number) {
+    return (await this.universityService.getDormitoriesByUnivId(universityId))
+      .dormitories;
+  }
 }

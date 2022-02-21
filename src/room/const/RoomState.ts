@@ -4,4 +4,5 @@ export enum RoomState {
   ORDER_FIX,
   ORDER_CHECK,
   ORDER_DONE,
+  ORDER_CANCELED,
 }

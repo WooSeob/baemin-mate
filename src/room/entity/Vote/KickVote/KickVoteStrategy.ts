@@ -24,6 +24,7 @@ export default class KickVoteStrategy implements VoteStrategy {
     this.checkFinished(vote);
   }
 
+  //기준 만장일치
   private checkFinished(vote: RoomVote) {
     const numAgreeSubmitter = vote.opinions
       .filter((opinion) => opinion.submitted && opinion.opinion)
@@ -35,12 +36,12 @@ export default class KickVoteStrategy implements VoteStrategy {
       .map((opinion) => 1)
       .reduce((prev, current) => prev + current, 0);
 
-    if (numAgreeSubmitter + numDisAgreeSubmitter == vote.opinions.length) {
-      // 모두제출 -> 투표 종료
+    if (numDisAgreeSubmitter > 0) {
       vote.finished = true;
-      // 결과 = 과반 이상 찬성인지?
-      vote.result = numAgreeSubmitter > vote.opinions.length / 2;
-      //TODO 결과 통지 어디서?
+      vote.result = false;
+    } else if (numAgreeSubmitter == vote.opinions.length) {
+      vote.finished = true;
+      vote.result = true;
     }
   }
 }

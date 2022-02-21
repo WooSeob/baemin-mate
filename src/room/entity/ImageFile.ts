@@ -12,10 +12,12 @@ export class ImageFile {
   @PrimaryGeneratedColumn()
   id: string;
 
-  @Column()
+  @Column({ nullable: true })
   roomId: string;
 
-  @ManyToOne(() => Room, (room) => room.orderCheckScreenShots)
+  @ManyToOne(() => Room, (room) => room.orderCheckScreenShots, {
+    onDelete: "SET NULL",
+  })
   room: Room;
 
   @Column({

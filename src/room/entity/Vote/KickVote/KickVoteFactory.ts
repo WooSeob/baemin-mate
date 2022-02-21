@@ -4,7 +4,11 @@ import VoteOpinion from "../../VoteOpinion";
 import RoomVote, { RoomVoteType } from "../../RoomVote";
 
 export default class KickVoteFactory {
-  static create(room: Room, targetUserId: string): RoomVote {
+  static create(
+    room: Room,
+    requestUserId: string,
+    targetUserId: string
+  ): RoomVote {
     if (!room) {
       throw new Error("존재하지 않는 방입니다.");
     }
@@ -26,7 +30,7 @@ export default class KickVoteFactory {
       // TODO 투표 발의자도 포함시킬것인지?
       // 투표 참여자 = 강퇴 투표 대상자를 제외한 참여인원 전체
       room.participants
-        .filter((p) => p.userId != targetUserId)
+        .filter((p) => p.userId != targetUserId && p.userId != requestUserId)
         .map((p) => new VoteOpinion(kickVote, p))
     );
     return kickVote;

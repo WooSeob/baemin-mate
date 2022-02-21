@@ -4,7 +4,7 @@ import VoteOpinion from "../../VoteOpinion";
 import RoomVote, { RoomVoteType } from "../../RoomVote";
 
 export default class ResetVoteFactory {
-  static create(room: Room): RoomVote {
+  static create(room: Room, requestUserId: string): RoomVote {
     if (!room) {
       throw new Error("존재하지 않는 방입니다.");
     }
@@ -15,7 +15,9 @@ export default class ResetVoteFactory {
     resetVote.room = room;
     resetVote.voteType = RoomVoteType.RESET;
     resetVote.opinions = Array.from(
-      room.participants.map((p) => new VoteOpinion(resetVote, p))
+      room.participants
+        .filter((p) => p.userId != requestUserId)
+        .map((p) => new VoteOpinion(resetVote, p))
     );
     return resetVote;
   }

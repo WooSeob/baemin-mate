@@ -14,10 +14,14 @@ export class UniversityService {
     return this.universityRepository.find();
   }
 
-  async getUniversityById(id: number): Promise<University> {
+  async getDormitoriesByUnivId(id: number): Promise<University> {
     return this.universityRepository.findOne(id, {
       relations: ["dormitories"],
     });
+  }
+
+  async getUniversityById(id: number): Promise<University> {
+    return this.universityRepository.findOne(id);
   }
 
   async getUniversityByKorName(korName: string): Promise<University> {
