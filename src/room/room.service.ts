@@ -187,14 +187,16 @@ export class RoomService extends EventEmitter {
 
       // TODO 소켓 leave 처리
       if (room.getUserCount() == 0) {
-        this.emit(RoomEventType.DELETED, room);
         //모두 나가면 방 삭제
         //TODO imagefile들 s3에서 삭제 후, 테이블 삭제
         await queryRunner.manager.remove(room);
-      } else {
-        //퇴장 수행 저장
-        await queryRunner.manager.save(room);
+        await queryRunner.commitTransaction();
+
+        this.emit(RoomEventType.DELETED, room);
+        return room;
       }
+
+      await queryRunner.manager.save(room);
       await queryRunner.commitTransaction();
 
       this.emit(RoomEventType.USER_LEAVE, roomId, toRemove.userId);
