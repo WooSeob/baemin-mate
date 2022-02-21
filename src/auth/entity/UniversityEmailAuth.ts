@@ -13,7 +13,7 @@ export class UniversityEmailAuth {
   @PrimaryGeneratedColumn()
   id: string;
 
-  @Column({ nullable: false, unique: true })
+  @Column({ nullable: false })
   oauthId: string;
 
   @Column({ nullable: false })
