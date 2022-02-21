@@ -81,7 +81,11 @@ export class RoomGateway
       `Client connected: ${client.id} (${client.handshake.auth.token})`
     );
 
-    const user = await this.authService.validate(client.handshake.auth.token);
+    let token = client.handshake.auth.token;
+    if (token.split(" ").length > 1) {
+      token = token.split(" ")[1];
+    }
+    const user = await this.authService.validate(token);
     //인증 실패시 강제 disconnect
     if (!user) {
       client.disconnect();

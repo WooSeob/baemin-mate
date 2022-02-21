@@ -45,9 +45,11 @@ export class MatchGateway
       `Client connected: ${client.id} (${client.handshake.auth.token})`
     );
 
-    const foundUserPromise: Promise<User> = this.authService.validate(
-      client.handshake.auth.token
-    );
+    let token = client.handshake.auth.token;
+    if (token.split(" ").length > 1) {
+      token = token.split(" ")[1];
+    }
+    const foundUserPromise: Promise<User> = this.authService.validate(token);
 
     // Socket id <-> user id 매핑 셋
     this._socketIdToUserId.set(
