@@ -89,7 +89,7 @@ export class AuthController {
   @Delete("/session/:id")
   async logout(@Param("id") sessionId: string) {
     console.log("adsf");
-    this.authService.logout({ sessionId: sessionId });
+    await this.authService.logout({ sessionId: sessionId });
   }
 
   @Post("/email/send")

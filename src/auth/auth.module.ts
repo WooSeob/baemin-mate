@@ -7,12 +7,14 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { UniversityEmailAuth } from "./entity/UniversityEmailAuth";
 import { SessionAuthGuard } from "./guards/SessionAuthGuard";
 import { UniversityModule } from "../university/university.module";
+import { Session } from "./entity/Session";
 
 @Module({
   imports: [
     forwardRef(() => UserModule),
     PassportModule,
     TypeOrmModule.forFeature([UniversityEmailAuth]),
+    TypeOrmModule.forFeature([Session]),
     UniversityModule,
   ],
   controllers: [AuthController],

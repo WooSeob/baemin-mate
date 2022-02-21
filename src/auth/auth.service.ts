@@ -17,31 +17,30 @@ import { randomBytes } from "crypto";
 import { EmailAuthConfig } from "../../config";
 import { v4 } from "uuid";
 import { NaverAuthResponse } from "./interface/NaverAuthResponse";
+import { Session } from "./entity/Session";
 
 @Injectable()
 export class AuthService {
   private readonly _mailTransporter: Transporter;
 
-  private sessionStore: Map<string, string> = new Map();
-
   constructor(
     public connection: Connection,
     @InjectRepository(UniversityEmailAuth)
     private emailAuthRepository: Repository<UniversityEmailAuth>,
+    @InjectRepository(Session) private sessionRepository: Repository<Session>,
     private userService: UserService //@Inject(forwardRef(() => UserService))
   ) {
     this._mailTransporter = createTransport(EmailAuthConfig.account);
   }
 
   async validate(token: string): Promise<User> {
-    console.log(token);
-    console.log(this.sessionStore);
-    if (!this.hasSession(token)) {
+    const session = await this.sessionRepository.findOne(token);
+
+    if (!session) {
       throw new Error("세션이 없습니다.");
     }
 
-    const userId = this.getUserIdBySession(token);
-    const user = await this.userService.findUserById(userId);
+    const user = session.user;
     if (!user) {
       throw new Error("회원이 아닙니다.");
     }
@@ -71,33 +70,29 @@ export class AuthService {
       if (!userData) {
         throw new Error("올바르지 않은 토큰입니다.");
       }
+
       const user = await this.userService.findUserById(userData.id);
       if (!user) {
         throw new NotFoundException(
           "존재하지 않는 회원입니다. 회원가입을 진행해 주세요."
         );
       }
-      const sessionId = this._generateSessionId();
-      this.sessionStore.set(sessionId, user.id);
-      return sessionId;
+
+      const session = await this.sessionRepository.save(Session.create(user));
+      return session.id;
     } else {
       throw new Error("올바르지 않는 타입입니다");
     }
   }
 
-  hasSession(sessionId: string) {
-    return this.sessionStore.has(sessionId);
-  }
+  async logout(logoutDto: LogoutDto) {
+    const session = await this.sessionRepository.findOne(logoutDto.sessionId);
 
-  getUserIdBySession(sessionId: string) {
-    return this.sessionStore.get(sessionId);
-  }
-
-  logout(logoutDto: LogoutDto) {
-    if (!this.hasSession(logoutDto.sessionId)) {
+    if (!session) {
       throw new Error("로그인된 유저가 아닙니다.");
     }
-    this.sessionStore.delete(logoutDto.sessionId);
+
+    await this.sessionRepository.delete(session);
   }
 
   async emailAuthCreate(oauthId: string, univId: number, email: string) {
