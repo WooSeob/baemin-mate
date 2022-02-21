@@ -107,28 +107,25 @@ export class AuthService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
+    let emailAuth = await queryRunner.manager.findOne(UniversityEmailAuth, {
+      oauthId: oauthId,
+    });
+
+    if (!emailAuth) {
+      emailAuth = UniversityEmailAuth.create(univId, oauthId, email);
+    }
+
+    if (emailAuth.isNotAvailable()) {
+      throw new Error("너무 많이 시도했습니다.");
+    }
+
     try {
       const AuthCode = this._generateAuthCode();
-      const emailAuth = new UniversityEmailAuth();
-      emailAuth.oauthId = oauthId;
-      emailAuth.email = email;
-      emailAuth.universityId = univId;
-      emailAuth.authCode = AuthCode;
+      await this._mailTransporter.sendMail(
+        this._createEmailMessage(email, AuthCode)
+      );
+      emailAuth.try(univId, email, AuthCode);
       await queryRunner.manager.save(emailAuth);
-
-      const message = {
-        // 보내는 곳의 이름과, 메일 주소를 입력
-        from: EmailAuthConfig.content.from,
-        // 받는 곳의 메일 주소를 입력
-        to: email,
-        // 보내는 메일의 제목을 입력
-        subject: EmailAuthConfig.content.subject,
-        // 보내는 메일의 내용을 입력
-        text: AuthCode,
-        html: `<h1>${AuthCode}</h1>`,
-      };
-      //TODO 엔티티 생성 시간(createdAt)과 메일 발송시간이 차이가 많이나면?
-      await this._mailTransporter.sendMail(message);
       await queryRunner.commitTransaction();
     } catch (err) {
       await queryRunner.rollbackTransaction();
@@ -136,6 +133,20 @@ export class AuthService {
     } finally {
       await queryRunner.release();
     }
+  }
+
+  private _createEmailMessage(to: string, authCode: string) {
+    return {
+      // 보내는 곳의 이름과, 메일 주소를 입력
+      from: EmailAuthConfig.content.from,
+      // 받는 곳의 메일 주소를 입력
+      to: to,
+      // 보내는 메일의 제목을 입력
+      subject: EmailAuthConfig.content.subject,
+      // 보내는 메일의 내용을 입력
+      text: authCode,
+      html: `<h1>${authCode}</h1>`,
+    };
   }
 
   async emailAuthVerify(userdata: NaverAuthResponse, authCode: string) {
@@ -149,7 +160,7 @@ export class AuthService {
       throw new HttpException("authInfo not found", HttpStatus.NOT_FOUND);
     }
     //3분 경과
-    if (Date.now() - authInfo.createdAt > 3 * 60 * 1000) {
+    if (Date.now() - authInfo.updatedAt > 3 * 60 * 1000) {
       throw new HttpException("over auth timeout", HttpStatus.BAD_REQUEST);
     }
     //코드 불일치
