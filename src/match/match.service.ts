@@ -12,6 +12,7 @@ import MatchInfo from "./dto/response/match-info.interface";
 import { query } from "express";
 import { Room } from "../room/entity/Room";
 import { InjectRepository } from "@nestjs/typeorm";
+import { UniversityService } from "../university/university.service";
 
 enum MatchNamespace {
   CREATE = "new-arrive",
@@ -25,6 +26,7 @@ export class MatchService {
   constructor(
     private connection: Connection,
     private roomService: RoomService,
+    private universityService: UniversityService,
     @InjectRepository(Match) private matchRepository: Repository<Match>
   ) {
     // 룸이 새로 생성되었을 때
@@ -67,14 +69,20 @@ export class MatchService {
   }
 
   async handleCreateEvent(room: Room) {
+    console.log(room);
     // 매치 영속화
-    const created = await this.matchRepository.save(Match.create(room));
+    const dormitory = await this.universityService.getDormitoryById(
+      room.sectionId
+    );
+    const created = await this.matchRepository.save(
+      Match.create(room, dormitory.name)
+    );
     this.server
       .to(
         this.socketRoomStringResolver(
           room.targetUnivId,
           room.category,
-          room.section
+          room.sectionId
         )
       )
       .emit(MatchNamespace.CREATE, MatchInfo.from(created));
@@ -89,7 +97,7 @@ export class MatchService {
           this.socketRoomStringResolver(
             match.targetUnivId,
             match.category,
-            match.section
+            match.sectionId
           )
         )
         .emit(MatchNamespace.DELETE, MatchInfo.from(match));
@@ -103,7 +111,7 @@ export class MatchService {
 
     const matches = await this.matchRepository.find({ roomId: roomId });
     const updatedMatches = await this.matchRepository.save(
-      matches.map((match) => match.update(room))
+      matches.map((match) => match.update(room, match.sectionName))
     );
 
     updatedMatches.forEach((match) => {
@@ -112,7 +120,7 @@ export class MatchService {
           this.socketRoomStringResolver(
             match.targetUnivId,
             match.category,
-            match.section
+            match.sectionId
           )
         )
         .emit(MatchNamespace.UPDATE, MatchInfo.from(match));
@@ -122,9 +130,9 @@ export class MatchService {
   private socketRoomStringResolver(
     univ: number,
     category: string,
-    section: string
+    sectionId: number
   ) {
-    return `${univ} - ${section} - ${category}`;
+    return `${univ} - ${sectionId} - ${category}`;
   }
 
   async subscribeByCategory(
@@ -156,18 +164,18 @@ export class MatchService {
 
   async findMatches(
     univId: number,
-    sections: SectionType[],
+    sectionIds: number[],
     categories: CategoryType[]
   ): Promise<Match[]> {
-    if (sections.length == 0 || categories.length == 0) {
+    if (sectionIds.length == 0 || categories.length == 0) {
       return Promise.resolve([]);
     }
 
     const queryBuilder = await this.matchRepository.createQueryBuilder("match");
 
     queryBuilder.where("match.targetUnivId = :id", { id: univId });
-    queryBuilder.andWhere("match.section IN (:...sections)", {
-      sections: sections,
+    queryBuilder.andWhere("match.sectionId IN (:...sectionIds)", {
+      sectionIds: sectionIds,
     });
     queryBuilder.andWhere("match.category IN (:...categories)", {
       categories: categories,

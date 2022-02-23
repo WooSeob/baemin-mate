@@ -34,6 +34,6 @@ export class CreateRoomDto {
   category: CategoryType;
 
   @ApiProperty()
-  @IsIn([SECTION.CHANGZO, SECTION.BIBONG, SECTION.HOYOEN, SECTION.NARAE])
-  section: SectionType;
+  @IsNumber()
+  section: number;
 }

@@ -18,6 +18,7 @@ import RoomBlackList, { RoomBlackListReason } from "./RoomBlackList";
 import AlreadyJoinedError from "../../common/AlreadyJoinedError";
 import University from "../../university/entity/University";
 import { BigIntTransformer } from "../../common/BigIntTransformer";
+import Dormitory from "../../university/entity/Dormitory";
 
 export enum RoomRole {
   PURCHASER = "purchaser",
@@ -51,10 +52,12 @@ export class Room {
   })
   category: CategoryType;
 
-  @Column({
-    nullable: false,
-  })
-  section: SectionType;
+  @Column()
+  sectionId: number;
+
+  @ManyToOne(() => Dormitory, { eager: true })
+  @JoinColumn()
+  section: Dormitory;
 
   @Column({
     nullable: false,
@@ -386,7 +389,7 @@ export class Room {
     room.purchaser = user;
     room.shopName = dto.shopName;
     room.category = dto.category;
-    room.section = dto.section;
+    room.sectionId = dto.section;
     room.linkFor3rdApp = dto.shopLink;
     room.atLeastPrice = dto.deliveryPriceAtLeast;
     room.targetUnivId = user.universityId;

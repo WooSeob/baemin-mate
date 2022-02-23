@@ -3,5 +3,5 @@ import { SectionType } from "../../../user/interfaces/user";
 
 export class SubscribeMatchDto {
   category: CategoryType[];
-  section: SectionType[];
+  section: number[];
 }

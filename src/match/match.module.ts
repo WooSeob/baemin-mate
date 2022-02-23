@@ -7,12 +7,14 @@ import { UserModule } from "../user/user.module";
 import { RoomModule } from "../room/room.module";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { Match } from "./entity/Match";
+import { UniversityModule } from "../university/university.module";
 
 @Module({
   imports: [
     AuthModule,
     UserModule,
     RoomModule,
+    UniversityModule,
     TypeOrmModule.forFeature([Match]),
   ],
   providers: [MatchService, MatchGateway],

@@ -13,7 +13,7 @@ export default class MatchInfo {
     const res = new MatchInfo();
     res.id = match.id;
     res.shopName = match.shopName;
-    res.section = match.section;
+    res.section = match.sectionName;
     res.total = match.totalPrice;
     res.priceAtLeast = match.atLeastPrice;
     res.purchaserName = match.purchaserName;

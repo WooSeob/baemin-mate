@@ -35,7 +35,12 @@ export class Match {
   @Column({
     nullable: false,
   })
-  section: SectionType;
+  sectionId: number;
+
+  @Column({
+    nullable: false,
+  })
+  sectionName: string;
 
   @Column({
     nullable: false,
@@ -64,15 +69,17 @@ export class Match {
   @ManyToOne(() => Room, { onDelete: "SET NULL" })
   room: Room;
 
-  static create(room: Room): Match {
-    return new Match().update(room);
+  //TODO 리팩토링
+  static create(room: Room, sectionName: string): Match {
+    return new Match().update(room, sectionName);
   }
 
-  update(room: Room): Match {
+  update(room: Room, sectionName: string): Match {
     this.shopName = room.shopName;
     this.purchaserName = room.purchaser.name;
     this.category = room.category;
-    this.section = room.section;
+    this.sectionId = room.sectionId;
+    this.sectionName = sectionName;
     this.atLeastPrice = room.atLeastPrice;
     this.totalPrice = room.getTotalPrice();
     this.targetUnivId = room.targetUnivId;

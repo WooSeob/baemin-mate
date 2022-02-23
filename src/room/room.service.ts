@@ -157,9 +157,9 @@ export class RoomService extends EventEmitter {
         Room.create(userWithJoinedRooms, createRoomDto)
       );
 
+      await queryRunner.commitTransaction();
       this.emit(RoomEventType.CREATE, created);
       this.emit(RoomEventType.USER_ENTER, created.id, userId);
-      await queryRunner.commitTransaction();
     } catch (err) {
       await queryRunner.rollbackTransaction();
       throw err;

@@ -33,7 +33,7 @@ export default class MatchDetailResponseDto {
     detail.purchaser = RoomUserView.from(match.room.purchaser);
     detail.shopName = match.room.shopName;
     detail.category = match.room.category;
-    detail.section = match.room.section;
+    detail.section = match.sectionName;
     detail.shopLink = match.room.linkFor3rdApp;
     detail.atLeast = match.room.atLeastPrice;
     detail.participants = match.room.getUserCount();
