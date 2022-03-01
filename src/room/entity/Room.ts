@@ -9,7 +9,6 @@ import {
 import { RoomState } from "../const/RoomState";
 import { User } from "../../user/entity/user.entity";
 import { CategoryType } from "../../match/interfaces/category.interface";
-import { SectionType } from "../../user/interfaces/user";
 import { Participant, ParticipantBuilder } from "./Participant";
 import { ImageFile } from "./ImageFile";
 import { CreateRoomDto } from "../dto/request/create-room.dto";
@@ -160,6 +159,11 @@ export class Room {
   }
 
   updateAllReadyState() {
+    if (
+      !(this.phase == RoomState.PREPARE || this.phase == RoomState.ALL_READY)
+    ) {
+      return;
+    }
     this.changePhase(
       this.isAllReady() ? RoomState.ALL_READY : RoomState.PREPARE
     );
@@ -261,7 +265,11 @@ export class Room {
   }
 
   leave(userId: string): Participant {
-    this.onlyAt(RoomState.PREPARE, RoomState.ORDER_DONE);
+    this.onlyAt(
+      RoomState.PREPARE,
+      RoomState.ORDER_DONE,
+      RoomState.ORDER_CANCELED
+    );
 
     const pIdx = this.participants.findIndex((p) => p.userId === userId);
     if (pIdx < 0) {
@@ -274,8 +282,13 @@ export class Room {
         throw new Error("방장은 한명일때만 나갈 수 있음");
       }
     } else if (participant.role == RoomRole.MEMBER) {
-      if (participant.isReady) {
-        throw new Error("레디 풀어야 나갈 수 있음");
+      if (
+        this.phase == RoomState.PREPARE ||
+        this.phase == RoomState.ALL_READY
+      ) {
+        if (participant.isReady) {
+          throw new Error("레디 풀어야 나갈 수 있음");
+        }
       }
     } else {
       throw new Error("unValid participant role");
@@ -360,7 +373,11 @@ export class Room {
       if (participation.role == RoomRole.PURCHASER) {
         participation.room.onlyAt(RoomState.ORDER_DONE);
       } else if (participation.role == RoomRole.MEMBER) {
-        participation.room.onlyAt(RoomState.PREPARE, RoomState.ORDER_DONE);
+        participation.room.onlyAt(
+          RoomState.PREPARE,
+          RoomState.ORDER_DONE,
+          RoomState.ORDER_CANCELED
+        );
         if (
           participation.room.phase == RoomState.PREPARE &&
           participation.isReady
@@ -379,7 +396,10 @@ export class Room {
     //기존 참여 방중 방장으로서 활성 상태(order done 이하)인 방도 있으면 안됨.
     for (const participation of user.rooms) {
       try {
-        participation.room.onlyAt(RoomState.ORDER_DONE);
+        participation.room.onlyAt(
+          RoomState.ORDER_DONE,
+          RoomState.ORDER_CANCELED
+        );
       } catch (e) {
         throw new AlreadyJoinedError("이미 참여중인 방이 있습니다.");
       }
