@@ -113,15 +113,6 @@ export class RoomGateway
 
     //기존 매핑 삭제
     this.removeFromLookup(client.id, user.id);
-
-    // if (!user) {
-    //   return;
-    // }
-    //최종 포인터 기록
-    //TODO 구현하기
-    // user.joinedRooms.forEach((room) => {
-    //   room.chat.setReadPointer(user);
-    // });
   }
 
   @SubscribeMessage("chat")
@@ -155,7 +146,7 @@ export class RoomGateway
       };
     }
 
-    await this.chatService.receiveChat(
+    await this.roomService.receiveChat(
       room.id,
       user.id,
       chatRequestDto.message

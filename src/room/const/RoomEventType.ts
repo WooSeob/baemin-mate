@@ -10,6 +10,7 @@ export enum RoomEventType {
   ORDER_FIXED = "orderFix",
   ORDER_CHECKED = "orderCheck",
   ORDER_DONE = "orderDone",
+  ORDER_CANCELED = "orderCancel",
   KICK_VOTE_CREATED = "kickVoteCreated",
   KICK_VOTE_FINISHED = "kickVoteFinished",
   RESET_VOTE_CREATED = "resetVoteCreated",

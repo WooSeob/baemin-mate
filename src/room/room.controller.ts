@@ -19,7 +19,7 @@ import {
   UseInterceptors,
   ValidationPipe,
 } from "@nestjs/common";
-import { AuthService } from "../auth/auth.service";
+import { AccessTokenPayload, AuthService } from "../auth/auth.service";
 import { RoomService } from "./room.service";
 import RoomUserView from "./dto/response/user-view.dto";
 import { UserService } from "../user/user.service";
@@ -43,11 +43,11 @@ import { ChatBody, Message, SystemBody } from "./dto/response/message.response";
 import RoomUser from "./dto/response/user.response";
 import { ChatService } from "../chat/chat.service";
 import { RoomBlackListReason } from "./entity/RoomBlackList";
-import { SessionAuthGuard } from "../auth/guards/SessionAuthGuard";
 import { v4 as uuid } from "uuid";
 import { ExtensionExtractor } from "../common/util/ExtensionExtractor";
 import { S3Service } from "../infra/s3/s3.service";
 import { CheckOrderDto } from "./dto/request/check-order.dto";
+import { JwtAuthGuard } from "../auth/guards/JwtAuthGuard";
 
 @Controller("room")
 export class RoomController {
@@ -60,7 +60,7 @@ export class RoomController {
   ) {}
 
   //유저 in Room 상태 정보
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description: "해당 방의 상태 정보를 가져옵니다.",
@@ -93,7 +93,7 @@ export class RoomController {
   /**
    * rid를 id로 하는 room의 정보를 가져옵니다.
    * */
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description: "rid를 id로 하는 room의 정보를 가져옵니다.",
@@ -153,7 +153,7 @@ export class RoomController {
   /**
    * 새로운 Room 을 생성합니다.
    * */
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description: "새로운 Room 을 생성합니다.",
@@ -174,7 +174,7 @@ export class RoomController {
   /**
    * rid 에 해당하는 Room 에서 퇴장 합니다.
    * */
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description: "rid 에 해당하는 Room 에서 퇴장 합니다.",
@@ -192,7 +192,7 @@ export class RoomController {
   /**
    * uid를 에 해당하는 유저를 강퇴시킵니다.
    * */
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description: "uid를 에 해당하는 유저를 강퇴시킵니다",
@@ -249,7 +249,7 @@ export class RoomController {
   /**
    * rid를 id로 하는 room의 전체 menu들에 대한 정보를 가져옵니다.
    * */
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description: "rid를 id로 하는 room의 전체 menu들에 대한 정보를 가져옵니다.",
@@ -273,7 +273,7 @@ export class RoomController {
     });
   }
 
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description: `rid를 id로 하는 room의 강퇴 투표를 생성합니다.
@@ -312,7 +312,7 @@ export class RoomController {
     return vote.id;
   }
 
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description: `rid를 id로 하는 room의 reset vote를 생성합니다.
@@ -336,7 +336,7 @@ export class RoomController {
     return vote.id;
   }
 
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description:
@@ -359,7 +359,7 @@ export class RoomController {
     await this.roomService.doVote(vid, (request.user as User).id, isAgree);
   }
 
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description: `해당 room의 order 정보를 fix 합니다.
@@ -376,7 +376,7 @@ export class RoomController {
     return this.roomService.fixOrder(rid, (request.user as User).id);
   }
 
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description: `해당 room의 purchaser 는 배달팁 정보를 업로드 합니다.
@@ -400,7 +400,7 @@ export class RoomController {
     );
   }
 
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description: `해당 room의 purchaser 는 결제를 완료하고 해당 api를 호출합니다.
@@ -415,7 +415,7 @@ export class RoomController {
     return this.roomService.doneOrder(rid, (request.user as User).id);
   }
 
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description: `해당 room의 결제 정보 스크린샷 이미지 url 들을 반환합니다.`,
@@ -426,7 +426,7 @@ export class RoomController {
     return this.s3Service.getSignedUrls(keys);
   }
 
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiConsumes("multipart/form-data")
   @ApiBody({
@@ -469,7 +469,7 @@ export class RoomController {
   }
 
   // TODO API 변경 문서화
-  // @UseGuards(SessionAuthGuard)
+  // @UseGuards(JwtAuthGuard)
   // @ApiBearerAuth("swagger-auth")
   // @ApiCreatedResponse({
   //   description: `해당 room의 결제 정보 스크린샷 이미지를 다운로드 합니다.`,
@@ -494,7 +494,7 @@ export class RoomController {
   //   return new StreamableFile(file);
   // }
 
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description:

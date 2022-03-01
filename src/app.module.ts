@@ -7,7 +7,9 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { UserModule } from "./user/user.module";
 import { db, db_test } from "../config";
 import { UniversityModule } from "./university/university.module";
-import { S3Module } from './infra/s3/s3.module';
+import { S3Module } from "./infra/s3/s3.module";
+import { FcmModule } from "./infra/fcm/fcm.module";
+import { NotificationModule } from "./notification/notification.module";
 
 @Module({
   imports: [
@@ -19,6 +21,8 @@ import { S3Module } from './infra/s3/s3.module';
     TypeOrmModule.forRoot(db),
     UniversityModule,
     S3Module,
+    FcmModule,
+    NotificationModule,
   ],
   controllers: [],
   providers: [],

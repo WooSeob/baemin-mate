@@ -8,10 +8,12 @@ import {
   Logger,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Query,
   Req,
   Res,
+  UnauthorizedException,
   UseGuards,
 } from "@nestjs/common";
 import { AuthService } from "./auth.service";
@@ -22,9 +24,13 @@ import axios, { AxiosResponse } from "axios";
 import { User } from "../user/entity/user.entity";
 import { SendCodeDto } from "./dto/send-code.dto";
 import { VerifyCodeDto } from "./dto/verify-code.dto";
-import { ApiBearerAuth } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiCreatedResponse } from "@nestjs/swagger";
 import { SessionAuthGuard } from "./guards/SessionAuthGuard";
 import { UniversityService } from "../university/university.service";
+import { JwtAuthGuard } from "./guards/JwtAuthGuard";
+import { RefreshTokenDto } from "./dto/refresh-token.dto";
+import { NotificationService } from "../notification/notification.service";
+import { TokenResponseDto } from "./dto/response/token.response.dto";
 
 const CLIENT_ID = "qpKfX2QvHyoIFy_BPR_0";
 const CALLBACK_URL = encodeURI("http://localhost:3000/auth/naver/callback");
@@ -36,7 +42,8 @@ const STATE = "asdf";
 export class AuthController {
   constructor(
     private authService: AuthService,
-    private universityService: UniversityService
+    private universityService: UniversityService,
+    private notificationService: NotificationService
   ) {}
   @Get("/hello")
   async asdf() {
@@ -73,22 +80,53 @@ export class AuthController {
     }
   }
 
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth("swagger-auth")
   @Get("/user")
   async getUser(@Req() request: Request) {
-    const user = request.user as User;
-    return { name: user.name, id: user.id };
+    return request.user;
   }
 
-  @Post("/session")
-  async login(@Body() loginDto: LoginDto) {
+  @Post("/token")
+  @ApiCreatedResponse({
+    description:
+      "oauth access token을 이용해 같이하실 토큰을 발급받습니다.\ndeviceToken 필드는 선택항목이며, 값을 포함해서 요청하면 해당 유저의 fcm device token 목록에 없으면 새로 추가합니다.",
+    type: TokenResponseDto,
+  })
+  async login(@Body() loginDto: LoginDto): Promise<TokenResponseDto> {
     console.log(loginDto);
-    return { sessionId: await this.authService.login(loginDto) };
+    const userData = await this.authService.getUserdataFromNaver(
+      loginDto.accessToken
+    );
+
+    console.log(userData);
+    if (!userData) {
+      throw new UnauthorizedException("잘못된 토큰입니다.");
+    }
+
+    if (loginDto.deviceToken) {
+      await this.notificationService.put(userData.id, loginDto.deviceToken);
+    }
+
+    return this.authService.login(userData);
   }
 
-  @Delete("/session/:id")
+  @Patch("/token")
+  @ApiCreatedResponse({
+    description:
+      "발급받은 access token과 refresh token으로 새로운 토큰들을 발급받습니다.",
+    type: TokenResponseDto,
+  })
+  async refreshToken(
+    @Body() refreshTokenDto: RefreshTokenDto
+  ): Promise<TokenResponseDto> {
+    return this.authService.refreshToken(refreshTokenDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth("swagger-auth")
+  @Post("/token/blacklist")
   async logout(@Param("id") sessionId: string) {
-    console.log("adsf");
     await this.authService.logout({ sessionId: sessionId });
   }
 

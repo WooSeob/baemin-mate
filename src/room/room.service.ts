@@ -192,6 +192,7 @@ export class RoomService extends EventEmitter {
         await queryRunner.manager.remove(room);
         await queryRunner.commitTransaction();
 
+        //TODO 삭제하고 이벤트 만들면 이미 match.roomId = null 되어버렸기 때문에 매치를 찾을수가 없음
         this.emit(RoomEventType.DELETED, room);
         return room;
       }
@@ -660,6 +661,10 @@ export class RoomService extends EventEmitter {
       .leftJoinAndSelect("voteOpinion.participant", "participant")
       .where("kickVote.room = :id", { id: roomId })
       .getMany();
+  }
+
+  async receiveChat(roomId: string, userId: string, message: string) {
+    this.emit(RoomEventType.CHAT, roomId, userId, message);
   }
 
   /**

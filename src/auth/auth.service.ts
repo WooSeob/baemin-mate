@@ -3,6 +3,7 @@ import {
   HttpStatus,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from "@nestjs/common";
 import { LoginDto } from "./dto/login.dto";
 import { LogoutDto } from "./dto/logout.dto";
@@ -14,10 +15,23 @@ import { UserService } from "../user/user.service";
 import { createTransport, Transporter } from "nodemailer";
 import { UniversityEmailAuth } from "./entity/UniversityEmailAuth";
 import { randomBytes } from "crypto";
-import { EmailAuthConfig } from "../../config";
+import { EmailAuthConfig, jwt as jwtConfig } from "../../config";
 import { v4 } from "uuid";
 import { NaverAuthResponse } from "./interface/NaverAuthResponse";
 import { Session } from "./entity/Session";
+import { JwtService } from "@nestjs/jwt";
+import { RefreshTokenDto } from "./dto/refresh-token.dto";
+
+export interface AccessTokenPayload {
+  id: string;
+  name: string;
+  univId: number;
+}
+
+interface RefreshTokenPayload {
+  ats: string; //access token signature
+  exp?: number;
+}
 
 @Injectable()
 export class AuthService {
@@ -28,24 +42,37 @@ export class AuthService {
     @InjectRepository(UniversityEmailAuth)
     private emailAuthRepository: Repository<UniversityEmailAuth>,
     @InjectRepository(Session) private sessionRepository: Repository<Session>,
-    private userService: UserService //@Inject(forwardRef(() => UserService))
+    private userService: UserService, //@Inject(forwardRef(() => UserService))
+    private jwtService: JwtService
   ) {
     this._mailTransporter = createTransport(EmailAuthConfig.account);
   }
 
-  async validate(token: string): Promise<User> {
-    const session = await this.sessionRepository.findOne(token);
+  async validate(token: string): Promise<AccessTokenPayload> {
+    //TODO 블랙리스트에 있는 토큰인지 검사
+    const payload: AccessTokenPayload = this.jwtService.verify(token);
+    return !payload ? undefined : payload;
+  }
 
-    if (!session) {
-      throw new Error("세션이 없습니다.");
+  private extractSignature(token: string) {
+    return token.split(".")[2];
+  }
+  async refreshToken(dto: RefreshTokenDto) {
+    //TODO 블랙리스트에 있는 토큰인지 검사
+    const refreshTokenPayload = this.jwtService.verify<RefreshTokenPayload>(
+      dto.refreshToken
+    );
+    if (!refreshTokenPayload) {
+      throw new UnauthorizedException("만료된 refresh token 입니다.");
     }
 
-    const user = session.user;
-    if (!user) {
-      throw new Error("회원이 아닙니다.");
+    const accessTokenSignature = this.extractSignature(dto.accessToken);
+    if (refreshTokenPayload.ats !== accessTokenSignature) {
+      throw new UnauthorizedException("변조된 refresh token 입니다.");
     }
 
-    return user;
+    const userId = this.jwtService.decode(dto.accessToken)["id"];
+    return this.createAccessToken(userId);
   }
 
   async getUserdataFromNaver(token: string): Promise<NaverAuthResponse> {
@@ -64,25 +91,15 @@ export class AuthService {
     }
   }
 
-  async login(loginDto: LoginDto) {
-    if (loginDto.type == "naver") {
-      const userData = await this.getUserdataFromNaver(loginDto.accessToken);
-      if (!userData) {
-        throw new Error("올바르지 않은 토큰입니다.");
-      }
-
-      const user = await this.userService.findUserById(userData.id);
-      if (!user) {
-        throw new NotFoundException(
-          "존재하지 않는 회원입니다. 회원가입을 진행해 주세요."
-        );
-      }
-
-      const session = await this.sessionRepository.save(Session.create(user));
-      return session.id;
-    } else {
-      throw new Error("올바르지 않는 타입입니다");
+  async login(userData: NaverAuthResponse) {
+    const user = await this.userService.findUserById(userData.id);
+    if (!user) {
+      throw new NotFoundException(
+        "존재하지 않는 회원입니다. 회원가입을 진행해 주세요."
+      );
     }
+
+    return this.createAccessToken(user.id);
   }
 
   async logout(logoutDto: LogoutDto) {
@@ -170,11 +187,28 @@ export class AuthService {
     );
   }
 
-  private _generateAuthCode(): string {
-    return String(parseInt(randomBytes(2).toString("hex"), 16));
+  private async createAccessToken(oauthId: string) {
+    const user = await this.userService.findUserById(oauthId);
+    const payload: AccessTokenPayload = {
+      name: user.name,
+      id: user.id,
+      univId: user.universityId,
+    };
+    const accessToken = this.jwtService.sign(payload);
+
+    const refreshTokenPayload: RefreshTokenPayload = {
+      ats: this.extractSignature(accessToken),
+    };
+
+    return {
+      accessToken: accessToken,
+      refreshToken: this.jwtService.sign(refreshTokenPayload, {
+        expiresIn: jwtConfig.refreshTokenExpIn,
+      }),
+    };
   }
 
-  private _generateSessionId() {
-    return v4();
+  private _generateAuthCode(): string {
+    return String(parseInt(randomBytes(2).toString("hex"), 16));
   }
 }

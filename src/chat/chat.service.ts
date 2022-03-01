@@ -63,7 +63,12 @@ export class ChatService {
     @InjectRepository(RoomChat) private chatRepository: Repository<RoomChat>
   ) {
     // 일반 채팅
-    roomService.on(RoomEventType.CHAT, (room) => {});
+    roomService.on(
+      RoomEventType.CHAT,
+      (roomId: string, userId: string, message: string) => {
+        return this.onChatEvent(roomId, userId, message);
+      }
+    );
 
     // 입/퇴장 관련
     roomService.on(RoomEventType.USER_ENTER, async (roomId, userId) => {
@@ -251,7 +256,11 @@ export class ChatService {
   }
 
   getAllMessagesByRoom(roomId: string) {
-    return this.chatRepository.find({ roomId: roomId });
+    return this.chatRepository
+      .createQueryBuilder("chat")
+      .where("chat.roomId = :roomId", { roomId: roomId })
+      .orderBy("chat.id", "ASC")
+      .getMany();
   }
 
   async getAllMessagesResponse(roomId: string) {
@@ -352,7 +361,7 @@ export class ChatService {
     return await Promise.all(messagesPromise);
   }
 
-  async receiveChat(roomId: string, userId: string, message: string) {
+  async onChatEvent(roomId: string, userId: string, message: string) {
     const messagePromise = this.chatRepository.save(
       new ChatMessageBuilder()
         .setRoom(roomId)

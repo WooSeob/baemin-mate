@@ -17,7 +17,7 @@ import RoomDetailForUser from "../user/dto/response/room";
 import { SECTION } from "../user/interfaces/user";
 import { RoomService } from "../room/room.service";
 import { RoomRole } from "../room/entity/Room";
-import { SessionAuthGuard } from "../auth/guards/SessionAuthGuard";
+import { JwtAuthGuard } from "../auth/guards/JwtAuthGuard";
 
 @Controller("match")
 export class MatchController {
@@ -29,7 +29,7 @@ export class MatchController {
   /**
    * 유저의 기숙사 section들을 반환합니다.
    * */
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description: "유저의 기숙사 section들을 반환합니다.",
@@ -43,7 +43,7 @@ export class MatchController {
   /**
    * matchId에 해당하는 match에 대한 상세정보를 반환합니다.
    * */
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description: "matchId에 해당하는 match에 대한 상세정보를 반환합니다.",
@@ -63,7 +63,7 @@ export class MatchController {
   /**
    * matchId에 해당하는 match에 참가합니다.
    * */
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description: "matchId에 해당하는 Match에 참가를 시도합니다.",

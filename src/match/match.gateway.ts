@@ -11,7 +11,7 @@ import {
 import { Logger } from "@nestjs/common";
 import { Server, Socket } from "socket.io";
 import { MatchService } from "./match.service";
-import { AuthService } from "src/auth/auth.service";
+import { AuthService, AccessTokenPayload } from "src/auth/auth.service";
 import MatchInfo from "./dto/response/match-info.interface";
 import { UserService } from "../user/user.service";
 import { User } from "src/user/entity/user.entity";
@@ -49,7 +49,8 @@ export class MatchGateway
     if (token.split(" ").length > 1) {
       token = token.split(" ")[1];
     }
-    const foundUserPromise: Promise<User> = this.authService.validate(token);
+    const foundUserPromise: Promise<AccessTokenPayload> =
+      this.authService.validate(token);
 
     // Socket id <-> user id 매핑 셋
     this._socketIdToUserId.set(
