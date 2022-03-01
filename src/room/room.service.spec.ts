@@ -812,7 +812,7 @@ const createRoomDto: CreateRoomDto = {
   deliveryPriceAtLeast: 200,
   shopLink: "asdf",
   category: "korean",
-  section: "Narae",
+  section: 1,
 };
 
 const sampleMenu: AddMenuDto = {
