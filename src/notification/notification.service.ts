@@ -119,9 +119,11 @@ export class NotificationService {
 
   getDeviceTokensOfParticipants(room: Room) {
     return this.tokenRepository
-      .createQueryBuilder()
+      .createQueryBuilder("token")
+      .leftJoinAndSelect("token.user", "user")
       .where("userId IN (:id)", { id: room.participants.map((p) => p.userId) })
       .andWhere("enabled = :state", { state: true })
+      .andWhere("user.deletedAt IS NULL")
       .getMany();
   }
 

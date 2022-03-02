@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Logger,
   NotFoundException,
+  NotImplementedException,
   Param,
   Patch,
   Post,
@@ -25,22 +26,24 @@ import { User } from "../user/entity/user.entity";
 import { SendCodeDto } from "./dto/send-code.dto";
 import { VerifyCodeDto } from "./dto/verify-code.dto";
 import { ApiBearerAuth, ApiCreatedResponse } from "@nestjs/swagger";
-import { SessionAuthGuard } from "./guards/SessionAuthGuard";
 import { UniversityService } from "../university/university.service";
 import { JwtAuthGuard } from "./guards/JwtAuthGuard";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
 import { NotificationService } from "../notification/notification.service";
 import { TokenResponseDto } from "./dto/response/token.response.dto";
+import { UserService } from "../user/user.service";
+import { NaverOAuthConfig } from "../../config";
 
-const CLIENT_ID = "qpKfX2QvHyoIFy_BPR_0";
-const CALLBACK_URL = encodeURI("http://localhost:3000/auth/naver/callback");
-const SERVICE_URL = "http://localhost:3000";
-const CLIENT_SECRET = "8eUK60rAo3";
+const CLIENT_ID = NaverOAuthConfig.CLIENT_ID;
+const CALLBACK_URL = encodeURI(NaverOAuthConfig.CALLBACK_URL);
+const SERVICE_URL = NaverOAuthConfig.SERVICE_URL;
+const CLIENT_SECRET = NaverOAuthConfig.CLIENT_SECRET;
 
 const STATE = "asdf";
 @Controller("auth")
 export class AuthController {
   constructor(
+    private userService: UserService,
     private authService: AuthService,
     private universityService: UniversityService,
     private notificationService: NotificationService
@@ -94,18 +97,22 @@ export class AuthController {
     type: TokenResponseDto,
   })
   async login(@Body() loginDto: LoginDto): Promise<TokenResponseDto> {
-    console.log(loginDto);
     const userData = await this.authService.getUserdataFromNaver(
       loginDto.accessToken
     );
 
-    console.log(userData);
     if (!userData) {
       throw new UnauthorizedException("잘못된 토큰입니다.");
     }
 
     if (loginDto.deviceToken) {
-      await this.notificationService.put(userData.id, loginDto.deviceToken);
+      const user = await this.userService.findUserByOauthId(userData.id);
+      if (!user) {
+        throw new NotFoundException(
+          "존재하지 않는 회원입니다. 회원가입을 진행해 주세요."
+        );
+      }
+      await this.notificationService.put(user.id, loginDto.deviceToken);
     }
 
     return this.authService.login(userData);
@@ -127,7 +134,7 @@ export class AuthController {
   @ApiBearerAuth("swagger-auth")
   @Post("/token/blacklist")
   async logout(@Param("id") sessionId: string) {
-    await this.authService.logout({ sessionId: sessionId });
+    throw new NotImplementedException("구현되지 않았습니다.");
   }
 
   @Post("/email/send")
@@ -173,7 +180,7 @@ export class AuthController {
     await this.authService.emailAuthVerify(userdata, verifyCodeDto.authCode);
   }
 
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @Get("/email/verified")
   async getIsEmailVerified(@Req() request: Request) {

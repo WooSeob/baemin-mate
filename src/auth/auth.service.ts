@@ -18,7 +18,6 @@ import { randomBytes } from "crypto";
 import { EmailAuthConfig, jwt as jwtConfig } from "../../config";
 import { v4 } from "uuid";
 import { NaverAuthResponse } from "./interface/NaverAuthResponse";
-import { Session } from "./entity/Session";
 import { JwtService } from "@nestjs/jwt";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
 
@@ -41,7 +40,6 @@ export class AuthService {
     public connection: Connection,
     @InjectRepository(UniversityEmailAuth)
     private emailAuthRepository: Repository<UniversityEmailAuth>,
-    @InjectRepository(Session) private sessionRepository: Repository<Session>,
     private userService: UserService, //@Inject(forwardRef(() => UserService))
     private jwtService: JwtService
   ) {
@@ -71,8 +69,10 @@ export class AuthService {
       throw new UnauthorizedException("변조된 refresh token 입니다.");
     }
 
-    const userId = this.jwtService.decode(dto.accessToken)["id"];
-    return this.createAccessToken(userId);
+    const userId: string = this.jwtService.decode(dto.accessToken)["id"];
+
+    const user = await this.userService.findUserById(userId);
+    return this.createAccessToken(user);
   }
 
   async getUserdataFromNaver(token: string): Promise<NaverAuthResponse> {
@@ -92,24 +92,14 @@ export class AuthService {
   }
 
   async login(userData: NaverAuthResponse) {
-    const user = await this.userService.findUserById(userData.id);
+    const user = await this.userService.findUserByOauthId(userData.id);
     if (!user) {
       throw new NotFoundException(
         "존재하지 않는 회원입니다. 회원가입을 진행해 주세요."
       );
     }
 
-    return this.createAccessToken(user.id);
-  }
-
-  async logout(logoutDto: LogoutDto) {
-    const session = await this.sessionRepository.findOne(logoutDto.sessionId);
-
-    if (!session) {
-      throw new Error("로그인된 유저가 아닙니다.");
-    }
-
-    await this.sessionRepository.delete(session);
+    return this.createAccessToken(user);
   }
 
   async emailAuthCreate(oauthId: string, univId: number, email: string) {
@@ -187,8 +177,7 @@ export class AuthService {
     );
   }
 
-  private async createAccessToken(oauthId: string) {
-    const user = await this.userService.findUserById(oauthId);
+  private async createAccessToken(user: User) {
     const payload: AccessTokenPayload = {
       name: user.name,
       id: user.id,

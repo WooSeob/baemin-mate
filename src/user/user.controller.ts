@@ -36,29 +36,12 @@ export class UserController {
     @Inject(forwardRef(() => RoomService)) private roomService: RoomService
   ) {}
 
-  private _roleParticipant(user: User, room: Room) {
-    // 방 참여자가 아니라면 exception
-    //TODO 수정
-    // if (!this.roomService.isParticipant(user, room)) {
-    //   throw new HttpException(
-    //     `${user.id} is not member of room(${room.id})`,
-    //     HttpStatus.UNAUTHORIZED
-    //   );
-    // }
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth("swagger-auth")
+  @Delete("/:uid")
+  async deleteUser(@Param("uid") uid: string): Promise<void> {
+    return this.userService.deleteUser(uid);
   }
-
-  // private async checkRoomAndUser(rid: string, uid: string) {
-  //   const room = await this.roomService.findRoomById(rid);
-  //   if (!room) {
-  //     throw new HttpException("room not found", HttpStatus.NOT_FOUND);
-  //   }
-  //   const user = await this.userService.findUserById(uid);
-  //   if (!user) {
-  //     throw new HttpException("user not found", HttpStatus.NOT_FOUND);
-  //   }
-  //   this._roleParticipant(user, room);
-  //   return { room, user };
-  // }
 
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("swagger-auth")

@@ -4,25 +4,22 @@ import {
   JoinColumn,
   ManyToOne,
   OneToMany,
-  PrimaryColumn,
+  PrimaryGeneratedColumn,
 } from "typeorm";
 import { Participant } from "../../room/entity/Participant";
 import University from "../../university/entity/University";
+import { RoomState } from "../../room/const/RoomState";
+import { BigIntTransformer } from "../../common/BigIntTransformer";
 
 @Entity()
 export class User {
-  @PrimaryColumn()
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Column({
     nullable: false,
   })
   name: string;
-
-  @Column({
-    nullable: true,
-  })
-  email: string;
 
   @Column({
     default: "unknown",
@@ -40,6 +37,21 @@ export class User {
   })
   mannerRate: number;
 
+  @Column({
+    nullable: true,
+    type: "bigint",
+    transformer: [BigIntTransformer],
+  })
+  deletedAt: number;
+
+  @Column({
+    nullable: false,
+    type: "bigint",
+    default: Date.now(),
+    transformer: [BigIntTransformer],
+  })
+  createdAt: number;
+
   @Column()
   universityId: number;
 
@@ -49,6 +61,16 @@ export class User {
   @ManyToOne(() => University, { onDelete: "NO ACTION" })
   @JoinColumn()
   university: University;
+
+  delete() {
+    // 참여 방 중 활성상태인 방이 있으면 탈퇴할 수 없다
+    for (const participant of this.rooms) {
+      participant.room.onlyAt(RoomState.ORDER_DONE, RoomState.ORDER_CANCELED);
+    }
+
+    this.name = "";
+    this.deletedAt = Date.now();
+  }
 }
 
 export class UserBuilder {
