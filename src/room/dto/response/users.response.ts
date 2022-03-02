@@ -22,6 +22,27 @@ export class UserLeaveResponse implements SystemBody {
   }
 }
 
+export class UserLeaveByKickResponse implements SystemBody {
+  readonly action = "users-leave-kick";
+  data: RoomUserView;
+  static from(user: User) {
+    const r = new UserLeaveByKickResponse();
+    r.data = RoomUserView.from(user);
+    return r;
+  }
+}
+
+// TODO from interface
+export class UserLeaveByVoteResponse implements SystemBody {
+  readonly action = "users-leave-vote";
+  data: RoomUserView;
+  static from(user: User) {
+    const r = new UserLeaveByVoteResponse();
+    r.data = RoomUserView.from(user);
+    return r;
+  }
+}
+
 export class UserAllReadyResponse implements SystemBody {
   readonly action = "all-ready";
   data: {};

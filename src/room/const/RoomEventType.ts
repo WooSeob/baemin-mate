@@ -3,8 +3,11 @@ export enum RoomEventType {
   DELETED = "delete",
   MENU_UPDATE = "menuUpdate",
   USER_ENTER = "userJoin",
+
   USER_LEAVE = "userLeave",
   USER_KICKED = "userKicked",
+  USER_KICKED_BY_VOTE = "userKickedByVote",
+
   ALL_READY = "allReady",
   ALL_READY_CANCELED = "allReadyCanceled",
   ORDER_FIXED = "orderFix",

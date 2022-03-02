@@ -13,6 +13,8 @@ import {
   UserAllReadyCanceledResponse,
   UserAllReadyResponse,
   UserJoinedResponse,
+  UserLeaveByKickResponse,
+  UserLeaveByVoteResponse,
   UserLeaveResponse,
 } from "../room/dto/response/users.response";
 import RoomChat, {
@@ -97,16 +99,35 @@ export class ChatService {
 
     roomService.on(RoomEventType.USER_KICKED, async (roomId, userId) => {
       //TODO Api에 kicked 추가
-      // const [roomChat, user] = await this._createUserEventData(
-      //   RoomEventType.USER_KICKED,
-      //   roomId,
-      //   userId
-      // );
-      // this.broadcastChat(
-      //   roomId,
-      //   SystemMessageResponse.from(roomChat, User.from(user))
-      // );
+      const [roomChat, user] = await this._createUserEventData(
+        RoomEventType.USER_KICKED,
+        roomId,
+        userId
+      );
+      this.broadcastChat(
+        roomId,
+        SystemMessageResponse.from(roomChat, UserLeaveByKickResponse.from(user))
+      );
     });
+
+    roomService.on(
+      RoomEventType.USER_KICKED_BY_VOTE,
+      async (roomId, userId) => {
+        //TODO Api에 kicked 추가
+        const [roomChat, user] = await this._createUserEventData(
+          RoomEventType.USER_KICKED_BY_VOTE,
+          roomId,
+          userId
+        );
+        this.broadcastChat(
+          roomId,
+          SystemMessageResponse.from(
+            roomChat,
+            UserLeaveByVoteResponse.from(user)
+          )
+        );
+      }
+    );
 
     // 레디 상태
     roomService.on(RoomEventType.ALL_READY, async (roomId) => {

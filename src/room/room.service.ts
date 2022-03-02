@@ -349,8 +349,12 @@ export class RoomService extends EventEmitter {
       await queryRunner.manager.save(room);
       await queryRunner.commitTransaction();
 
-      this.emit(RoomEventType.USER_KICKED, roomId, targetParticipant.userId);
-      this.emit(RoomEventType.USER_LEAVE, roomId, targetParticipant.userId);
+      const event =
+        reason === RoomBlackListReason.KICKED_BY_PURCHASER
+          ? RoomEventType.USER_KICKED
+          : RoomEventType.USER_KICKED_BY_VOTE;
+
+      this.emit(event, roomId, targetParticipant.userId);
 
       this.checkAllReadyOrCanceled(prevState, room.phase, roomId);
     } catch (err) {
