@@ -8,6 +8,7 @@ import {
   Inject,
   NotImplementedException,
   Param,
+  ParseBoolPipe,
   Post,
   Query,
   Req,
@@ -346,7 +347,7 @@ export class RoomController {
   async doVote(
     @Param("rid") rid: string,
     @Param("vid") vid: string,
-    @Query("isAgree") isAgree: boolean,
+    @Query("isAgree", new ParseBoolPipe()) isAgree: boolean,
     @Req() request: Request
   ) {
     //현재 진행중인 투표가 있는지?

@@ -1,6 +1,7 @@
 import {
   Column,
   Entity,
+  JoinColumn,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
@@ -37,9 +38,11 @@ export default class RoomVote {
 
   // TODO 유저가 탈퇴해 버리면 투표가 삭제되버림
   @ManyToOne(() => User, { onDelete: "CASCADE" })
+  @JoinColumn()
   targetUser: User;
 
   @ManyToOne(() => Room, { onDelete: "CASCADE" })
+  @JoinColumn()
   room: Room;
 
   @OneToMany(() => VoteOpinion, (v) => v.vote, {

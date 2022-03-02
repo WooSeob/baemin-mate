@@ -595,13 +595,11 @@ describe("강퇴 투표 테스트", () => {
     await service.doVote(vote.id, userThreeId, true);
 
     //then
-    const result = await service.getRoomVotes(firstRoom.id);
-    expect(result[0].finished).toBe(true);
-    expect(result[0].result).toBe(true);
-    expect(serviceSpy).toBeCalledWith(
-      RoomEventType.KICK_VOTE_FINISHED,
-      result[0]
-    );
+    //TODO 조회 시점에 따라서 강퇴유저가 강퇴처리 되었을수도, 안되었을수도 있음 -> 매번 똑같은결과가 나오지 않음
+    const result = await service.getVoteById(vote.id);
+    expect(result.finished).toBe(true);
+    expect(result.result).toBe(true);
+    expect(serviceSpy).toBeCalledWith(RoomEventType.KICK_VOTE_FINISHED, result);
     expect(kickMethod).toBeCalledTimes(1);
   });
 
@@ -693,7 +691,6 @@ describe("리셋 투표 테스트", () => {
     const resetMethod = jest.spyOn(service, "resetRoom");
 
     //when
-    await service.doVote(vote.id, userOneId, true);
     await service.doVote(vote.id, userTwoId, true);
     await service.doVote(vote.id, userThreeId, true);
 
@@ -716,7 +713,6 @@ describe("리셋 투표 테스트", () => {
     const resetMethod = jest.spyOn(service, "resetRoom");
 
     //when
-    await service.doVote(vote.id, userOneId, true);
     await service.doVote(vote.id, userTwoId, false);
     await service.doVote(vote.id, userThreeId, false);
 

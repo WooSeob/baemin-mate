@@ -14,11 +14,10 @@ export default class ResetVoteFactory {
     const resetVote = new RoomVote();
     resetVote.room = room;
     resetVote.voteType = RoomVoteType.RESET;
-    resetVote.opinions = Array.from(
-      room.participants
-        .filter((p) => p.userId != requestUserId)
-        .map((p) => new VoteOpinion(resetVote, p))
-    );
+    resetVote.opinions = room.participants
+      .filter((p) => p.userId != requestUserId)
+      .map((p) => new VoteOpinion(resetVote, p));
+
     return resetVote;
   }
 }

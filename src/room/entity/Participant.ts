@@ -28,6 +28,7 @@ export class Participant {
 
   @ManyToOne(() => User, (u) => u.rooms, {
     onDelete: "CASCADE",
+    eager: true,
   })
   user!: User;
 

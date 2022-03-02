@@ -586,7 +586,9 @@ export class RoomService extends EventEmitter {
       const voteWithRoomAndOpinions: RoomVote = await queryRunner.manager
         .createQueryBuilder(RoomVote, "kickVote")
         .leftJoinAndSelect("kickVote.room", "room")
+        .leftJoinAndSelect("room.participants", "participants") // noti service
         .leftJoinAndSelect("kickVote.opinions", "voteOpinion")
+        .leftJoinAndSelect("kickVote.targetUser", "targetUser")
         .leftJoinAndSelect("voteOpinion.participant", "participant")
         .where("kickVote.id = :id", { id: voteId })
         .getOne();
@@ -599,7 +601,6 @@ export class RoomService extends EventEmitter {
         if (voteWithRoomAndOpinions.voteType === RoomVoteType.KICK) {
           this.emit(RoomEventType.KICK_VOTE_FINISHED, voteWithRoomAndOpinions);
           if (voteWithRoomAndOpinions.result) {
-            console.log(voteWithRoomAndOpinions);
             this.kick(
               voteWithRoomAndOpinions.roomId,
               voteWithRoomAndOpinions.targetUserId,
@@ -648,6 +649,8 @@ export class RoomService extends EventEmitter {
     return this.connection.manager
       .createQueryBuilder(RoomVote, "kickVote")
       .leftJoinAndSelect("kickVote.room", "room")
+      .leftJoinAndSelect("room.participants", "participants")
+      .leftJoinAndSelect("kickVote.targetUser", "targetUser")
       .leftJoinAndSelect("kickVote.opinions", "voteOpinion")
       .leftJoinAndSelect("voteOpinion.participant", "participant")
       .where("kickVote.id = :id", { id: voteId })

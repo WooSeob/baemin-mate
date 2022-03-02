@@ -320,28 +320,28 @@ export class ChatService {
           ) as Message<SystemBody | ChatBody>;
 
         case RoomEventType.KICK_VOTE_CREATED:
-          vote = this.roomService.getVoteById(roomChat.eventMetadataId);
+          vote = await this.roomService.getVoteById(roomChat.eventMetadataId);
           return SystemMessageResponse.from(
             roomChat,
             KickVoteCreatedResponse.from(vote)
           ) as Message<SystemBody | ChatBody>;
 
         case RoomEventType.KICK_VOTE_FINISHED:
-          vote = this.roomService.getVoteById(roomChat.eventMetadataId);
+          vote = await this.roomService.getVoteById(roomChat.eventMetadataId);
           return SystemMessageResponse.from(
             roomChat,
             KickVoteFinishedResponse.from(vote)
           ) as Message<SystemBody | ChatBody>;
 
         case RoomEventType.RESET_VOTE_CREATED:
-          vote = this.roomService.getVoteById(roomChat.eventMetadataId);
+          vote = await this.roomService.getVoteById(roomChat.eventMetadataId);
           return SystemMessageResponse.from(
             roomChat,
             ResetVoteCreatedResponse.from(vote)
           ) as Message<SystemBody | ChatBody>;
 
         case RoomEventType.RESET_VOTE_FINISHED:
-          vote = this.roomService.getVoteById(roomChat.eventMetadataId);
+          vote = await this.roomService.getVoteById(roomChat.eventMetadataId);
           return SystemMessageResponse.from(
             roomChat,
             ResetVoteFinishedResponse.from(vote)

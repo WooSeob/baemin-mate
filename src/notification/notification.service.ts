@@ -6,6 +6,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { UserDeviceToken } from "./entity/UserDeviceToken";
 import { Room } from "../room/entity/Room";
+import RoomVote from "../room/entity/RoomVote";
 
 @Injectable()
 export class NotificationService {
@@ -66,36 +67,32 @@ export class NotificationService {
       });
     });
 
-    roomService.on(RoomEventType.KICK_VOTE_CREATED, async (roomId: string) => {
-      const room = await roomService.findRoomById(roomId);
-      return this.toParticipants(room, {
-        title: room.shopName,
+    roomService.on(RoomEventType.KICK_VOTE_CREATED, async (vote: RoomVote) => {
+      return this.toParticipants(vote.room, {
+        title: vote.room.shopName,
         body: "강퇴 투표가 시작되었습니다.",
       });
     });
 
-    roomService.on(RoomEventType.KICK_VOTE_FINISHED, async (roomId: string) => {
-      const room = await roomService.findRoomById(roomId);
-      return this.toParticipants(room, {
-        title: room.shopName,
+    roomService.on(RoomEventType.KICK_VOTE_FINISHED, async (vote: RoomVote) => {
+      return this.toParticipants(vote.room, {
+        title: vote.room.shopName,
         body: "강퇴 투표가 종료되었습니다.",
       });
     });
 
-    roomService.on(RoomEventType.RESET_VOTE_CREATED, async (roomId: string) => {
-      const room = await roomService.findRoomById(roomId);
-      return this.toParticipants(room, {
-        title: room.shopName,
+    roomService.on(RoomEventType.RESET_VOTE_CREATED, async (vote: RoomVote) => {
+      return this.toParticipants(vote.room, {
+        title: vote.room.shopName,
         body: "진행 취소 투표가 시작되었습니다.",
       });
     });
 
     roomService.on(
       RoomEventType.RESET_VOTE_FINISHED,
-      async (roomId: string) => {
-        const room = await roomService.findRoomById(roomId);
-        return this.toParticipants(room, {
-          title: room.shopName,
+      async (vote: RoomVote) => {
+        return this.toParticipants(vote.room, {
+          title: vote.room.shopName,
           body: "진행 취소 투표가 종료되었습니다.",
         });
       }
