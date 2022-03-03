@@ -267,10 +267,21 @@ export class RoomController {
     }
 
     return room.participants.map((p) => {
-      return {
+      const ret = {
         user: RoomUserView.from(p.user),
         menus: p.menus,
+        deliveryTip: -1,
+        totalPrice: -1,
       };
+
+      try {
+        const receiptInfo = room.getReceiptForUser(p.userId);
+        ret.deliveryTip = receiptInfo.tipForUser;
+        ret.totalPrice = receiptInfo.totalPrice;
+      } finally {
+      }
+
+      return ret;
     });
   }
 
