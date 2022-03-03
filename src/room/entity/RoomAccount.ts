@@ -2,12 +2,10 @@ import {
   Column,
   Entity,
   JoinColumn,
-  ManyToOne,
   OneToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { Room } from "./Room";
-import { User } from "../../user/entity/user.entity";
 
 @Entity()
 export class RoomAccount {
@@ -37,5 +35,10 @@ export class RoomAccount {
     instance.number = number;
     instance.holderName = holderName;
     return instance;
+  }
+
+  softDelete() {
+    this.number = "(탈퇴 유저)";
+    this.holderName = "(탈퇴 유저)";
   }
 }

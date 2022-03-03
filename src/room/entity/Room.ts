@@ -133,6 +133,7 @@ export class Room {
       new Set([RoomState.ALL_READY, RoomState.ORDER_DONE])
     );
     graph.set(RoomState.ORDER_DONE, new Set());
+    graph.set(RoomState.ORDER_CANCELED, new Set());
     return graph;
   }
 
@@ -218,6 +219,11 @@ export class Room {
       throw new Error("cant transit to allReady");
     }
     this.deliveryTip = deliveryTip;
+
+    for (const participant of this.participants) {
+      participant.deliveryTip = Math.floor(deliveryTip / this.getUserCount());
+    }
+
     this.changePhase(RoomState.ORDER_CHECK);
   }
 
@@ -230,11 +236,10 @@ export class Room {
     }
 
     //TODO DTO 만들기
-    const tipForUser = Math.floor(this.deliveryTip / this.getUserCount());
     return {
       totalDeliveryTip: this.deliveryTip,
-      tipForUser: tipForUser,
-      totalPrice: participant.getTotalPrice() + tipForUser,
+      tipForUser: participant.deliveryTip,
+      totalPrice: participant.getTotalPrice() + participant.deliveryTip,
     };
   }
 

@@ -21,6 +21,9 @@ export class Participant {
   @Column()
   userId: string;
 
+  @Column({ nullable: true })
+  deliveryTip: number;
+
   @ManyToOne(() => Room, (room) => room.participants, {
     onDelete: "CASCADE",
   })

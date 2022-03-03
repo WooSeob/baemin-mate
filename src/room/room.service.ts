@@ -5,7 +5,7 @@ import { RoomState } from "./const/RoomState";
 import { User } from "../user/entity/user.entity";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Connection, QueryRunner, Repository } from "typeorm";
-import { Room } from "./entity/Room";
+import { Room, RoomRole } from "./entity/Room";
 import { Participant } from "./entity/Participant";
 import { Menu } from "./entity/Menu";
 import { AddMenuDto } from "../user/dto/request/add-menu.dto";
@@ -20,6 +20,8 @@ import { EventEmitter } from "stream";
 import { UploadFileDto } from "../infra/s3/s3.service";
 import { ImageFile } from "./entity/ImageFile";
 import { RoomAccount } from "./entity/RoomAccount";
+import { UserService } from "../user/user.service";
+import { UserEvent } from "../user/const/UserEvent";
 
 //StrictEventEmitter<RoomEvents, RoomEvents>
 @Injectable()
@@ -36,9 +38,28 @@ export class RoomService extends EventEmitter {
     @InjectRepository(ImageFile)
     private imageFileRepository: Repository<ImageFile>,
     @InjectRepository(RoomAccount)
-    private accountRepository: Repository<RoomAccount>
+    private accountRepository: Repository<RoomAccount>,
+    private userService: UserService
   ) {
     super();
+
+    userService.on(UserEvent.DELETED, async (user: User) => {
+      for (const participant of user.rooms) {
+        // 탈퇴 유저의 방들은 모두 비 활성 상태
+        if (participant.role == RoomRole.PURCHASER) {
+          const accountInfo = await this.accountRepository.findOne({
+            roomId: participant.roomId,
+          });
+
+          if (!accountInfo) {
+            continue;
+          }
+
+          accountInfo.softDelete();
+          await this.accountRepository.save(accountInfo);
+        }
+      }
+    });
   }
 
   override emit(eventName: string | symbol, ...args: any[]): boolean {
@@ -279,6 +300,7 @@ export class RoomService extends EventEmitter {
       const room = await queryRunner.manager.findOne<Room>(Room, roomId);
       await room.checkOrder(checkOrderDto.deliveryTip);
 
+      console.log(room);
       const account = RoomAccount.create(
         room,
         checkOrderDto.accountBank,
