@@ -3,13 +3,11 @@ import { Server, Socket } from "socket.io";
 import { SubscribeMatchDto } from "./dto/request/subscribe-match.dto";
 import { User } from "../user/entity/user.entity";
 import { CategoryType } from "./interfaces/category.interface";
-import { SectionType } from "../user/interfaces/user";
 import { RoomEventType } from "../room/const/RoomEventType";
 import { RoomService } from "../room/room.service";
 import { Connection, QueryRunner, Repository } from "typeorm";
 import { Match } from "./entity/Match";
 import MatchInfo from "./dto/response/match-info.interface";
-import { query } from "express";
 import { Room } from "../room/entity/Room";
 import { InjectRepository } from "@nestjs/typeorm";
 import { UniversityService } from "../university/university.service";
@@ -53,15 +51,27 @@ export class MatchService {
     });
 
     //TODO
-    // roomService.on(RoomEventType.USER_KICKED, async (roomId, userId) => {
-    //   const room = await roomService.findRoomById(roomId);
-    //   return this.handleUpdateEvent(room);
-    // });
+    roomService.on(RoomEventType.USER_KICKED, async (roomId, userId) => {
+      return this.handleUpdateEvent(roomId);
+    });
 
     // 룸 자체가 삭제 되었을 때
     // 비 노출 상태가 되었을 때 (-> orderfix )
     roomService.on(RoomEventType.DELETED, async (roomId) => {
-      await this.handleDeleteEvent(roomId);
+      const matches = await this.matchRepository.find({ roomId: null });
+      matches.forEach((match) => {
+        this.server
+          .to(
+            this.socketRoomStringResolver(
+              match.targetUnivId,
+              match.category,
+              match.sectionId
+            )
+          )
+          .emit(MatchNamespace.DELETE, MatchInfo.from(match));
+      });
+
+      await this.matchRepository.remove(matches);
     });
     roomService.on(RoomEventType.ORDER_FIXED, async (roomId) => {
       await this.handleDeleteEvent(roomId);
