@@ -73,8 +73,18 @@ export class RoomService extends EventEmitter {
     }
   }
 
-  isParticipant(user: User, room: Room) {
-    // return room.users.has(user);
+  async getRoomRole(
+    roomId: string,
+    userId: string
+  ): Promise<RoomRole | undefined> {
+    const participant = await this.participantRepository.findOne({
+      roomId: roomId,
+      userId: userId,
+    });
+    if (!participant) {
+      return undefined;
+    }
+    return participant.role;
   }
 
   findRoomById(id: string): Promise<Room> {

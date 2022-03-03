@@ -6,38 +6,27 @@ import {
   HttpException,
   HttpStatus,
   Inject,
-  NotImplementedException,
   Param,
   ParseBoolPipe,
   Post,
   Query,
   Req,
-  Response,
-  StreamableFile,
-  UploadedFile,
   UploadedFiles,
-  UseGuards,
   UseInterceptors,
   ValidationPipe,
 } from "@nestjs/common";
-import { AccessTokenPayload, AuthService } from "../auth/auth.service";
+import { AuthService } from "../auth/auth.service";
 import { RoomService } from "./room.service";
 import RoomUserView from "./dto/response/user-view.dto";
 import { UserService } from "../user/user.service";
 import RoomView from "./dto/response/room-view.dto";
 import { Request } from "express";
-import {
-  ApiBasicAuth,
-  ApiBearerAuth,
-  ApiBody,
-  ApiConsumes,
-  ApiCreatedResponse,
-} from "@nestjs/swagger";
+import { ApiBody, ApiConsumes, ApiCreatedResponse } from "@nestjs/swagger";
 import { CreateRoomDto } from "./dto/request/create-room.dto";
 import { User } from "../user/entity/user.entity";
 import { UserMenus } from "./dto/response/menus.response.dto";
 import CreateRoomResponse from "./dto/response/create-room.response";
-import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
+import { FilesInterceptor } from "@nestjs/platform-express";
 import OrderReceiptResonse from "./dto/response/order-receipt.response";
 import RoomStateResponse from "./dto/response/room-state.response";
 import { ChatBody, Message, SystemBody } from "./dto/response/message.response";
@@ -48,7 +37,12 @@ import { v4 as uuid } from "uuid";
 import { ExtensionExtractor } from "../common/util/ExtensionExtractor";
 import { S3Service } from "../infra/s3/s3.service";
 import { CheckOrderDto } from "./dto/request/check-order.dto";
-import { JwtAuthGuard } from "../auth/guards/JwtAuthGuard";
+import { ROOM_ID } from "./const/Param";
+import {
+  JustLoggedIn,
+  OnlyForParticipant,
+  OnlyForPurchaser,
+} from "./guards/auth.guard";
 
 @Controller("room")
 export class RoomController {
@@ -61,16 +55,15 @@ export class RoomController {
   ) {}
 
   //유저 in Room 상태 정보
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth("swagger-auth")
+  @OnlyForParticipant()
   @ApiCreatedResponse({
     description: "해당 방의 상태 정보를 가져옵니다.",
     type: RoomStateResponse,
   })
-  @Get("/:rid/state")
+  @Get(`/:${ROOM_ID}/state`)
   async getJoinedRooms(
     @Req() request: Request,
-    @Param("rid") rid: string
+    @Param(ROOM_ID) rid: string
   ): Promise<RoomStateResponse> {
     const user = request.user as User;
     if (!user) {
@@ -94,16 +87,15 @@ export class RoomController {
   /**
    * rid를 id로 하는 room의 정보를 가져옵니다.
    * */
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth("swagger-auth")
+  @OnlyForParticipant()
   @ApiCreatedResponse({
     description: "rid를 id로 하는 room의 정보를 가져옵니다.",
     type: RoomView,
   })
-  @Get("/:rid")
+  @Get(`/:${ROOM_ID}`)
   async getRoom(
     @Req() request: Request,
-    @Param("rid") rid: string
+    @Param(ROOM_ID) rid: string
   ): Promise<RoomView> {
     const room = await this.roomService.findRoomById(rid);
     if (!room) {
@@ -115,12 +107,13 @@ export class RoomController {
   /**
    * rid 에 해당하는 Room의 현재 참여자 정보를 불러옵니다.
    * */
+  @OnlyForParticipant()
   @ApiCreatedResponse({
     description: "현재 참여자 정보를 불러옵니다.",
     type: [RoomUser],
   })
-  @Get("/:rid/participants")
-  async getParticipants(@Param("rid") rid: string): Promise<RoomUser[]> {
+  @Get(`/:${ROOM_ID}/participants`)
+  async getParticipants(@Param(ROOM_ID) rid: string): Promise<RoomUser[]> {
     const room = await this.roomService.findRoomById(rid);
     if (!room) {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
@@ -134,13 +127,14 @@ export class RoomController {
   /**
    * rid 에 해당하는 Room의 채팅 내용을 불러옵니다.
    * */
+  @OnlyForParticipant()
   @ApiCreatedResponse({
     description: "채팅 내용을 반환합니다.",
   })
-  @Get("/:rid/chat/:idx")
+  @Get(`/:${ROOM_ID}/chat/:idx`)
   async getMessages(
     @Req() request: Request,
-    @Param("rid") rid: string,
+    @Param(ROOM_ID) rid: string,
     @Param("idx") idx: number
   ): Promise<Message<ChatBody | SystemBody>[]> {
     const room = await this.roomService.findRoomById(rid);
@@ -154,8 +148,7 @@ export class RoomController {
   /**
    * 새로운 Room 을 생성합니다.
    * */
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth("swagger-auth")
+  @JustLoggedIn()
   @ApiCreatedResponse({
     description: "새로운 Room 을 생성합니다.",
     type: CreateRoomResponse,
@@ -175,13 +168,12 @@ export class RoomController {
   /**
    * rid 에 해당하는 Room 에서 퇴장 합니다.
    * */
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth("swagger-auth")
+  @OnlyForParticipant()
   @ApiCreatedResponse({
     description: "rid 에 해당하는 Room 에서 퇴장 합니다.",
   })
-  @Get("/:rid/leave")
-  async leaveRoom(@Param("rid") rid: string, @Req() request: Request) {
+  @Get(`/:${ROOM_ID}/leave`)
+  async leaveRoom(@Param(ROOM_ID) rid: string, @Req() request: Request) {
     const room = this.roomService.findRoomById(rid);
     if (!room) {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
@@ -193,15 +185,14 @@ export class RoomController {
   /**
    * uid를 에 해당하는 유저를 강퇴시킵니다.
    * */
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth("swagger-auth")
+  @OnlyForPurchaser()
   @ApiCreatedResponse({
     description: "uid를 에 해당하는 유저를 강퇴시킵니다",
   })
-  @Get("/:rid/kick")
+  @Get(`/:${ROOM_ID}/kick`)
   async kickUser(
     @Req() request: Request,
-    @Param("rid") rid: string,
+    @Param(ROOM_ID) rid: string,
     @Query("uid") uid: string
   ) {
     const room = this.roomService.findRoomById(rid);
@@ -221,43 +212,16 @@ export class RoomController {
     );
   }
 
-  // /**
-  //  * uid를 에 해당하는 유저를 ready set합니다.
-  //  * */
-  // @ApiCreatedResponse({
-  //   description: "uid를 에 해당하는 유저를 ready set합니다.",
-  // })
-  // @Get("/:rid/ready")
-  // async setReadyUser(
-  //   @Req() request: Request,
-  //   @Param("rid") rid: string,
-  //   @Query("uid") uid: string
-  // ) {
-  //   const room = await this.roomService.findRoomById(rid);
-  //   if (!room) {
-  //     throw new HttpException("room not found", HttpStatus.NOT_FOUND);
-  //   }
-  //
-  //   const targetUser = await this.userService.findUserById(uid);
-  //   if (!targetUser) {
-  //     throw new HttpException("target user not found", HttpStatus.NOT_FOUND);
-  //   }
-  //   room.users.setReady(targetUser, true);
-  //
-  //   this.roomService.setReady();
-  // }
-
   /**
    * rid를 id로 하는 room의 전체 menu들에 대한 정보를 가져옵니다.
    * */
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth("swagger-auth")
+  @OnlyForParticipant()
   @ApiCreatedResponse({
     description: "rid를 id로 하는 room의 전체 menu들에 대한 정보를 가져옵니다.",
     type: [UserMenus],
   })
-  @Get("/:rid/menus")
-  async getMenus(@Param("rid") rid: string): Promise<UserMenus[]> {
+  @Get(`/:${ROOM_ID}/menus`)
+  async getMenus(@Param(ROOM_ID) rid: string): Promise<UserMenus[]> {
     //유효한 room 인지?
     //해당 room에 접근권한이 있는지?
 
@@ -278,28 +242,26 @@ export class RoomController {
         const receiptInfo = room.getReceiptForUser(p.userId);
         ret.deliveryTip = receiptInfo.tipForUser;
         ret.totalPrice = receiptInfo.totalPrice;
-      } finally {
-      }
+      } catch (e) {}
 
       return ret;
     });
   }
 
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth("swagger-auth")
+  @OnlyForParticipant()
   @ApiCreatedResponse({
     description: `rid를 id로 하는 room의 강퇴 투표를 생성합니다.
     생성된 Vote Id 를 반환합니다.\n
     쿼리스트링 targetId 유저에 대해 강제퇴장 시키는 건의 투표를 생성합니다.\n
     생성이 완료된 경우 해당 방의 유저들에게 생성된 투표 아이디(vid)가\n
     "vote-start" 이벤트를 통해 전달되며\n
-    이를 통해 유저들은 "POST /:rid/vote/:vid"을 통해서 해당 투표건에 대한 의사를 표시할 수 있습니다.
+    이를 통해 유저들은 "POST /${ROOM_ID}/vote/:vid"을 통해서 해당 투표건에 대한 의사를 표시할 수 있습니다.
     투표가 종료 조건이 발동되면 "vote-finish" 이벤트를 통해 결과를 통지합니다.`,
     type: String,
   })
-  @Post("/:rid/vote-kick")
+  @Post(`/:${ROOM_ID}/vote-kick`)
   async createKickVote(
-    @Param("rid") rid: string,
+    @Param(ROOM_ID) rid: string,
     @Query("targetId") targetId: string,
     @Req() request: Request
   ): Promise<string> {
@@ -324,17 +286,16 @@ export class RoomController {
     return vote.id;
   }
 
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth("swagger-auth")
+  @OnlyForParticipant()
   @ApiCreatedResponse({
     description: `rid를 id로 하는 room의 reset vote를 생성합니다.
     해당 방을 리셋 시키는 건의 투표를 생성합니다
     생성된 Vote Id 를 반환합니다.`,
     type: String,
   })
-  @Post("/:rid/vote-reset")
+  @Post(`/:${ROOM_ID}/vote-reset`)
   async createResetVote(
-    @Param("rid") rid: string,
+    @Param(ROOM_ID) rid: string,
     @Req() request: Request
   ): Promise<string> {
     //투표 제기자가 방 참여인원인지?
@@ -348,15 +309,14 @@ export class RoomController {
     return vote.id;
   }
 
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth("swagger-auth")
+  @OnlyForParticipant()
   @ApiCreatedResponse({
     description:
       "해당 room의 vid에 해당하는 투표건에 의견을 제출합니다. / isAgree : true == 해당 투표에 찬성함",
   })
-  @Post("/:rid/vote/:vid")
+  @Post(`/:${ROOM_ID}/vote/:vid`)
   async doVote(
-    @Param("rid") rid: string,
+    @Param(ROOM_ID) rid: string,
     @Param("vid") vid: string,
     @Query("isAgree", new ParseBoolPipe()) isAgree: boolean,
     @Req() request: Request
@@ -371,15 +331,14 @@ export class RoomController {
     await this.roomService.doVote(vid, (request.user as User).id, isAgree);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth("swagger-auth")
+  @OnlyForPurchaser()
   @ApiCreatedResponse({
     description: `해당 room의 order 정보를 fix 합니다.
    - 모든 참여자들에게 해당 이벤트는 push notification 되며
    - order-done 전까지 레디한 참여자들은 레디를 헤제할 수 없고, 방에서 나갈 수 없습니다.`,
   })
-  @Post("/:rid/order-fix")
-  async fixOrder(@Param("rid") rid: string, @Req() request: Request) {
+  @Post(`/:${ROOM_ID}/order-fix`)
+  async fixOrder(@Param(ROOM_ID) rid: string, @Req() request: Request) {
     //호출 시점에 all-ready 인지 다시 확인하기
     const room = await this.roomService.findRoomById(rid);
     if (!room) {
@@ -388,16 +347,15 @@ export class RoomController {
     return this.roomService.fixOrder(rid, (request.user as User).id);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth("swagger-auth")
+  @OnlyForPurchaser()
   @ApiCreatedResponse({
     description: `해당 room의 purchaser 는 배달팁 정보를 업로드 합니다.
-    이 api를 호출하기 전에 POST /room/:rid/purchase-screenshot 호출을 통해 결제 이미지를 업로드 성공한 상태여야 합니다.
+    이 api를 호출하기 전에 POST /room/${ROOM_ID}/purchase-screenshot 호출을 통해 결제 이미지를 업로드 성공한 상태여야 합니다.
     위 내용은 "order-checked" 이벤트를 통해 참가자들에게 브로드 캐스트 합니다.`,
   })
-  @Post("/:rid/order-check")
+  @Post(`/:${ROOM_ID}/order-check`)
   async checkOrder(
-    @Param("rid") rid: string,
+    @Param(ROOM_ID) rid: string,
     @Req() request: Request,
     @Body() checkOrderDto: CheckOrderDto
   ) {
@@ -412,14 +370,13 @@ export class RoomController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth("swagger-auth")
+  @OnlyForPurchaser()
   @ApiCreatedResponse({
     description: `해당 room의 purchaser 는 결제를 완료하고 해당 api를 호출합니다.
    * 이 시점 이후로 참여자들은 방을 나갈 수 있습니다.`,
   })
-  @Post("/:rid/order-done")
-  async doneOrder(@Param("rid") rid: string, @Req() request: Request) {
+  @Post(`/:${ROOM_ID}/order-done`)
+  async doneOrder(@Param(ROOM_ID) rid: string, @Req() request: Request) {
     const room = await this.roomService.findRoomById(rid);
     if (!room) {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
@@ -427,19 +384,17 @@ export class RoomController {
     return this.roomService.doneOrder(rid, (request.user as User).id);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth("swagger-auth")
+  @OnlyForParticipant()
   @ApiCreatedResponse({
     description: `해당 room의 결제 정보 스크린샷 이미지 url 들을 반환합니다.`,
   })
-  @Get("/:rid/purchase-screenshot-urls")
-  async getOrderImageUrl(@Param("rid") rid: string) {
+  @Get(`/:${ROOM_ID}/purchase-screenshot-urls`)
+  async getOrderImageUrl(@Param(ROOM_ID) rid: string) {
     const keys: string[] = await this.roomService.getOrderImageKeys(rid);
     return this.s3Service.getSignedUrls(keys);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth("swagger-auth")
+  @OnlyForPurchaser()
   @ApiConsumes("multipart/form-data")
   @ApiBody({
     schema: {
@@ -455,10 +410,10 @@ export class RoomController {
   @ApiCreatedResponse({
     description: `해당 room의 결제 정보 스크린샷 이미지를 업로드 합니다.`,
   })
-  @Post("/:rid/purchase-screenshot")
+  @Post(`/:${ROOM_ID}/purchase-screenshot`)
   @UseInterceptors(FilesInterceptor("purchase_screenshot", 3))
   async uploadPurchaseScreenshot(
-    @Param("rid") rid: string,
+    @Param(ROOM_ID) rid: string,
     @UploadedFiles() files: Express.Multer.File[]
   ) {
     // TODO 파일 확장자 필터링
@@ -480,43 +435,16 @@ export class RoomController {
     await this.roomService.uploadOrderImages(rid, fileDTOs);
   }
 
-  // TODO API 변경 문서화
-  // @UseGuards(JwtAuthGuard)
-  // @ApiBearerAuth("swagger-auth")
-  // @ApiCreatedResponse({
-  //   description: `해당 room의 결제 정보 스크린샷 이미지를 다운로드 합니다.`,
-  // })
-  // @Get("/:rid/purchase-screenshot")
-  // async getPurchaseScreenshot(
-  //   @Param("rid") rid: string,
-  //   @Req() request: Request,
-  //   @Response({ passthrough: true }) res
-  // ) {
-  //   throw new NotImplementedException("");
-  //
-  //   const room = await this.roomService.findRoomById(rid);
-  //   if (!room) {
-  //     throw new HttpException("room not found", HttpStatus.NOT_FOUND);
-  //   }
-  //   const file = createReadStream(join(process.cwd(), `${room.id}.jpg`));
-  //   res.set({
-  //     "Content-Type": "image/jpg",
-  //     "Content-Disposition": `attachment; filename="${room.id}.jpg"`,
-  //   });
-  //   return new StreamableFile(file);
-  // }
-
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth("swagger-auth")
+  @OnlyForParticipant()
   @ApiCreatedResponse({
     description:
       "개개인의 주문 정보를 반환합니다. 결제정보 스크린샷은 포함되어 있지 않으며, " +
       "개개인의 메뉴, 배달팁, 총 금액, purchaser의 계좌 정보를 반환합니다.",
     type: OrderReceiptResonse,
   })
-  @Get("/:rid/receipt")
+  @Get(`/:${ROOM_ID}/receipt`)
   async getMyReceipt(
-    @Param("rid") rid: string,
+    @Param(ROOM_ID) rid: string,
     @Req() request: Request
   ): Promise<OrderReceiptResonse> {
     const room = await this.roomService.findRoomById(rid);

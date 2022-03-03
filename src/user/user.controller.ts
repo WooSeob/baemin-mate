@@ -12,6 +12,8 @@ import {
   Post,
   Put,
   Query,
+  Req,
+  UnauthorizedException,
   UseGuards,
 } from "@nestjs/common";
 import { UserService } from "./user.service";
@@ -19,13 +21,15 @@ import { AddMenuDto } from "./dto/request/add-menu.dto";
 import { UpdateMenuDto } from "./dto/request/update-menu.dto";
 import { ApiBearerAuth, ApiCreatedResponse } from "@nestjs/swagger";
 import { RoomService } from "../room/room.service";
-import { User } from "./entity/user.entity";
 import RoomDetailForUser from "./dto/response/room";
-import OrderReceiptResonse from "../room/dto/response/order-receipt.response";
 import RoomUserView from "../room/dto/response/user-view.dto";
 import { MenuItem } from "../match/interfaces/shop.interface";
 import { Room } from "../room/entity/Room";
 import { JwtAuthGuard } from "../auth/guards/JwtAuthGuard";
+import { OnlyForParticipant } from "../room/guards/auth.guard";
+import { ROOM_ID } from "../room/const/Param";
+import { Request } from "express";
+import { AccessTokenPayload } from "../auth/auth.service";
 
 // 로그인이 안되어 있으면 exception
 
@@ -39,7 +43,14 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @Delete("/:uid")
-  async deleteUser(@Param("uid") uid: string): Promise<void> {
+  async deleteUser(
+    @Param("uid") uid: string,
+    @Req() request: Request
+  ): Promise<void> {
+    const jwtPayload: AccessTokenPayload = request.user as AccessTokenPayload;
+    if (jwtPayload.id != uid) {
+      throw new UnauthorizedException();
+    }
     return this.userService.deleteUser(uid);
   }
 
@@ -126,15 +137,14 @@ export class UserController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth("swagger-auth")
+  @OnlyForParticipant()
   @ApiCreatedResponse({
     description: "해당 유저, 해당 방에 새 메뉴를 추가합니다.",
   })
-  @Post("/:uid/room/:rid/menus")
+  @Post(`/:uid/room/:${ROOM_ID}/menus`)
   async addMenu(
     @Param("uid") uid: string,
-    @Param("rid") rid: string,
+    @Param(ROOM_ID) rid: string,
     @Body() addMenuDto: AddMenuDto
   ): Promise<string> {
     // 참여한 곳이 없으면 exception
@@ -148,17 +158,16 @@ export class UserController {
     return (await this.roomService.addMenu(rid, uid, addMenuDto)).id;
   }
 
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth("swagger-auth")
+  @OnlyForParticipant()
   @ApiCreatedResponse({
     description:
       "해당 유저, 해당 방에서 메뉴 id에 해당하는 메뉴 하나를 반환합니다.",
     type: MenuItem,
   })
-  @Get("/:uid/room/:rid/menus/:mid")
+  @Get(`/:uid/room/:${ROOM_ID}/menus/:mid`)
   async getMenu(
     @Param("uid") uid: string,
-    @Param("rid") rid: string,
+    @Param(ROOM_ID) rid: string,
     @Param("mid") mid: string
   ): Promise<MenuItem> {
     const menu = await this.roomService.getMenuById(mid);
@@ -168,47 +177,44 @@ export class UserController {
     return menu;
   }
 
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth("swagger-auth")
+  @OnlyForParticipant()
   @ApiCreatedResponse({
     description:
       "해당 유저, 해당 방에서 메뉴 id에 해당하는 메뉴 하나를 수정합니다.",
   })
-  @Put("/:uid/room/:rid/menus/:mid")
+  @Put(`/:uid/room/:${ROOM_ID}/menus/:mid`)
   async updateMenu(
     @Param("uid") uid: string,
-    @Param("rid") rid: string,
+    @Param(ROOM_ID) rid: string,
     @Param("mid") mid: string,
     @Body() updateMenuDto: UpdateMenuDto
   ) {
     return this.roomService.updateMenu(rid, uid, mid, updateMenuDto);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth("swagger-auth")
+  @OnlyForParticipant()
   @ApiCreatedResponse({
     description:
       "해당 유저, 해당 방에서 메뉴 id에 해당하는 메뉴 하나를 삭제합니다.",
   })
-  @Delete("/:uid/room/:rid/menus/:mid")
+  @Delete(`/:uid/room/:${ROOM_ID}/menus/:mid`)
   async deleteMenu(
     @Param("uid") uid: string,
-    @Param("rid") rid: string,
+    @Param(ROOM_ID) rid: string,
     @Param("mid") mid: string
   ) {
     return this.roomService.deleteMenu(rid, uid, mid);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth("swagger-auth")
+  @OnlyForParticipant()
   @ApiCreatedResponse({
     description:
       "해당 유저, 해당 방에서 유저의 레디 상태를 state(boolean)로 세트합니다.",
   })
-  @Get("/:uid/room/:rid/ready")
+  @Get(`/:uid/room/:${ROOM_ID}/ready`)
   async toggleReady(
     @Param("uid") uid: string,
-    @Param("rid") rid: string,
+    @Param(ROOM_ID) rid: string,
     @Query("state", ParseBoolPipe) readyState: boolean
   ) {
     return this.roomService.setReady(rid, uid, readyState);
