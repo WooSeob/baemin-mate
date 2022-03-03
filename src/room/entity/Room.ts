@@ -277,21 +277,17 @@ export class Room {
     }
 
     const participant = this.participants[pIdx];
-    if (participant.role == RoomRole.PURCHASER) {
-      if (this.getUserCount() > 1) {
-        throw new Error("방장은 한명일때만 나갈 수 있음");
-      }
-    } else if (participant.role == RoomRole.MEMBER) {
-      if (
-        this.phase == RoomState.PREPARE ||
-        this.phase == RoomState.ALL_READY
-      ) {
+
+    if (this.phase == RoomState.PREPARE || this.phase == RoomState.ALL_READY) {
+      if (participant.role == RoomRole.PURCHASER) {
+        if (this.getUserCount() > 1) {
+          throw new Error("방장은 한명일때만 나갈 수 있음");
+        }
+      } else {
         if (participant.isReady) {
           throw new Error("레디 풀어야 나갈 수 있음");
         }
       }
-    } else {
-      throw new Error("unValid participant role");
     }
 
     const target = this.participants.splice(pIdx, 1)[0];

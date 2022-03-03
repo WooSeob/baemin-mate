@@ -165,7 +165,7 @@ describe("레디 테스트", () => {
     );
 
     expect(serviceSpy).toBeCalledWith(
-      RoomEventType.USER_LEAVE,
+      RoomEventType.USER_KICKED,
       room.id,
       userThreeId
     );
@@ -798,7 +798,7 @@ describe("메뉴 테스트", () => {
   });
 });
 
-const userOneId = "SjnUHiH9NfWidFhhnCiZ1JgjKsriQ_7H9NFW3gPZJQc";
+const userOneId = "1b26110f-dfd5-4f62-8a40-e3e3c54f4b05";
 const userTwoId = "abc";
 const userThreeId = "xyz";
 const userFourId = "qwer";
