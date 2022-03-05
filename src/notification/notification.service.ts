@@ -103,6 +103,9 @@ export class NotificationService {
     const deviceTokens = (await this.getDeviceTokensOfPurchaser(room)).map(
       (deviceToken) => deviceToken.deviceToken
     );
+    if (deviceTokens.length == 0) {
+      return;
+    }
     this.fcmService.multicastNotification(deviceTokens, message);
   }
 
@@ -110,6 +113,9 @@ export class NotificationService {
     const deviceTokens = (await this.getDeviceTokensOfParticipants(room)).map(
       (deviceToken) => deviceToken.deviceToken
     );
+    if (deviceTokens.length == 0) {
+      return;
+    }
     this.fcmService.multicastNotification(deviceTokens, message);
   }
 

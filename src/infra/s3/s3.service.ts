@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import * as AWS from "aws-sdk";
 import { aws_s3 } from "../../../config";
 
@@ -14,7 +14,7 @@ enum AwsOperation {
 @Injectable()
 export class S3Service {
   private readonly s3: AWS.S3;
-
+  private readonly logger = new Logger("S3Service");
   constructor() {
     this.s3 = new AWS.S3({
       accessKeyId: aws_s3.accessKeyId,

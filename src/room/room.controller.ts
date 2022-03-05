@@ -6,6 +6,7 @@ import {
   HttpException,
   HttpStatus,
   Inject,
+  Logger,
   Param,
   ParseBoolPipe,
   Post,
@@ -42,10 +43,12 @@ import {
   JustLoggedIn,
   OnlyForParticipant,
   OnlyForPurchaser,
-} from "./guards/auth.guard";
+} from "./decorators/room.decorator";
 
 @Controller("room")
 export class RoomController {
+  private readonly logger = new Logger("RoomController");
+
   constructor(
     private authService: AuthService,
     private roomService: RoomService,
@@ -420,7 +423,7 @@ export class RoomController {
 
     const room = await this.roomService.findRoomById(rid);
     if (!room) {
-      console.log("room not found");
+      this.logger.log("room not found");
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
 
@@ -430,7 +433,13 @@ export class RoomController {
         key: `${uuid()}.${ExtensionExtractor.from(file.originalname)}`,
       };
     });
-    await this.s3Service.upload(fileDTOs);
+
+    try {
+      await this.s3Service.upload(fileDTOs);
+    } catch (e) {
+      this.logger.error("S3 upload failed", e);
+      throw e;
+    }
 
     await this.roomService.uploadOrderImages(rid, fileDTOs);
   }

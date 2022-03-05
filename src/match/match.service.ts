@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger, UseInterceptors } from "@nestjs/common";
 import { Server, Socket } from "socket.io";
 import { SubscribeMatchDto } from "./dto/request/subscribe-match.dto";
 import { User } from "../user/entity/user.entity";
@@ -17,8 +17,10 @@ enum MatchNamespace {
   UPDATE = "update",
   DELETE = "closed",
 }
+@UseInterceptors()
 @Injectable()
 export class MatchService {
+  private readonly logger = new Logger("MatchService");
   public server: Server = null;
 
   constructor(
@@ -154,7 +156,6 @@ export class MatchService {
       client.leave(room);
     }
 
-    console.log(user);
     const matches = await this.findMatches(
       user.universityId,
       subscribeMatchDto.section,

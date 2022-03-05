@@ -1,7 +1,11 @@
 import { RoomState } from "../../../const/RoomState";
-import { NotFoundException } from "@nestjs/common";
+import { NotFoundException, UnauthorizedException } from "@nestjs/common";
 import RoomVote from "../../RoomVote";
 import VoteStrategy from "../VoteStrategy";
+import {
+  AlreadyDoVoteException,
+  FinishedVoteException,
+} from "../../../exceptions/room.exception";
 
 export default class KickVoteStrategy implements VoteStrategy {
   doVote(vote: RoomVote, userId: string, opinion: boolean) {
@@ -12,11 +16,15 @@ export default class KickVoteStrategy implements VoteStrategy {
 
     const voter = vote.opinions.find((o) => o.participant.userId === userId);
     if (!voter) {
-      throw new NotFoundException("투표 참가 대상이 아닙니다.");
+      throw new UnauthorizedException("투표 참가 대상이 아닙니다.");
+    }
+
+    if (vote.finished) {
+      throw new FinishedVoteException();
     }
 
     if (voter.submitted) {
-      throw new Error("이미 투표하셨습니다.");
+      throw new AlreadyDoVoteException();
     }
 
     voter.opinion = opinion;

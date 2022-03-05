@@ -1,10 +1,12 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import * as firebaseAdmin from "firebase-admin";
 import { firebaseServiceAccount } from "../../../config";
 
 @Injectable()
 // 크로스 플랫폼 대응을 위한 추상화
 export class FcmService {
+  private readonly logger = new Logger("FcmService");
+
   constructor() {
     firebaseAdmin.initializeApp({
       credential: firebaseAdmin.credential.cert({
@@ -16,7 +18,7 @@ export class FcmService {
   }
 
   multicastNotification(deviceTokens: string[], notification) {
-    console.log(notification);
+    this.logger.log({ message: "MulticastNotification", notification });
     const androidFcmMessage = {
       notification: notification,
       tokens: deviceTokens,
@@ -26,10 +28,7 @@ export class FcmService {
       .messaging()
       .sendMulticast(androidFcmMessage)
       .then((res) => {
-        console.log(res);
-        res.responses.forEach((response) => {
-          console.log(response);
-        });
+        res.responses.forEach((response) => {});
       })
       .catch((err) => console.log(err));
   }

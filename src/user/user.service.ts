@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { User, UserBuilder } from "./entity/user.entity";
 import { Repository } from "typeorm";
@@ -9,11 +9,17 @@ import { UserEvent } from "./const/UserEvent";
 
 @Injectable()
 export class UserService extends EventEmitter {
+  private logger = new Logger("UserService");
   constructor(
     @InjectRepository(User) private userRepository: Repository<User>,
     @InjectRepository(OAuthUser) private oauthRepository: Repository<OAuthUser>
   ) {
     super();
+  }
+
+  override emit(eventName: string | symbol, ...args: any[]): boolean {
+    this.logger.log({ message: "[UserEvent]", event: eventName, args: args });
+    return super.emit(eventName, ...args);
   }
 
   async createUserByNaver(
@@ -32,6 +38,7 @@ export class UserService extends EventEmitter {
     oauthUser.provider = OAuthProvider.NAVER;
     oauthUser.user = created;
     await this.oauthRepository.save(oauthUser);
+    this.emit(UserEvent.CREATED, created);
     return created;
   }
 
@@ -96,7 +103,6 @@ export class UserService extends EventEmitter {
     if (!user) {
       throw new NotFoundException("존재하지 않는 회원입니다.");
     }
-    console.log(user);
 
     return user.rooms.map((participant) => participant.roomId);
   }

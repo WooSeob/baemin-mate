@@ -9,6 +9,7 @@ import { RoomRole } from "../entity/Room";
 import { AccessTokenPayload } from "../../auth/auth.service";
 import { ROOM_ID } from "../const/Param";
 import { RoomService } from "../room.service";
+import { ReflectKey } from "../../common/constants/reflect-keys";
 
 @Injectable()
 export class RoomRolesGuard implements CanActivate {
@@ -17,7 +18,7 @@ export class RoomRolesGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const roles = this.reflector.get<RoomRole[]>(
-      "roomRoles",
+      ReflectKey.ROOM_ROLES,
       context.getHandler()
     );
     if (!roles) {

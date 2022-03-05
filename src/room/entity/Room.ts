@@ -14,10 +14,24 @@ import { ImageFile } from "./ImageFile";
 import { CreateRoomDto } from "../dto/request/create-room.dto";
 import { NotFoundException } from "@nestjs/common";
 import RoomBlackList, { RoomBlackListReason } from "./RoomBlackList";
-import AlreadyJoinedError from "../../common/AlreadyJoinedError";
 import University from "../../university/entity/University";
 import { BigIntTransformer } from "../../common/BigIntTransformer";
 import Dormitory from "../../university/entity/Dormitory";
+import {
+  AlreadyInProgressRoomJoinedException,
+  AlreadyJoinedException,
+  AlreadyReadyRoomExistException,
+  AnotherUnivJoinNotAllowedException,
+  BannedUserJoinNotAllowedException,
+  CantChangePhaseException,
+  CantLeaveBcsReadyException,
+  InProgressRoomJoinNotAllowedException,
+  KickAtAfterFixNotAllowedException,
+  KickPurchaserNotAllowedException,
+  NotAllowedPhaseException,
+  OrderCheckScreenShotNotFoundException,
+  PurchaserCantLeaveException,
+} from "../exceptions/room.exception";
 
 export enum RoomRole {
   PURCHASER = "purchaser",
@@ -184,7 +198,7 @@ export class Room {
 
   onlyAt(...phases: RoomState[]) {
     if (!new Set(phases).has(this.phase)) {
-      throw new Error("cant do at phase");
+      throw new NotAllowedPhaseException();
     }
   }
 
@@ -195,11 +209,11 @@ export class Room {
     });
   }
 
-  public changePhase(phase: RoomState) {
+  private changePhase(phase: RoomState) {
     if (this.canTransitionTo(phase)) {
       this.phase = phase;
     } else {
-      throw new Error(`cant transit to (${phase})`);
+      throw new CantChangePhaseException(this.phase, phase);
     }
   }
 
@@ -207,16 +221,14 @@ export class Room {
     return this.participants.length;
   }
 
-  private onlyFor(participant: Participant, ...roles: RoomRole[]) {
-    if (!new Set(roles).has(participant.role)) {
-      throw new Error("cant do for that role");
-    }
+  fixOrder() {
+    this.changePhase(RoomState.ORDER_FIX);
   }
 
   async checkOrder(deliveryTip: number) {
     this.canTransitionTo(RoomState.ORDER_CHECK);
     if ((await this.orderCheckScreenShots).length == 0) {
-      throw new Error("cant transit to allReady");
+      throw new OrderCheckScreenShotNotFoundException();
     }
     this.deliveryTip = deliveryTip;
 
@@ -227,12 +239,16 @@ export class Room {
     this.changePhase(RoomState.ORDER_CHECK);
   }
 
+  doneOrder() {
+    this.changePhase(RoomState.ORDER_DONE);
+  }
+
   getReceiptForUser(userId: string) {
     this.onlyAt(RoomState.ORDER_CHECK, RoomState.ORDER_DONE);
 
     const participant = this.participants.find((p) => p.userId === userId);
     if (!participant) {
-      throw new NotFoundException("해당 유저를 찾을 수 없습니다.");
+      throw new NotFoundException("참여자를 찾을 수 없습니다.");
     }
 
     //TODO DTO 만들기
@@ -246,7 +262,7 @@ export class Room {
   getParticipant(userId: string) {
     const participant = this.participants.find((p) => p.userId === userId);
     if (!participant) {
-      throw new NotFoundException("해당 유저를 찾을 수 없습니다.");
+      throw new NotFoundException("참여자를 찾을 수 없습니다.");
     }
     return participant;
   }
@@ -261,7 +277,7 @@ export class Room {
     // prepare & allReady 상태에서만 수행가능
     const pIdx = this.participants.findIndex((p) => p.userId === userId);
     if (pIdx < 0) {
-      throw new Error("참여자를 찾을수 없습니다.");
+      throw new NotFoundException("참여자를 찾을 수 없습니다.");
     }
 
     const participant = this.participants[pIdx];
@@ -272,13 +288,14 @@ export class Room {
   leave(userId: string): Participant {
     this.onlyAt(
       RoomState.PREPARE,
+      RoomState.ALL_READY,
       RoomState.ORDER_DONE,
       RoomState.ORDER_CANCELED
     );
 
     const pIdx = this.participants.findIndex((p) => p.userId === userId);
     if (pIdx < 0) {
-      throw new Error("참여자를 찾을수 없습니다.");
+      throw new NotFoundException("참여자를 찾을 수 없습니다.");
     }
 
     const participant = this.participants[pIdx];
@@ -286,11 +303,11 @@ export class Room {
     if (this.phase == RoomState.PREPARE || this.phase == RoomState.ALL_READY) {
       if (participant.role == RoomRole.PURCHASER) {
         if (this.getUserCount() > 1) {
-          throw new Error("방장은 한명일때만 나갈 수 있음");
+          throw new PurchaserCantLeaveException();
         }
       } else {
         if (participant.isReady) {
-          throw new Error("레디 풀어야 나갈 수 있음");
+          throw new CantLeaveBcsReadyException();
         }
       }
     }
@@ -306,13 +323,17 @@ export class Room {
     // order-fix 이전만 수행 가능
     const idx = this.participants.findIndex((p) => p.userId === targetUserId);
     if (idx < 0) {
-      throw new Error("해당 유저가 없습니다.");
+      throw new NotFoundException("참여자를 찾을 수 없습니다.");
     }
 
     if (reason == RoomBlackListReason.KICKED_BY_PURCHASER) {
-      this.onlyAt(RoomState.PREPARE, RoomState.ALL_READY);
+      try {
+        this.onlyAt(RoomState.PREPARE, RoomState.ALL_READY);
+      } catch (e) {
+        throw new KickAtAfterFixNotAllowedException();
+      }
       if (targetUserId === this.purchaserId) {
-        throw new Error("방장은 강퇴할 수 없습니다.");
+        throw new KickPurchaserNotAllowedException();
       }
     }
 
@@ -336,16 +357,20 @@ export class Room {
   //Room.ts
   join(user: User) {
     // 참여하려는 방의 상태는 PREPARE, ALL_READY 여야 함.
-    this.onlyAt(RoomState.PREPARE, RoomState.ALL_READY);
+    try {
+      this.onlyAt(RoomState.PREPARE, RoomState.ALL_READY);
+    } catch (e) {
+      throw new InProgressRoomJoinNotAllowedException();
+    }
 
     // 강퇴당한 이력이 있는 유저는 입장할 수 없음
     const isInBlackList = this.blackList.find((b) => b.userId === user.id);
     if (isInBlackList) {
-      throw new Error("강제퇴장 당한 이용자 입니다.");
+      throw new BannedUserJoinNotAllowedException();
     }
 
     if (this.participants.findIndex((p) => p.userId === user.id) > -1) {
-      throw new Error("이미 입장한 방입니다.");
+      throw new AlreadyJoinedException();
     }
 
     // 유저 기준 조건
@@ -353,7 +378,7 @@ export class Room {
 
     // 같은 대학의 방에만 참가 가능
     if (this.targetUnivId !== user.universityId) {
-      throw new Error("다른 대학의 방에는 참여할 수 없습니다.");
+      throw new AnotherUnivJoinNotAllowedException();
     }
 
     // 참가자 추가
@@ -365,28 +390,38 @@ export class Room {
         .build()
     );
 
-    console.log(this);
     this.updateAllReadyState();
   }
 
   private static validateJoin(user) {
     for (const participation of user.rooms) {
       if (participation.role == RoomRole.PURCHASER) {
-        participation.room.onlyAt(RoomState.ORDER_DONE);
+        try {
+          participation.room.onlyAt(
+            RoomState.ORDER_DONE,
+            RoomState.ORDER_CANCELED
+          );
+        } catch (e) {
+          throw new AlreadyInProgressRoomJoinedException();
+        }
       } else if (participation.role == RoomRole.MEMBER) {
-        participation.room.onlyAt(
-          RoomState.PREPARE,
-          RoomState.ORDER_DONE,
-          RoomState.ORDER_CANCELED
-        );
+        try {
+          participation.room.onlyAt(
+            RoomState.PREPARE,
+            RoomState.ORDER_DONE,
+            RoomState.ORDER_CANCELED
+          );
+        } catch (e) {
+          throw new AlreadyInProgressRoomJoinedException();
+        }
         if (
           participation.room.phase == RoomState.PREPARE &&
           participation.isReady
         ) {
-          throw new Error("이미 준비완료한 방이 존재합니다.");
+          throw new AlreadyReadyRoomExistException();
         }
       } else {
-        throw new Error("잘못된 role 입니다.");
+        throw new Error("잘못된 Role 입니다.");
       }
     }
   }
@@ -402,7 +437,7 @@ export class Room {
           RoomState.ORDER_CANCELED
         );
       } catch (e) {
-        throw new AlreadyJoinedError("이미 참여중인 방이 있습니다.");
+        throw new AlreadyInProgressRoomJoinedException();
       }
     }
 

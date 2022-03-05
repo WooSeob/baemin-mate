@@ -7,25 +7,43 @@ import {
   SubscribeMessage,
   MessageBody,
   ConnectedSocket,
+  BaseWsExceptionFilter,
 } from "@nestjs/websockets";
-import { Logger } from "@nestjs/common";
+import {
+  ArgumentMetadata,
+  Inject,
+  Injectable,
+  Logger,
+  PipeTransform,
+  UseFilters,
+  UseInterceptors,
+  UsePipes,
+  ValidationPipe,
+} from "@nestjs/common";
 import { Server, Socket } from "socket.io";
 import { MatchService } from "./match.service";
 import { AuthService, AccessTokenPayload } from "src/auth/auth.service";
 import MatchInfo from "./dto/response/match-info.interface";
 import { UserService } from "../user/user.service";
-import { User } from "src/user/entity/user.entity";
 import { Match } from "./entity/Match";
+import { SubscribeMatchDto } from "./dto/request/subscribe-match.dto";
+import { ObjectPipe } from "../common/pipe/object.pipe";
+import { WINSTON_MODULE_PROVIDER, WinstonLogger } from "nest-winston";
+import { LoggingInterceptor } from "../common/interceptors/logging.interceptor";
+import { WsEvent } from "../common/decorators/ws-event.decorator";
 
 const metadata = {
   namespace: "/match",
   cors: { origin: "*" },
   allowEIO3: true,
 };
+@UsePipes(new ObjectPipe(), new ValidationPipe({ transform: true }))
+@UseInterceptors(LoggingInterceptor)
 @WebSocketGateway(metadata)
 export class MatchGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
+  private logger = new Logger("MatchGateway");
   private _socketIdToUserId: Map<string, Promise<string>> = new Map();
   constructor(
     private matchService: MatchService,
@@ -34,16 +52,16 @@ export class MatchGateway
   ) {}
 
   @WebSocketServer() public server: Server;
-  private logger: Logger = new Logger("MatchGateway");
 
   afterInit(server: Server) {
     this.matchService.server = server;
   }
 
   async handleConnection(client: Socket, ...args: any[]) {
-    this.logger.log(
-      `Client connected: ${client.id} (${client.handshake.auth.token})`
-    );
+    this.logger.log({
+      message: `[Client Connected] #${client.id}`,
+      handshake: client.handshake,
+    });
 
     let token = client.handshake.auth.token;
     if (token.split(" ").length > 1) {
@@ -63,48 +81,45 @@ export class MatchGateway
     foundUserPromise.then((user) => {
       //인증 실패시 강제 disconnect
       if (!user) {
-        console.log("auth fail at Match gateway");
-        console.log(client.handshake.auth);
+        this.logger.log({
+          message: `[Authentication failed] #${client.id} disconnect.`,
+          token: client.handshake.auth.token,
+        });
         client.disconnect();
         return;
       }
     });
-
-    console.log(this._socketIdToUserId);
   }
 
   async handleDisconnect(client: Socket) {
-    this.logger.log(
-      `Client disconnected: ${client.id} (${client.handshake.auth.token})`
-    );
+    const uid = await this._socketIdToUserId.get(client.id);
+    this.logger.log({
+      message: `[Client Disconnected] #${client.id} (${uid})`,
+    });
 
     //기존 매핑 삭제
     this._socketIdToUserId.delete(client.id);
   }
 
+  @WsEvent("subscribe")
   @SubscribeMessage("subscribe")
   async subscribe(
-    @MessageBody() _subscribeMatchDto: any,
+    @MessageBody()
+    subscribeDto: SubscribeMatchDto,
     @ConnectedSocket() client: Socket
   ) {
-    let subscribeMatchDto;
-    if (typeof _subscribeMatchDto === "string") {
-      subscribeMatchDto = JSON.parse(_subscribeMatchDto);
-    } else {
-      subscribeMatchDto = _subscribeMatchDto;
-    }
+    const uid = await this._socketIdToUserId.get(client.id);
+    this.logger.log({
+      message: `[subscribe] #${client.id} (${uid})`,
+      dto: subscribeDto,
+    });
 
-    console.log(typeof subscribeMatchDto);
-
-    console.log(subscribeMatchDto);
-    const user = await this.userService.findUserById(
-      await this._socketIdToUserId.get(client.id)
-    );
-    console.log(await this._socketIdToUserId.get(client.id));
-    console.log(this._socketIdToUserId);
+    const user = await this.userService.findUserById(uid);
 
     if (!user) {
-      console.log("user not found at subscribe");
+      this.logger.warn(
+        `[subscribe] User(${uid}) 를 찾을 수 없습니다. 연결을 해제합니다.`
+      );
       client.disconnect();
       return {
         status: 401,
@@ -114,10 +129,10 @@ export class MatchGateway
 
     let matches: Match[] = await this.matchService.subscribeByCategory(
       user,
-      subscribeMatchDto,
+      subscribeDto,
       client
     );
-    console.log(matches);
+
     return {
       status: 200,
       data: matches.map((match): MatchInfo => {

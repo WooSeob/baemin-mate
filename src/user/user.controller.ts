@@ -26,7 +26,7 @@ import RoomUserView from "../room/dto/response/user-view.dto";
 import { MenuItem } from "../match/interfaces/shop.interface";
 import { Room } from "../room/entity/Room";
 import { JwtAuthGuard } from "../auth/guards/JwtAuthGuard";
-import { OnlyForParticipant } from "../room/guards/auth.guard";
+import { OnlyForParticipant } from "../room/decorators/room.decorator";
 import { ROOM_ID } from "../room/const/Param";
 import { Request } from "express";
 import { AccessTokenPayload } from "../auth/auth.service";

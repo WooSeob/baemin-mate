@@ -44,6 +44,7 @@
     "multer": "^1.4.3",
     "multer-s3": "^2.10.0",
     "mysql2": "^2.3.3",
+    "nest-winston": "^1.6.2",
     "nodemailer": "^6.7.2",
     "passport": "^0.4.1",
     "passport-jwt": "^4.0.0",
@@ -54,7 +55,9 @@
     "sqlite3": "^5.0.2",
     "swagger-ui-express": "^4.2.0",
     "typeorm": "^0.2.41",
-    "uuid": "^8.3.2"
+    "uuid": "^8.3.2",
+    "winston": "^3.6.0",
+    "winston-daily-rotate-file": "^4.6.1"
   },
   "devDependencies": {
     "@nestjs/cli": "^8.0.0",

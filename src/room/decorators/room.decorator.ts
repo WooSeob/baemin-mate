@@ -1,8 +1,8 @@
 import { applyDecorators, UseGuards } from "@nestjs/common";
-import { RoomRoles } from "../../common/decorators/room-roles.decorator";
+import { RoomRoles } from "./room-roles.decorator";
 import { RoomRole } from "../entity/Room";
 import { JwtAuthGuard } from "../../auth/guards/JwtAuthGuard";
-import { RoomRolesGuard } from "./room-roles.guard";
+import { RoomRolesGuard } from "../guards/room-roles.guard";
 import { ApiBearerAuth } from "@nestjs/swagger";
 
 export function OnlyForPurchaser() {

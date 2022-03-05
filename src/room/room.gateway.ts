@@ -12,11 +12,21 @@ import { RoomService } from "./room.service";
 import { Server, Socket } from "socket.io";
 import Ack from "src/common/interfaces/ack.interface";
 import None from "src/common/interfaces/none.interface";
-import { Logger } from "@nestjs/common";
+import {
+  Logger,
+  UseInterceptors,
+  UsePipes,
+  ValidationPipe,
+} from "@nestjs/common";
 import { UserService } from "../user/user.service";
-import { ChatService } from "../chat/chat.service";
 import { RoomEventType } from "./const/RoomEventType";
+import { ObjectPipe } from "../common/pipe/object.pipe";
+import ChatRequestDto from "./dto/request/chat-request.dto";
+import { LoggingInterceptor } from "../common/interceptors/logging.interceptor";
+import { WsEvent } from "../common/decorators/ws-event.decorator";
 
+@UsePipes(new ObjectPipe(), new ValidationPipe({ transform: true }))
+@UseInterceptors(LoggingInterceptor)
 @WebSocketGateway({ namespace: "/room", cors: { origin: "*" } })
 export class RoomGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
@@ -35,16 +45,12 @@ export class RoomGateway
   constructor(
     private roomService: RoomService,
     private authService: AuthService,
-    private userService: UserService,
-    private chatService: ChatService
+    private userService: UserService
   ) {
     roomService.on(RoomEventType.USER_ENTER, (roomId, userId) => {
       const socketIds = this._userIdToSocketId.get(userId);
       socketIds.forEach(async (sid) => {
-        // console.log(RoomGateway._server.);
-
         const sockets = await RoomGateway._server.in(sid).fetchSockets();
-        console.log(sockets);
         sockets.forEach((socket) => {
           socket.join(roomId);
         });
@@ -77,9 +83,10 @@ export class RoomGateway
   }
 
   async handleConnection(client: Socket, ...args: any[]) {
-    this.logger.log(
-      `Client connected: ${client.id} (${client.handshake.auth.token})`
-    );
+    this.logger.log({
+      message: `[Client Connected] #${client.id}`,
+      handshake: client.handshake,
+    });
 
     let token = client.handshake.auth.token;
     if (token.split(" ").length > 1) {
@@ -88,6 +95,10 @@ export class RoomGateway
     const user = await this.authService.validate(token);
     //인증 실패시 강제 disconnect
     if (!user) {
+      this.logger.log({
+        message: `[Authentication failed] #${client.id} disconnect.`,
+        token: client.handshake.auth.token,
+      });
       client.disconnect();
       return;
     }
@@ -103,34 +114,32 @@ export class RoomGateway
   }
 
   async handleDisconnect(client: Socket) {
-    this.logger.log(
-      `Client disconnected: ${client.id} (${client.handshake.auth.token})`
-    );
-
-    const user = await this.userService.findUserById(
-      this._socketIdToUserId.get(client.id)
-    );
+    const uid = this._socketIdToUserId.get(client.id);
+    this.logger.log({
+      message: `[Client Disconnected] #${client.id} (${uid})`,
+    });
 
     //기존 매핑 삭제
-    this.removeFromLookup(client.id, user.id);
+    this.removeFromLookup(client.id, uid);
   }
 
+  @WsEvent("chat")
   @SubscribeMessage("chat")
   async chat(
-    @MessageBody() _chatRequestDto: any,
+    @MessageBody() chatRequestDto: ChatRequestDto,
     @ConnectedSocket() client: Socket
   ): Promise<Ack<None>> {
-    let chatRequestDto;
-    if (typeof _chatRequestDto === "string") {
-      chatRequestDto = JSON.parse(_chatRequestDto);
-    } else {
-      chatRequestDto = _chatRequestDto;
-    }
-    console.log(chatRequestDto);
-    const user = await this.userService.findUserById(
-      this._socketIdToUserId.get(client.id)
-    );
+    const uid = this._socketIdToUserId.get(client.id);
+    this.logger.log({
+      message: `[Chat] #${client.id} (${uid})`,
+      dto: chatRequestDto,
+    });
+
+    const user = await this.userService.findUserById(uid);
     if (!user) {
+      this.logger.warn(
+        `[Chat] User(${uid}) 를 찾을 수 없습니다. 연결을 해제합니다.`
+      );
       client.disconnect();
       return {
         status: 401,
@@ -140,6 +149,9 @@ export class RoomGateway
 
     const room = await this.roomService.findRoomById(chatRequestDto.roomId);
     if (!room) {
+      this.logger.error(
+        `[Chat] Room(${chatRequestDto.roomId}) 를 찾을 수 없습니다.`
+      );
       return {
         status: 404,
         data: {},
@@ -157,48 +169,4 @@ export class RoomGateway
       data: {},
     };
   }
-
-  // @SubscribeMessage("get-messages")
-  // async getNotReceivedMessages(@ConnectedSocket() client: Socket) {
-  //   const user = await this.userService.findUserById(
-  //     this._socketIdToUserId.get(client.id)
-  //   );
-  //   if (!user) {
-  //     client.disconnect();
-  //     return {
-  //       status: 401,
-  //       data: {},
-  //     };
-  //   }
-  //
-  //   return (await this.userService.getJoinedRoomIds(user.id)).map(
-  //     async (roomId) => await this.chatService.getAllMessagesResponse(roomId)
-  //   );
-  // }
-
-  /**
-   * Event "get-messages"를 통해 받지 못했던 메시지들을 받고
-   * 클라이언트가 처리 완료하기 전에 room join을 해서 브로드 캐스트를 받을 경우
-   * 메시지 순서가 섞일 수 있으니 아래 "ack-messages" 이후 join 하도록 함.
-   * */
-  // @SubscribeMessage("ack-messages")
-  // async notReceivedMessagesAccepted(@ConnectedSocket() client: Socket) {
-  //   const user = await this.userService.findUserById(
-  //     this._socketIdToUserId.get(client.id)
-  //   );
-  //   if (!user) {
-  //     client.disconnect();
-  //     return {
-  //       status: 401,
-  //       data: {},
-  //     };
-  //   }
-  //
-  //   //이미 참가중인 방에 대해서 socket join 처리
-  //   user.joinedRooms.forEach((room) => {
-  //     client.join(room.id);
-  //     room.chat.notReceivedMessagesAccepted();
-  //   });
-  //   return {};
-  // }
 }

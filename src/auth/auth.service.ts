@@ -1,6 +1,7 @@
 import {
   HttpException,
   HttpStatus,
+  Inject,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -20,6 +21,7 @@ import { v4 } from "uuid";
 import { NaverAuthResponse } from "./interface/NaverAuthResponse";
 import { JwtService } from "@nestjs/jwt";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
+import { WINSTON_MODULE_PROVIDER, WinstonLogger } from "nest-winston";
 
 export interface AccessTokenPayload {
   id: string;
@@ -37,6 +39,7 @@ export class AuthService {
   private readonly _mailTransporter: Transporter;
 
   constructor(
+    @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: WinstonLogger,
     public connection: Connection,
     @InjectRepository(UniversityEmailAuth)
     private emailAuthRepository: Repository<UniversityEmailAuth>,
@@ -86,7 +89,7 @@ export class AuthService {
 
       return res.data.response;
     } catch (e) {
-      console.log(e);
+      this.logger.error(e);
       return null;
     }
   }

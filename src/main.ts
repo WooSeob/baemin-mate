@@ -1,16 +1,24 @@
-import { NestFactory } from "@nestjs/core";
+import { HttpAdapterHost, NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
-import { INestApplication, ValidationPipe } from "@nestjs/common";
+import {
+  ArgumentMetadata,
+  INestApplication,
+  ValidationPipe,
+} from "@nestjs/common";
 import { io, Socket } from "socket.io-client";
 import { IoAdapter } from "@nestjs/platform-socket.io";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { NestExpressApplication } from "@nestjs/platform-express";
-import { join, resolve } from "path";
+import { AllExceptionsFilter } from "./common/exceptionfilter/all-exceptions.filter";
+import { WINSTON_MODULE_NEST_PROVIDER } from "nest-winston";
+import { LoggingInterceptor } from "./common/interceptors/logging.interceptor";
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     cors: { origin: "*" },
   });
+  const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
+  app.useLogger(logger);
   app.useWebSocketAdapter(new IoAdapter(app));
 
   app.useGlobalPipes(
@@ -20,6 +28,10 @@ async function bootstrap() {
       transform: true,
     })
   );
+
+  const { httpAdapter } = app.get(HttpAdapterHost);
+  app.useGlobalFilters(new AllExceptionsFilter(httpAdapter));
+  app.useGlobalInterceptors(app.get(LoggingInterceptor));
 
   const config = new DocumentBuilder()
     .setTitle("같이하실")

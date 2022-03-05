@@ -1,5 +1,4 @@
-import { Injectable } from "@nestjs/common";
-import { Server } from "socket.io";
+import { Injectable, Logger } from "@nestjs/common";
 import { RoomService } from "../room/room.service";
 import { RoomEventType } from "../room/const/RoomEventType";
 import { Repository } from "typeorm";
@@ -43,6 +42,8 @@ import { RoomGateway } from "../room/room.gateway";
 
 @Injectable()
 export class ChatService {
+  private readonly logger = new Logger("ChatService");
+
   private _createUserEventData(
     type: RoomEventType,
     roomId: string,
@@ -56,6 +57,17 @@ export class ChatService {
         .build()
     );
     const userPromise = this.userService.findUserOrUnknownIfNotExist(userId);
+
+    messagePromise
+      .then((roomChat) => {
+        this.logger.log({
+          message: `[onChatEvent] RoomChat Entity created ${roomChat.id}`,
+        });
+      })
+      .catch((e) => {
+        this.logger.error("RoomChat Entity 저장 실패", e);
+      });
+
     return Promise.all([messagePromise, userPromise]);
   }
 
@@ -274,6 +286,7 @@ export class ChatService {
 
   async clear() {
     await this.chatRepository.clear();
+    this.logger.warn("Chat Repository cleared");
   }
 
   getAllMessagesByRoom(roomId: string) {
@@ -394,6 +407,9 @@ export class ChatService {
     const userPromise = this.userService.findUserOrUnknownIfNotExist(userId);
 
     const [roomChat, user] = await Promise.all([messagePromise, userPromise]);
+    this.logger.log({
+      message: `[onChatEvent] RoomChatEntity created ${roomChat.id}`,
+    });
 
     this.broadcastChat(
       roomId,
@@ -408,8 +424,7 @@ export class ChatService {
     roomId: string,
     message: Message<ChatBody | SystemBody>
   ) {
-    console.log(roomId);
-    console.log(message);
+    this.logger.log({ message: "Chat Broadcast", chatId: message.id });
     RoomGateway.server.to(roomId).emit(RoomEventType.CHAT, {
       rid: roomId,
       messages: [message],

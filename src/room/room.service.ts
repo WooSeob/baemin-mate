@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { CreateRoomDto } from "./dto/request/create-room.dto";
 import { CheckOrderDto } from "./dto/request/check-order.dto";
 import { RoomState } from "./const/RoomState";
@@ -22,12 +22,12 @@ import { ImageFile } from "./entity/ImageFile";
 import { RoomAccount } from "./entity/RoomAccount";
 import { UserService } from "../user/user.service";
 import { UserEvent } from "../user/const/UserEvent";
+import { WINSTON_MODULE_PROVIDER, WinstonLogger } from "nest-winston";
 
 //StrictEventEmitter<RoomEvents, RoomEvents>
 @Injectable()
 export class RoomService extends EventEmitter {
   private logger = new Logger("RoomService");
-
   constructor(
     public connection: Connection,
     @InjectRepository(Room) private roomRepository: Repository<Room>,
@@ -63,9 +63,10 @@ export class RoomService extends EventEmitter {
   }
 
   override emit(eventName: string | symbol, ...args: any[]): boolean {
-    this.logger.log(eventName, args);
+    this.logger.log({ message: "[RoomEvent]", event: eventName, args: args });
     return super.emit(eventName, ...args);
   }
+
   async clear() {
     const rooms = await this.roomRepository.find();
     for (const room of rooms) {
@@ -133,8 +134,6 @@ export class RoomService extends EventEmitter {
   private forwardEvent() {}
   // RoomService
   async joinRoom(roomId: string, userId: string) {
-    await this.aFewMinutesLater(100);
-
     const queryRunner = this.connection.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction("SERIALIZABLE");
@@ -160,7 +159,6 @@ export class RoomService extends EventEmitter {
       return created;
     } catch (err) {
       await queryRunner.rollbackTransaction();
-      console.log(err);
       throw err;
     } finally {
       await queryRunner.release();
@@ -262,7 +260,7 @@ export class RoomService extends EventEmitter {
 
     try {
       const room = await queryRunner.manager.findOne<Room>(Room, roomId);
-      room.changePhase(RoomState.ORDER_FIX);
+      room.fixOrder();
 
       await queryRunner.manager.save(room);
       await queryRunner.commitTransaction();
@@ -270,7 +268,7 @@ export class RoomService extends EventEmitter {
       this.emit(RoomEventType.ORDER_FIXED, roomId);
     } catch (err) {
       await queryRunner.rollbackTransaction();
-      console.log(err);
+      this.logger.log(err);
       throw err;
     } finally {
       await queryRunner.release();
@@ -310,7 +308,7 @@ export class RoomService extends EventEmitter {
       const room = await queryRunner.manager.findOne<Room>(Room, roomId);
       await room.checkOrder(checkOrderDto.deliveryTip);
 
-      console.log(room);
+      this.logger.log(room);
       const account = RoomAccount.create(
         room,
         checkOrderDto.accountBank,
@@ -337,16 +335,16 @@ export class RoomService extends EventEmitter {
     await queryRunner.startTransaction();
 
     try {
-      console.log("done");
+      this.logger.log("done");
       const room = await queryRunner.manager.findOne<Room>(Room, roomId);
-      console.log(room);
+      this.logger.log(room);
 
-      room.changePhase(RoomState.ORDER_DONE);
-      console.log(room);
+      room.doneOrder();
+      this.logger.log(room);
 
       await queryRunner.manager.save(room);
       await queryRunner.commitTransaction();
-      console.log("commit");
+      this.logger.log("commit");
 
       this.emit(RoomEventType.ORDER_DONE, roomId);
     } catch (err) {
@@ -366,7 +364,7 @@ export class RoomService extends EventEmitter {
    * 4. 어떤 유저가 강퇴 당할 때
    * */
   async kick(roomId: string, targetId: string, reason: RoomBlackListReason) {
-    console.log("kick");
+    this.logger.log("kick");
     const queryRunner = this.connection.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
