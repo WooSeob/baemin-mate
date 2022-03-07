@@ -5,17 +5,17 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
-import University from "./University";
+import UniversityEntity from "./university.entity";
 
 @Entity()
-export default class Dormitory {
+export default class DormitoryEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
   @Column({ nullable: false })
   name: string;
 
-  @ManyToOne(() => University, { onDelete: "CASCADE" })
+  @ManyToOne(() => UniversityEntity, { onDelete: "CASCADE" })
   @JoinColumn()
-  university: University;
+  university: UniversityEntity;
 }

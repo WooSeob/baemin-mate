@@ -6,13 +6,13 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from "typeorm";
-import { Participant } from "../../room/entity/Participant";
-import University from "../../university/entity/University";
+import { ParticipantEntity } from "../../room/entity/participant.entity";
+import UniversityEntity from "../../university/entity/university.entity";
 import { RoomState } from "../../room/const/RoomState";
 import { BigIntTransformer } from "../../common/BigIntTransformer";
 
 @Entity()
-export class User {
+export class UserEntity {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
@@ -55,12 +55,12 @@ export class User {
   @Column()
   universityId: number;
 
-  @OneToMany(() => Participant, (p) => p.user)
-  rooms: Participant[];
+  @OneToMany(() => ParticipantEntity, (p) => p.user)
+  rooms: ParticipantEntity[];
 
-  @ManyToOne(() => University, { onDelete: "NO ACTION" })
+  @ManyToOne(() => UniversityEntity, { onDelete: "NO ACTION" })
   @JoinColumn()
-  university: University;
+  university: UniversityEntity;
 
   delete() {
     // 참여 방 중 활성상태인 방이 있으면 탈퇴할 수 없다
@@ -74,10 +74,10 @@ export class User {
 }
 
 export class UserBuilder {
-  private readonly object: User;
+  private readonly object: UserEntity;
 
   constructor() {
-    this.object = new User();
+    this.object = new UserEntity();
   }
 
   setId(id: string): UserBuilder {
@@ -90,7 +90,7 @@ export class UserBuilder {
     return this;
   }
 
-  build(): User {
+  build(): UserEntity {
     return this.object;
   }
 }

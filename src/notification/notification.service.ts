@@ -4,17 +4,17 @@ import { RoomEventType } from "../room/const/RoomEventType";
 import { FcmService } from "../infra/fcm/fcm.service";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { UserDeviceToken } from "./entity/UserDeviceToken";
-import { Room } from "../room/entity/Room";
-import RoomVote from "../room/entity/RoomVote";
+import { UserDeviceTokenEntity } from "./entity/user-device-token.entity";
+import { RoomEntity } from "../room/entity/room.entity";
+import RoomVoteEntity from "../room/entity/room-vote.entity";
 
 @Injectable()
 export class NotificationService {
   constructor(
     private roomService: RoomService,
     private fcmService: FcmService,
-    @InjectRepository(UserDeviceToken)
-    private tokenRepository: Repository<UserDeviceToken>
+    @InjectRepository(UserDeviceTokenEntity)
+    private tokenRepository: Repository<UserDeviceTokenEntity>
   ) {
     roomService.on(
       RoomEventType.CHAT,
@@ -67,21 +67,21 @@ export class NotificationService {
       });
     });
 
-    roomService.on(RoomEventType.KICK_VOTE_CREATED, async (vote: RoomVote) => {
+    roomService.on(RoomEventType.KICK_VOTE_CREATED, async (vote: RoomVoteEntity) => {
       return this.toParticipants(vote.room, {
         title: vote.room.shopName,
         body: "강퇴 투표가 시작되었습니다.",
       });
     });
 
-    roomService.on(RoomEventType.KICK_VOTE_FINISHED, async (vote: RoomVote) => {
+    roomService.on(RoomEventType.KICK_VOTE_FINISHED, async (vote: RoomVoteEntity) => {
       return this.toParticipants(vote.room, {
         title: vote.room.shopName,
         body: "강퇴 투표가 종료되었습니다.",
       });
     });
 
-    roomService.on(RoomEventType.RESET_VOTE_CREATED, async (vote: RoomVote) => {
+    roomService.on(RoomEventType.RESET_VOTE_CREATED, async (vote: RoomVoteEntity) => {
       return this.toParticipants(vote.room, {
         title: vote.room.shopName,
         body: "진행 취소 투표가 시작되었습니다.",
@@ -90,7 +90,7 @@ export class NotificationService {
 
     roomService.on(
       RoomEventType.RESET_VOTE_FINISHED,
-      async (vote: RoomVote) => {
+      async (vote: RoomVoteEntity) => {
         return this.toParticipants(vote.room, {
           title: vote.room.shopName,
           body: "진행 취소 투표가 종료되었습니다.",
@@ -119,11 +119,11 @@ export class NotificationService {
     this.fcmService.multicastNotification(deviceTokens, message);
   }
 
-  getDeviceTokensOfPurchaser(room: Room) {
+  getDeviceTokensOfPurchaser(room: RoomEntity) {
     return this.tokenRepository.find({ user: room.purchaser, enabled: true });
   }
 
-  getDeviceTokensOfParticipants(room: Room) {
+  getDeviceTokensOfParticipants(room: RoomEntity) {
     return this.tokenRepository
       .createQueryBuilder("token")
       .leftJoinAndSelect("token.user", "user")

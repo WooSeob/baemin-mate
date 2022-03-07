@@ -5,20 +5,20 @@ import {
   PrimaryColumn,
   PrimaryGeneratedColumn,
 } from "typeorm";
-import { Room } from "./Room";
+import { RoomEntity } from "./room.entity";
 
 @Entity()
-export class ImageFile {
+export class ImageFileEntity {
   @PrimaryGeneratedColumn()
   id: string;
 
   @Column({ nullable: true })
   roomId: string;
 
-  @ManyToOne(() => Room, (room) => room.orderCheckScreenShots, {
+  @ManyToOne(() => RoomEntity, (room) => room.orderCheckScreenShots, {
     onDelete: "SET NULL",
   })
-  room: Room;
+  room: RoomEntity;
 
   @Column({
     nullable: false,

@@ -1,4 +1,4 @@
-import { RoomVoteType } from "../RoomVote";
+import { RoomVoteType } from "../room-vote.entity";
 import ResetVoteStrategy from "./ResetVote/ResetVoteStrategy";
 import VoteStrategy from "./VoteStrategy";
 import KickVoteStrategy from "./KickVote/KickVoteStrategy";

@@ -1,5 +1,5 @@
-import RoomVote from "../RoomVote";
+import RoomVoteEntity from "../room-vote.entity";
 
 export default interface VoteStrategy {
-  doVote(vote: RoomVote, userId: string, opinion: boolean);
+  doVote(vote: RoomVoteEntity, userId: string, opinion: boolean);
 }

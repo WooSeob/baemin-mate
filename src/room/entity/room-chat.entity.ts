@@ -5,11 +5,11 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
-import { Room } from "./Room";
+import { RoomEntity } from "./room.entity";
 import { RoomEventType } from "../const/RoomEventType";
 
 @Entity()
-export default class RoomChat {
+export default class RoomChatEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -37,13 +37,13 @@ export default class RoomChat {
   @Column()
   roomId: string;
 
-  @ManyToOne(() => Room, { onDelete: "CASCADE" })
+  @ManyToOne(() => RoomEntity, { onDelete: "CASCADE" })
   @JoinColumn()
-  room: Room;
+  room: RoomEntity;
 }
 
 abstract class RoomChatBuilder {
-  protected obj = new RoomChat();
+  protected obj = new RoomChatEntity();
   setType(type: RoomEventType) {
     this.obj.type = type;
     return this;
@@ -55,7 +55,7 @@ abstract class RoomChatBuilder {
   protected validate() {
     return this.obj.type != undefined && this.obj.roomId != undefined;
   }
-  abstract build(): RoomChat;
+  abstract build(): RoomChatEntity;
 }
 
 export class SystemMessageBuilder extends RoomChatBuilder {
@@ -72,7 +72,7 @@ export class SystemMessageBuilder extends RoomChatBuilder {
     return super.validate() && this.obj.eventMetadataId != undefined;
   }
 
-  build(): RoomChat {
+  build(): RoomChatEntity {
     if (!this.validate()) {
       throw new Error("SystemMessage를 위한 정보가 부족합니다.");
     }
@@ -99,7 +99,7 @@ export class ChatMessageBuilder extends RoomChatBuilder {
     );
   }
 
-  build(): RoomChat {
+  build(): RoomChatEntity {
     super.setType(RoomEventType.CHAT);
     if (!this.validate()) {
       throw new Error("ChatMessage를 위한 정보가 부족합니다.");

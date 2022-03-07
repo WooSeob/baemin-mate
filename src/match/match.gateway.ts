@@ -25,7 +25,7 @@ import { MatchService } from "./match.service";
 import { AuthService, AccessTokenPayload } from "src/auth/auth.service";
 import MatchInfo from "./dto/response/match-info.interface";
 import { UserService } from "../user/user.service";
-import { Match } from "./entity/Match";
+import { MatchEntity } from "./entity/match.entity";
 import { SubscribeMatchDto } from "./dto/request/subscribe-match.dto";
 import { ObjectPipe } from "../common/pipe/object.pipe";
 import { WINSTON_MODULE_PROVIDER, WinstonLogger } from "nest-winston";
@@ -127,7 +127,7 @@ export class MatchGateway
       };
     }
 
-    let matches: Match[] = await this.matchService.subscribeByCategory(
+    let matches: MatchEntity[] = await this.matchService.subscribeByCategory(
       user,
       subscribeDto,
       client

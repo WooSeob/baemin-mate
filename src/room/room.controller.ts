@@ -24,7 +24,7 @@ import RoomView from "./dto/response/room-view.dto";
 import { Request } from "express";
 import { ApiBody, ApiConsumes, ApiCreatedResponse } from "@nestjs/swagger";
 import { CreateRoomDto } from "./dto/request/create-room.dto";
-import { User } from "../user/entity/user.entity";
+import { UserEntity } from "../user/entity/user.entity";
 import { UserMenus } from "./dto/response/menus.response.dto";
 import CreateRoomResponse from "./dto/response/create-room.response";
 import { FilesInterceptor } from "@nestjs/platform-express";
@@ -33,7 +33,7 @@ import RoomStateResponse from "./dto/response/room-state.response";
 import { ChatBody, Message, SystemBody } from "./dto/response/message.response";
 import RoomUser from "./dto/response/user.response";
 import { ChatService } from "../chat/chat.service";
-import { RoomBlackListReason } from "./entity/RoomBlackList";
+import { RoomBlackListReason } from "./entity/room-blacklist.entity";
 import { v4 as uuid } from "uuid";
 import { ExtensionExtractor } from "../common/util/ExtensionExtractor";
 import { S3Service } from "../infra/s3/s3.service";
@@ -44,6 +44,7 @@ import {
   OnlyForParticipant,
   OnlyForPurchaser,
 } from "./decorators/room.decorator";
+import { VoteResponse } from "./dto/response/vote.response";
 
 @Controller("room")
 export class RoomController {
@@ -57,7 +58,7 @@ export class RoomController {
     @Inject(forwardRef(() => UserService)) private userService: UserService
   ) {}
 
-  //유저 in Room 상태 정보
+  //유저 in RoomEntity 상태 정보
   @OnlyForParticipant()
   @ApiCreatedResponse({
     description: "해당 방의 상태 정보를 가져옵니다.",
@@ -68,7 +69,7 @@ export class RoomController {
     @Req() request: Request,
     @Param(ROOM_ID) rid: string
   ): Promise<RoomStateResponse> {
-    const user = request.user as User;
+    const user = request.user as UserEntity;
     if (!user) {
       throw new HttpException("user not found", HttpStatus.NOT_FOUND);
     }
@@ -149,11 +150,11 @@ export class RoomController {
   }
 
   /**
-   * 새로운 Room 을 생성합니다.
+   * 새로운 RoomEntity 을 생성합니다.
    * */
   @JustLoggedIn()
   @ApiCreatedResponse({
-    description: "새로운 Room 을 생성합니다.",
+    description: "새로운 RoomEntity 을 생성합니다.",
     type: CreateRoomResponse,
   })
   @Post("/")
@@ -162,18 +163,18 @@ export class RoomController {
     @Body(new ValidationPipe()) createRoomDto: CreateRoomDto
   ): Promise<CreateRoomResponse> {
     const room = await this.roomService.createRoom(
-      (request.user as User).id,
+      (request.user as UserEntity).id,
       createRoomDto
     );
     return CreateRoomResponse.from(room);
   }
 
   /**
-   * rid 에 해당하는 Room 에서 퇴장 합니다.
+   * rid 에 해당하는 RoomEntity 에서 퇴장 합니다.
    * */
   @OnlyForParticipant()
   @ApiCreatedResponse({
-    description: "rid 에 해당하는 Room 에서 퇴장 합니다.",
+    description: "rid 에 해당하는 RoomEntity 에서 퇴장 합니다.",
   })
   @Get(`/:${ROOM_ID}/leave`)
   async leaveRoom(@Param(ROOM_ID) rid: string, @Req() request: Request) {
@@ -182,7 +183,7 @@ export class RoomController {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
 
-    return this.roomService.leaveRoom(rid, (request.user as User).id);
+    return this.roomService.leaveRoom(rid, (request.user as UserEntity).id);
   }
 
   /**
@@ -279,11 +280,9 @@ export class RoomController {
       );
     }
 
-    // this._roleParticipant(targetUser, room);
-
     let vote = await this.roomService.createKickVote(
       rid,
-      (request.user as User).id,
+      (request.user as UserEntity).id,
       targetId
     );
     return vote.id;
@@ -307,9 +306,22 @@ export class RoomController {
 
     let vote = await this.roomService.createResetVote(
       rid,
-      (request.user as User).id
+      (request.user as UserEntity).id
     );
     return vote.id;
+  }
+
+  @OnlyForParticipant()
+  @ApiCreatedResponse({
+    description: "vote에 대한 정보를 조회합니다.",
+  })
+  @Get(`/:${ROOM_ID}/vote/:vid`)
+  async getVote(@Param(ROOM_ID) rid: string, @Param("vid") vid: string) {
+    const vote = await this.roomService.getVoteById(vid);
+    if (!vote) {
+      throw new HttpException("vote not found", HttpStatus.NOT_FOUND);
+    }
+    return VoteResponse.from(vote);
   }
 
   @OnlyForParticipant()
@@ -331,7 +343,11 @@ export class RoomController {
     if (!room) {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
-    await this.roomService.doVote(vid, (request.user as User).id, isAgree);
+    await this.roomService.doVote(
+      vid,
+      (request.user as UserEntity).id,
+      isAgree
+    );
   }
 
   @OnlyForPurchaser()
@@ -347,7 +363,7 @@ export class RoomController {
     if (!room) {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
-    return this.roomService.fixOrder(rid, (request.user as User).id);
+    return this.roomService.fixOrder(rid, (request.user as UserEntity).id);
   }
 
   @OnlyForPurchaser()
@@ -368,7 +384,7 @@ export class RoomController {
     }
     return this.roomService.checkOrder(
       rid,
-      (request.user as User).id,
+      (request.user as UserEntity).id,
       checkOrderDto
     );
   }
@@ -384,7 +400,7 @@ export class RoomController {
     if (!room) {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
-    return this.roomService.doneOrder(rid, (request.user as User).id);
+    return this.roomService.doneOrder(rid, (request.user as UserEntity).id);
   }
 
   @OnlyForParticipant()
@@ -462,12 +478,12 @@ export class RoomController {
     }
 
     const accountInfo = await this.roomService.getAccountInfo(rid);
-    const receiptInfo = room.getReceiptForUser((request.user as User).id);
+    const receiptInfo = room.getReceiptForUser((request.user as UserEntity).id);
     return {
       totalDeliveryTip: receiptInfo.totalDeliveryTip,
       tipForUser: receiptInfo.tipForUser,
       totalPrice: receiptInfo.totalPrice,
-      menus: room.getParticipant((request.user as User).id).menus,
+      menus: room.getParticipant((request.user as UserEntity).id).menus,
       accountNumber: accountInfo.number,
       accountBank: accountInfo.bank,
       accountUserName: accountInfo.holderName,

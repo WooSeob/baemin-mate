@@ -5,20 +5,20 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
-import { User } from "../../user/entity/user.entity";
+import { UserEntity } from "../../user/entity/user.entity";
 import { BigIntTransformer } from "../../common/BigIntTransformer";
 
 @Entity()
-export class UserDeviceToken {
+export class UserDeviceTokenEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
   @Column()
   userId: string;
 
-  @ManyToOne(() => User, { onDelete: "CASCADE" })
+  @ManyToOne(() => UserEntity, { onDelete: "CASCADE" })
   @JoinColumn()
-  user: User;
+  user: UserEntity;
 
   @Column({ nullable: false, unique: true })
   deviceToken: string;

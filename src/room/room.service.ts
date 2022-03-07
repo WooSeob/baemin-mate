@@ -2,24 +2,24 @@ import { Inject, Injectable, Logger } from "@nestjs/common";
 import { CreateRoomDto } from "./dto/request/create-room.dto";
 import { CheckOrderDto } from "./dto/request/check-order.dto";
 import { RoomState } from "./const/RoomState";
-import { User } from "../user/entity/user.entity";
+import { UserEntity } from "../user/entity/user.entity";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Connection, QueryRunner, Repository } from "typeorm";
-import { Room, RoomRole } from "./entity/Room";
-import { Participant } from "./entity/Participant";
-import { Menu } from "./entity/Menu";
+import { RoomEntity, RoomRole } from "./entity/room.entity";
+import { ParticipantEntity } from "./entity/participant.entity";
+import { MenuEntity } from "./entity/menu.entity";
 import { AddMenuDto } from "../user/dto/request/add-menu.dto";
 import { UpdateMenuDto } from "../user/dto/request/update-menu.dto";
 
-import { RoomBlackListReason } from "./entity/RoomBlackList";
-import RoomVote, { RoomVoteType } from "./entity/RoomVote";
+import { RoomBlackListReason } from "./entity/room-blacklist.entity";
+import RoomVoteEntity, { RoomVoteType } from "./entity/room-vote.entity";
 import KickVoteFactory from "./entity/Vote/KickVote/KickVoteFactory";
 import ResetVoteFactory from "./entity/Vote/ResetVote/ResetVoteFactory";
 import { RoomEventType } from "./const/RoomEventType";
 import { EventEmitter } from "stream";
 import { UploadFileDto } from "../infra/s3/s3.service";
-import { ImageFile } from "./entity/ImageFile";
-import { RoomAccount } from "./entity/RoomAccount";
+import { ImageFileEntity } from "./entity/image-file.entity";
+import { RoomAccountEntity } from "./entity/room-account.entity";
 import { UserService } from "../user/user.service";
 import { UserEvent } from "../user/const/UserEvent";
 import { WINSTON_MODULE_PROVIDER, WinstonLogger } from "nest-winston";
@@ -30,20 +30,23 @@ export class RoomService extends EventEmitter {
   private logger = new Logger("RoomService");
   constructor(
     public connection: Connection,
-    @InjectRepository(Room) private roomRepository: Repository<Room>,
-    @InjectRepository(User) private userRepository: Repository<User>,
-    @InjectRepository(Participant)
-    private participantRepository: Repository<Participant>,
-    @InjectRepository(Menu) private menuRepository: Repository<Menu>,
-    @InjectRepository(ImageFile)
-    private imageFileRepository: Repository<ImageFile>,
-    @InjectRepository(RoomAccount)
-    private accountRepository: Repository<RoomAccount>,
+    @InjectRepository(RoomEntity)
+    private roomRepository: Repository<RoomEntity>,
+    @InjectRepository(UserEntity)
+    private userRepository: Repository<UserEntity>,
+    @InjectRepository(ParticipantEntity)
+    private participantRepository: Repository<ParticipantEntity>,
+    @InjectRepository(MenuEntity)
+    private menuRepository: Repository<MenuEntity>,
+    @InjectRepository(ImageFileEntity)
+    private imageFileRepository: Repository<ImageFileEntity>,
+    @InjectRepository(RoomAccountEntity)
+    private accountRepository: Repository<RoomAccountEntity>,
     private userService: UserService
   ) {
     super();
 
-    userService.on(UserEvent.DELETED, async (user: User) => {
+    userService.on(UserEvent.DELETED, async (user: UserEntity) => {
       for (const participant of user.rooms) {
         // 탈퇴 유저의 방들은 모두 비 활성 상태
         if (participant.role == RoomRole.PURCHASER) {
@@ -88,7 +91,7 @@ export class RoomService extends EventEmitter {
     return participant.role;
   }
 
-  findRoomById(id: string): Promise<Room> {
+  findRoomById(id: string): Promise<RoomEntity> {
     return this.roomRepository
       .createQueryBuilder("room")
       .leftJoinAndSelect("room.purchaser", "purchaser")
@@ -99,15 +102,15 @@ export class RoomService extends EventEmitter {
       .getOne();
   }
 
-  async getMenuById(id: string): Promise<Menu> {
+  async getMenuById(id: string): Promise<MenuEntity> {
     return this.menuRepository.findOne(id);
   }
 
-  getParticipants(room: Room): Promise<Participant[]> {
+  getParticipants(room: RoomEntity): Promise<ParticipantEntity[]> {
     return this.participantRepository.find({ where: { room: room } });
   }
 
-  getAccountInfo(rid: string): Promise<RoomAccount> {
+  getAccountInfo(rid: string): Promise<RoomAccountEntity> {
     return this.accountRepository.findOne({ roomId: rid });
   }
   // create
@@ -139,9 +142,12 @@ export class RoomService extends EventEmitter {
     await queryRunner.startTransaction("SERIALIZABLE");
 
     try {
-      const room = await queryRunner.manager.findOne<Room>(Room, roomId);
-      const userWithRooms: User = await queryRunner.manager
-        .createQueryBuilder(User, "user")
+      const room = await queryRunner.manager.findOne<RoomEntity>(
+        RoomEntity,
+        roomId
+      );
+      const userWithRooms: UserEntity = await queryRunner.manager
+        .createQueryBuilder(UserEntity, "user")
         .leftJoinAndSelect("user.rooms", "participation")
         .leftJoinAndSelect("participation.room", "room")
         .where("user.id = :id", { id: userId })
@@ -168,22 +174,22 @@ export class RoomService extends EventEmitter {
   async createRoom(
     userId: string,
     createRoomDto: CreateRoomDto
-  ): Promise<Room> {
+  ): Promise<RoomEntity> {
     const queryRunner: QueryRunner = this.connection.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     let created;
     try {
-      const userWithJoinedRooms: User = await queryRunner.manager
-        .createQueryBuilder(User, "user")
+      const userWithJoinedRooms: UserEntity = await queryRunner.manager
+        .createQueryBuilder(UserEntity, "user")
         .leftJoinAndSelect("user.rooms", "participation")
         .leftJoinAndSelect("participation.room", "room")
         .where("user.id = :id", { id: userId })
         .getOne();
 
       created = await queryRunner.manager.save(
-        Room.create(userWithJoinedRooms, createRoomDto)
+        RoomEntity.create(userWithJoinedRooms, createRoomDto)
       );
 
       await queryRunner.commitTransaction();
@@ -207,10 +213,13 @@ export class RoomService extends EventEmitter {
     await queryRunner.startTransaction();
 
     try {
-      const room = await queryRunner.manager.findOne<Room>(Room, roomId);
+      const room = await queryRunner.manager.findOne<RoomEntity>(
+        RoomEntity,
+        roomId
+      );
       const prevState = room.phase;
 
-      const toRemove: Participant = room.leave(userId);
+      const toRemove: ParticipantEntity = room.leave(userId);
 
       await queryRunner.manager.remove(toRemove);
 
@@ -240,7 +249,7 @@ export class RoomService extends EventEmitter {
     }
   }
 
-  getRoomById(id: string): Promise<Room> {
+  getRoomById(id: string): Promise<RoomEntity> {
     return this.roomRepository.findOne(id);
   }
 
@@ -259,7 +268,10 @@ export class RoomService extends EventEmitter {
     await queryRunner.startTransaction("SERIALIZABLE");
 
     try {
-      const room = await queryRunner.manager.findOne<Room>(Room, roomId);
+      const room = await queryRunner.manager.findOne<RoomEntity>(
+        RoomEntity,
+        roomId
+      );
       room.fixOrder();
 
       await queryRunner.manager.save(room);
@@ -280,7 +292,7 @@ export class RoomService extends EventEmitter {
     //TODO 구현
 
     for (const dto of uploadFileDtos) {
-      const imageFile = new ImageFile();
+      const imageFile = new ImageFileEntity();
       imageFile.room = room;
       imageFile.s3url = dto.key;
       await this.imageFileRepository.save(imageFile);
@@ -305,11 +317,14 @@ export class RoomService extends EventEmitter {
     await queryRunner.startTransaction();
 
     try {
-      const room = await queryRunner.manager.findOne<Room>(Room, roomId);
+      const room = await queryRunner.manager.findOne<RoomEntity>(
+        RoomEntity,
+        roomId
+      );
       await room.checkOrder(checkOrderDto.deliveryTip);
 
       this.logger.log(room);
-      const account = RoomAccount.create(
+      const account = RoomAccountEntity.create(
         room,
         checkOrderDto.accountBank,
         checkOrderDto.accountNum,
@@ -336,7 +351,10 @@ export class RoomService extends EventEmitter {
 
     try {
       this.logger.log("done");
-      const room = await queryRunner.manager.findOne<Room>(Room, roomId);
+      const room = await queryRunner.manager.findOne<RoomEntity>(
+        RoomEntity,
+        roomId
+      );
       this.logger.log(room);
 
       room.doneOrder();
@@ -370,7 +388,10 @@ export class RoomService extends EventEmitter {
     await queryRunner.startTransaction();
 
     try {
-      const room = await queryRunner.manager.findOne<Room>(Room, roomId);
+      const room = await queryRunner.manager.findOne<RoomEntity>(
+        RoomEntity,
+        roomId
+      );
       const prevState = room.phase;
 
       const targetParticipant = room.kickUser(targetId, reason);
@@ -401,7 +422,10 @@ export class RoomService extends EventEmitter {
     await queryRunner.startTransaction();
 
     try {
-      const room = await queryRunner.manager.findOne<Room>(Room, roomId);
+      const room = await queryRunner.manager.findOne<RoomEntity>(
+        RoomEntity,
+        roomId
+      );
       const prevState = room.phase;
       room.setReady(userId, readyState);
 
@@ -417,7 +441,7 @@ export class RoomService extends EventEmitter {
     }
   }
 
-  // async getMenus(room: Room, user: User): Promise<Menu[]> {
+  // async getMenus(room: RoomEntity, user: User): Promise<MenuEntity[]> {
   //   return (await this.getParticipant(room, user)).menus;
   // }
 
@@ -425,14 +449,14 @@ export class RoomService extends EventEmitter {
     roomId: string,
     userId: string,
     addMenuDto: AddMenuDto
-  ): Promise<Menu> {
+  ): Promise<MenuEntity> {
     const queryRunner = this.connection.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
       const participantWithRoom = await queryRunner.manager.findOne(
-        Participant,
+        ParticipantEntity,
         {
           roomId: roomId,
           userId: userId,
@@ -440,7 +464,7 @@ export class RoomService extends EventEmitter {
         { relations: ["room"] }
       );
 
-      const menu: Menu = await this.menuRepository.save({
+      const menu: MenuEntity = await this.menuRepository.save({
         participant: participantWithRoom,
         ...addMenuDto,
       });
@@ -471,7 +495,7 @@ export class RoomService extends EventEmitter {
 
     try {
       const participantWithRoom = await queryRunner.manager.findOne(
-        Participant,
+        ParticipantEntity,
         {
           roomId: roomId,
           userId: userId,
@@ -479,13 +503,13 @@ export class RoomService extends EventEmitter {
         { relations: ["room"] }
       );
 
-      const menu: Menu = await this.menuRepository.create({
+      const menu: MenuEntity = await this.menuRepository.create({
         id: menuId,
         ...updateMenuDto,
       });
 
       participantWithRoom.updateMenu(menu);
-      await queryRunner.manager.save(Participant, participantWithRoom);
+      await queryRunner.manager.save(ParticipantEntity, participantWithRoom);
       await queryRunner.commitTransaction();
 
       this.emit(RoomEventType.MENU_UPDATE, participantWithRoom.room.id);
@@ -505,7 +529,7 @@ export class RoomService extends EventEmitter {
 
     try {
       const participantWithRoom = await queryRunner.manager.findOne(
-        Participant,
+        ParticipantEntity,
         {
           roomId: roomId,
           userId: userId,
@@ -515,7 +539,7 @@ export class RoomService extends EventEmitter {
 
       participantWithRoom.deleteMenu(menuId);
 
-      await queryRunner.manager.delete(Menu, menuId);
+      await queryRunner.manager.delete(MenuEntity, menuId);
 
       await queryRunner.commitTransaction();
       this.emit(RoomEventType.MENU_UPDATE, participantWithRoom.room.id);
@@ -530,7 +554,7 @@ export class RoomService extends EventEmitter {
   async findMenusByParticipant(
     roomId: string,
     userId: string
-  ): Promise<Menu[]> {
+  ): Promise<MenuEntity[]> {
     return (
       await this.participantRepository.findOne({
         roomId: roomId,
@@ -543,7 +567,7 @@ export class RoomService extends EventEmitter {
     roomId: string,
     userId: string,
     menuId: string
-  ): Promise<Menu> {
+  ): Promise<MenuEntity> {
     return (
       await this.participantRepository.findOne({
         roomId: roomId,
@@ -556,13 +580,16 @@ export class RoomService extends EventEmitter {
     roomId: string,
     requestUserId: string,
     targetUserId: string
-  ): Promise<RoomVote> {
+  ): Promise<RoomVoteEntity> {
     const queryRunner = this.connection.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      const room = await queryRunner.manager.findOne<Room>(Room, roomId);
+      const room = await queryRunner.manager.findOne<RoomEntity>(
+        RoomEntity,
+        roomId
+      );
 
       // 강퇴 투표 생성
       const created = await queryRunner.manager.save(
@@ -585,13 +612,16 @@ export class RoomService extends EventEmitter {
   async createResetVote(
     roomId: string,
     requestUserId: string
-  ): Promise<RoomVote> {
+  ): Promise<RoomVoteEntity> {
     const queryRunner = this.connection.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      const room = await queryRunner.manager.findOne<Room>(Room, roomId);
+      const room = await queryRunner.manager.findOne<RoomEntity>(
+        RoomEntity,
+        roomId
+      );
 
       // 리셋 투표 생성
       const created = await queryRunner.manager.save(
@@ -617,8 +647,8 @@ export class RoomService extends EventEmitter {
     await queryRunner.startTransaction();
 
     try {
-      const voteWithRoomAndOpinions: RoomVote = await queryRunner.manager
-        .createQueryBuilder(RoomVote, "kickVote")
+      const voteWithRoomAndOpinions: RoomVoteEntity = await queryRunner.manager
+        .createQueryBuilder(RoomVoteEntity, "kickVote")
         .leftJoinAndSelect("kickVote.room", "room")
         .leftJoinAndSelect("room.participants", "participants") // noti service
         .leftJoinAndSelect("kickVote.opinions", "voteOpinion")
@@ -667,7 +697,10 @@ export class RoomService extends EventEmitter {
     await queryRunner.startTransaction();
 
     try {
-      const room = await queryRunner.manager.findOne<Room>(Room, roomId);
+      const room = await queryRunner.manager.findOne<RoomEntity>(
+        RoomEntity,
+        roomId
+      );
       room.cancel();
       await queryRunner.manager.save(room);
       await queryRunner.commitTransaction();
@@ -679,9 +712,9 @@ export class RoomService extends EventEmitter {
     }
   }
 
-  getVoteById(voteId: string): Promise<RoomVote> {
+  getVoteById(voteId: string): Promise<RoomVoteEntity> {
     return this.connection.manager
-      .createQueryBuilder(RoomVote, "kickVote")
+      .createQueryBuilder(RoomVoteEntity, "kickVote")
       .leftJoinAndSelect("kickVote.room", "room")
       .leftJoinAndSelect("room.participants", "participants")
       .leftJoinAndSelect("kickVote.targetUser", "targetUser")
@@ -690,9 +723,9 @@ export class RoomService extends EventEmitter {
       .where("kickVote.id = :id", { id: voteId })
       .getOne();
   }
-  getRoomVotes(roomId: string): Promise<RoomVote[]> {
+  getRoomVotes(roomId: string): Promise<RoomVoteEntity[]> {
     return this.connection.manager
-      .createQueryBuilder(RoomVote, "kickVote")
+      .createQueryBuilder(RoomVoteEntity, "kickVote")
       .leftJoinAndSelect("kickVote.room", "room")
       .leftJoinAndSelect("kickVote.opinions", "voteOpinion")
       .leftJoinAndSelect("voteOpinion.participant", "participant")

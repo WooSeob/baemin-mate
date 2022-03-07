@@ -5,13 +5,13 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from "typeorm";
-import { User } from "../../user/entity/user.entity";
-import { Menu } from "./Menu";
-import { Room, RoomRole } from "./Room";
+import { UserEntity } from "../../user/entity/user.entity";
+import { MenuEntity } from "./menu.entity";
+import { RoomEntity, RoomRole } from "./room.entity";
 import { RoomState } from "../const/RoomState";
 
 @Entity()
-export class Participant {
+export class ParticipantEntity {
   @PrimaryGeneratedColumn()
   id!: string;
 
@@ -24,16 +24,16 @@ export class Participant {
   @Column({ nullable: true })
   deliveryTip: number;
 
-  @ManyToOne(() => Room, (room) => room.participants, {
+  @ManyToOne(() => RoomEntity, (room) => room.participants, {
     onDelete: "CASCADE",
   })
-  room!: Room;
+  room!: RoomEntity;
 
-  @ManyToOne(() => User, (u) => u.rooms, {
+  @ManyToOne(() => UserEntity, (u) => u.rooms, {
     onDelete: "CASCADE",
     eager: true,
   })
-  user!: User;
+  user!: UserEntity;
 
   @Column({
     nullable: false,
@@ -47,11 +47,11 @@ export class Participant {
   })
   isReady!: boolean;
 
-  @OneToMany(() => Menu, (menu) => menu.participant, {
+  @OneToMany(() => MenuEntity, (menu) => menu.participant, {
     eager: true,
     cascade: true,
   })
-  menus!: Menu[];
+  menus!: MenuEntity[];
 
   getTotalPrice() {
     if (!this.menus) {
@@ -63,13 +63,13 @@ export class Participant {
   }
 
   // 메뉴 추가
-  addMenu(menu: Menu) {
+  addMenu(menu: MenuEntity) {
     this.room.onlyAt(RoomState.PREPARE, RoomState.ALL_READY);
     this.menus.push(menu);
   }
 
   // 메뉴 수정
-  updateMenu(menu: Menu) {
+  updateMenu(menu: MenuEntity) {
     this.room.onlyAt(RoomState.PREPARE, RoomState.ALL_READY);
     this.menus.splice(this.findMenuIdx(menu.id), 1, menu);
   }
@@ -100,18 +100,18 @@ export class Participant {
 }
 
 export class ParticipantBuilder {
-  private readonly object: Participant;
+  private readonly object: ParticipantEntity;
 
   constructor() {
-    this.object = new Participant();
+    this.object = new ParticipantEntity();
   }
 
-  setRoom(room: Room): ParticipantBuilder {
+  setRoom(room: RoomEntity): ParticipantBuilder {
     this.object.room = room;
     return this;
   }
 
-  setUser(user: User): ParticipantBuilder {
+  setUser(user: UserEntity): ParticipantBuilder {
     this.object.user = user;
     return this;
   }
@@ -121,7 +121,7 @@ export class ParticipantBuilder {
     return this;
   }
 
-  build(): Participant {
+  build(): ParticipantEntity {
     return this.object;
   }
 }

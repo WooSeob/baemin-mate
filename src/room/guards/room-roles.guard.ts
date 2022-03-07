@@ -5,7 +5,7 @@ import {
   Logger,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import { RoomRole } from "../entity/Room";
+import { RoomRole } from "../entity/room.entity";
 import { AccessTokenPayload } from "../../auth/auth.service";
 import { ROOM_ID } from "../const/Param";
 import { RoomService } from "../room.service";

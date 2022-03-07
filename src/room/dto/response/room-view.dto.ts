@@ -1,6 +1,6 @@
 import RoomUserView from "./user-view.dto";
 import { ApiProperty } from "@nestjs/swagger";
-import { Room } from "../../entity/Room";
+import { RoomEntity } from "../../entity/room.entity";
 
 export default class RoomView {
   @ApiProperty({ description: "room id" })
@@ -21,7 +21,7 @@ export default class RoomView {
   @ApiProperty({ description: "참여 유저 정보 목록" })
   users: RoomUserView[];
 
-  static from(room: Room): RoomView {
+  static from(room: RoomEntity): RoomView {
     const roomView = new RoomView();
     roomView.id = room.id;
     roomView.shopName = room.shopName;

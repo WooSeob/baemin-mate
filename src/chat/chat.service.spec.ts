@@ -1,17 +1,17 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { ChatService } from "./chat.service";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { Room } from "../room/entity/Room";
-import { User } from "../user/entity/user.entity";
-import { UniversityEmailAuth } from "../auth/entity/UniversityEmailAuth";
-import { Participant } from "../room/entity/Participant";
-import { Menu } from "../room/entity/Menu";
-import { Match } from "../match/entity/Match";
-import { ImageFile } from "../room/entity/ImageFile";
-import RoomBlackList from "../room/entity/RoomBlackList";
-import RoomVote from "../room/entity/RoomVote";
-import VoteOpinion from "../room/entity/VoteOpinion";
-import RoomChat from "../room/entity/RoomChat";
+import { RoomEntity } from "../room/entity/room.entity";
+import { UserEntity } from "../user/entity/user.entity";
+import { UniversityEmailAuthEntity } from "../auth/entity/university-email-auth.entity";
+import { ParticipantEntity } from "../room/entity/participant.entity";
+import { MenuEntity } from "../room/entity/menu.entity";
+import { MatchEntity } from "../match/entity/match.entity";
+import { ImageFileEntity } from "../room/entity/image-file.entity";
+import RoomBlacklistEntity from "../room/entity/room-blacklist.entity";
+import RoomVoteEntity from "../room/entity/room-vote.entity";
+import VoteOpinionEntity from "../room/entity/vote-opinion.entity";
+import RoomChatEntity from "../room/entity/room-chat.entity";
 import { RoomService } from "../room/room.service";
 import { EventEmitter } from "stream";
 import { RoomModule } from "../room/room.module";
@@ -37,7 +37,7 @@ describe("ChatService", () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         TypeOrmModule.forRoot(db),
-        TypeOrmModule.forFeature([RoomChat]),
+        TypeOrmModule.forFeature([RoomChatEntity]),
         UserModule,
       ],
       providers: [ChatService, MockRoomServiceProvider],

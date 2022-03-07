@@ -6,18 +6,18 @@ import {
   PrimaryColumn,
   PrimaryGeneratedColumn,
 } from "typeorm";
-import { Participant } from "./Participant";
+import { ParticipantEntity } from "./participant.entity";
 
 @Entity()
-export class Menu {
+export class MenuEntity {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
-  @ManyToOne(() => Participant, (participant) => participant.menus, {
+  @ManyToOne(() => ParticipantEntity, (participant) => participant.menus, {
     onDelete: "CASCADE",
   })
   @JoinColumn()
-  participant: Participant;
+  participant: ParticipantEntity;
 
   @Column({
     nullable: false,

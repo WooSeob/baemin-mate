@@ -1,9 +1,9 @@
 import { Entity, Column, ManyToOne, JoinColumn, PrimaryColumn } from "typeorm";
-import University from "../../university/entity/University";
+import UniversityEntity from "../../university/entity/university.entity";
 import { BigIntTransformer } from "../../common/BigIntTransformer";
 
 @Entity()
-export class UniversityEmailAuth {
+export class UniversityEmailAuthEntity {
   @PrimaryColumn()
   oauthId: string;
 
@@ -43,16 +43,16 @@ export class UniversityEmailAuth {
   })
   createdAt: number;
 
-  @ManyToOne(() => University, { onDelete: "NO ACTION" })
+  @ManyToOne(() => UniversityEntity, { onDelete: "NO ACTION" })
   @JoinColumn()
-  university: University;
+  university: UniversityEntity;
 
   static create(
     univId: number,
     oauthId: string,
     email: string
-  ): UniversityEmailAuth {
-    const instance = new UniversityEmailAuth();
+  ): UniversityEmailAuthEntity {
+    const instance = new UniversityEmailAuthEntity();
     instance.universityId = univId;
     instance.oauthId = oauthId;
     instance.email = email;

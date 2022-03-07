@@ -1,4 +1,4 @@
-import { Match } from "../../entity/Match";
+import { MatchEntity } from "../../entity/match.entity";
 
 export default class MatchInfo {
   id: string;
@@ -9,7 +9,7 @@ export default class MatchInfo {
   purchaserName: string;
   createdAt: number;
 
-  static from(match: Match): MatchInfo {
+  static from(match: MatchEntity): MatchInfo {
     const res = new MatchInfo();
     res.id = match.id;
     res.shopName = match.shopName;

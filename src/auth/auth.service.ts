@@ -6,15 +6,13 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from "@nestjs/common";
-import { LoginDto } from "./dto/login.dto";
-import { LogoutDto } from "./dto/logout.dto";
 import axios, { AxiosResponse } from "axios";
 import { InjectRepository } from "@nestjs/typeorm";
-import { User } from "../user/entity/user.entity";
+import { UserEntity } from "../user/entity/user.entity";
 import { Connection, QueryRunner, Repository } from "typeorm";
 import { UserService } from "../user/user.service";
 import { createTransport, Transporter } from "nodemailer";
-import { UniversityEmailAuth } from "./entity/UniversityEmailAuth";
+import { UniversityEmailAuthEntity } from "./entity/university-email-auth.entity";
 import { randomBytes } from "crypto";
 import { EmailAuthConfig, jwt as jwtConfig } from "../../config";
 import { v4 } from "uuid";
@@ -41,8 +39,8 @@ export class AuthService {
   constructor(
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: WinstonLogger,
     public connection: Connection,
-    @InjectRepository(UniversityEmailAuth)
-    private emailAuthRepository: Repository<UniversityEmailAuth>,
+    @InjectRepository(UniversityEmailAuthEntity)
+    private emailAuthRepository: Repository<UniversityEmailAuthEntity>,
     private userService: UserService, //@Inject(forwardRef(() => UserService))
     private jwtService: JwtService
   ) {
@@ -51,8 +49,12 @@ export class AuthService {
 
   async validate(token: string): Promise<AccessTokenPayload> {
     //TODO 블랙리스트에 있는 토큰인지 검사
-    const payload: AccessTokenPayload = this.jwtService.verify(token);
-    return !payload ? undefined : payload;
+    try {
+      const payload: AccessTokenPayload = this.jwtService.verify(token);
+      return payload ? undefined : payload;
+    } catch (e) {
+      return undefined;
+    }
   }
 
   private extractSignature(token: string) {
@@ -112,12 +114,15 @@ export class AuthService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
-    let emailAuth = await queryRunner.manager.findOne(UniversityEmailAuth, {
-      oauthId: oauthId,
-    });
+    let emailAuth = await queryRunner.manager.findOne(
+      UniversityEmailAuthEntity,
+      {
+        oauthId: oauthId,
+      }
+    );
 
     if (!emailAuth) {
-      emailAuth = UniversityEmailAuth.create(univId, oauthId, email);
+      emailAuth = UniversityEmailAuthEntity.create(univId, oauthId, email);
     }
 
     if (emailAuth.isNotAvailable()) {
@@ -180,7 +185,7 @@ export class AuthService {
     );
   }
 
-  private async createAccessToken(user: User) {
+  private async createAccessToken(user: UserEntity) {
     const payload: AccessTokenPayload = {
       name: user.name,
       id: user.id,

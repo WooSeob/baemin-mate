@@ -5,10 +5,10 @@ import {
   OneToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
-import { Room } from "./Room";
+import { RoomEntity } from "./room.entity";
 
 @Entity()
-export class RoomAccount {
+export class RoomAccountEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -24,12 +24,12 @@ export class RoomAccount {
   @Column()
   roomId: string;
 
-  @OneToOne(() => Room, { onDelete: "CASCADE" })
+  @OneToOne(() => RoomEntity, { onDelete: "CASCADE" })
   @JoinColumn()
-  room: Room;
+  room: RoomEntity;
 
-  static create(room: Room, bank: string, number: string, holderName: string) {
-    const instance = new RoomAccount();
+  static create(room: RoomEntity, bank: string, number: string, holderName: string) {
+    const instance = new RoomAccountEntity();
     instance.room = room;
     instance.bank = bank;
     instance.number = number;

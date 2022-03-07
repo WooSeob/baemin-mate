@@ -1,6 +1,6 @@
 import { RoomState } from "../../../const/RoomState";
 import { NotFoundException, UnauthorizedException } from "@nestjs/common";
-import RoomVote from "../../RoomVote";
+import RoomVoteEntity from "../../room-vote.entity";
 import VoteStrategy from "../VoteStrategy";
 import {
   AlreadyDoVoteException,
@@ -8,7 +8,7 @@ import {
 } from "../../../exceptions/room.exception";
 
 export default class ResetVoteStrategy implements VoteStrategy {
-  doVote(vote: RoomVote, userId: string, opinion: boolean) {
+  doVote(vote: RoomVoteEntity, userId: string, opinion: boolean) {
     vote.room.onlyAt(RoomState.ORDER_FIX, RoomState.ORDER_CHECK);
 
     const voter = vote.opinions.find((o) => o.participant.userId === userId);
@@ -30,7 +30,7 @@ export default class ResetVoteStrategy implements VoteStrategy {
   }
 
   //기준 과반이상
-  private checkFinished(vote: RoomVote) {
+  private checkFinished(vote: RoomVoteEntity) {
     const numAgreeSubmitter = vote.opinions
       .filter((opinion) => opinion.submitted && opinion.opinion)
       .map((opinion) => 1)

@@ -5,21 +5,21 @@ import { RoomService } from "./room.service";
 import { RoomController } from "./room.controller";
 import { UserModule } from "../user/user.module";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { Room } from "./entity/Room";
-import { Participant } from "./entity/Participant";
+import { RoomEntity } from "./entity/room.entity";
+import { ParticipantEntity } from "./entity/participant.entity";
 import { ChatModule } from "../chat/chat.module";
-import { Menu } from "./entity/Menu";
+import { MenuEntity } from "./entity/menu.entity";
 import { S3Module } from "../infra/s3/s3.module";
-import { ImageFile } from "./entity/ImageFile";
-import { RoomAccount } from "./entity/RoomAccount";
+import { ImageFileEntity } from "./entity/image-file.entity";
+import { RoomAccountEntity } from "./entity/room-account.entity";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Room]),
-    TypeOrmModule.forFeature([Participant]),
-    TypeOrmModule.forFeature([Menu]),
-    TypeOrmModule.forFeature([ImageFile]),
-    TypeOrmModule.forFeature([RoomAccount]),
+    TypeOrmModule.forFeature([RoomEntity]),
+    TypeOrmModule.forFeature([ParticipantEntity]),
+    TypeOrmModule.forFeature([MenuEntity]),
+    TypeOrmModule.forFeature([ImageFileEntity]),
+    TypeOrmModule.forFeature([RoomAccountEntity]),
 
     forwardRef(() => AuthModule),
     forwardRef(() => UserModule),

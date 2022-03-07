@@ -39,7 +39,7 @@ export class LoggingInterceptor implements NestInterceptor {
 
         this.logger.log({
           message: `${endpoint} ${elapsedTime}ms`,
-          // response: v,
+          response: v,
         });
       })
     );

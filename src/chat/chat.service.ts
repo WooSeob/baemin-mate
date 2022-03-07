@@ -16,10 +16,10 @@ import {
   UserLeaveByVoteResponse,
   UserLeaveResponse,
 } from "../room/dto/response/users.response";
-import RoomChat, {
+import RoomChatEntity, {
   ChatMessageBuilder,
   SystemMessageBuilder,
-} from "../room/entity/RoomChat";
+} from "../room/entity/room-chat.entity";
 import { InjectRepository } from "@nestjs/typeorm";
 import { UserService } from "../user/user.service";
 import {
@@ -65,7 +65,7 @@ export class ChatService {
         });
       })
       .catch((e) => {
-        this.logger.error("RoomChat Entity 저장 실패", e);
+        this.logger.error("RoomChatEntity Entity 저장 실패", e);
       });
 
     return Promise.all([messagePromise, userPromise]);
@@ -74,7 +74,7 @@ export class ChatService {
   constructor(
     private roomService: RoomService,
     private userService: UserService,
-    @InjectRepository(RoomChat) private chatRepository: Repository<RoomChat>
+    @InjectRepository(RoomChatEntity) private chatRepository: Repository<RoomChatEntity>
   ) {
     // 일반 채팅
     roomService.on(

@@ -1,11 +1,11 @@
-import { Room } from "../entity/Room";
-import { User } from "../../user/entity/user.entity";
-import RoomVote from "../entity/RoomVote";
+import { RoomEntity } from "../entity/room.entity";
+import { UserEntity } from "../../user/entity/user.entity";
+import RoomVoteEntity from "../entity/room-vote.entity";
 
 export default interface RoomEvents {
-  create: (room: Room) => void;
-  update: (room: Room) => void;
-  delete: (room: Room) => void;
+  create: (room: RoomEntity) => void;
+  update: (room: RoomEntity) => void;
+  delete: (room: RoomEntity) => void;
 
   userJoin: (roomId: string, userId: string) => void;
   userLeave: (roomId: string, userId: string) => void;
@@ -18,11 +18,11 @@ export default interface RoomEvents {
   orderCheck: (roomId: string) => void;
   orderDone: (roomId: string) => void;
 
-  kickVoteCreated: (vote: RoomVote) => void;
-  kickVoteFinished: (vote: RoomVote) => void;
+  kickVoteCreated: (vote: RoomVoteEntity) => void;
+  kickVoteFinished: (vote: RoomVoteEntity) => void;
 
-  resetVoteCreated: (vote: RoomVote) => void;
-  resetVoteFinished: (vote: RoomVote) => void;
+  resetVoteCreated: (vote: RoomVoteEntity) => void;
+  resetVoteFinished: (vote: RoomVoteEntity) => void;
 
-  chat: (roomId: string, user: User, message: string) => void;
+  chat: (roomId: string, user: UserEntity, message: string) => void;
 }

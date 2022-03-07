@@ -2,11 +2,11 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { MatchService } from "./match.service";
 import { SectionType } from "../user/interfaces/user";
 import { CategoryType } from "./interfaces/category.interface";
-import { User } from "../user/entity/user.entity";
+import { UserEntity } from "../user/entity/user.entity";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { db_test } from "../../config";
-import { Room } from "../room/entity/Room";
-import { Match } from "./entity/Match";
+import { RoomEntity } from "../room/entity/room.entity";
+import { MatchEntity } from "./entity/match.entity";
 import { CreateRoomDto } from "../room/dto/request/create-room.dto";
 
 const sections = [
@@ -44,7 +44,7 @@ describe("구독 테스트", () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
-        TypeOrmModule.forFeature([Match]),
+        TypeOrmModule.forFeature([MatchEntity]),
       ],
       providers: [MatchService],
     }).compile();
@@ -62,7 +62,7 @@ describe("이벤트 수신 테스트", () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
-        TypeOrmModule.forFeature([Match]),
+        TypeOrmModule.forFeature([MatchEntity]),
       ],
       providers: [MatchService],
     }).compile();

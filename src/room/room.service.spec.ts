@@ -1,20 +1,20 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { RoomService } from "./room.service";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { Room } from "./entity/Room";
+import { RoomEntity } from "./entity/room.entity";
 
 import { CreateRoomDto } from "./dto/request/create-room.dto";
-import { User } from "../user/entity/user.entity";
-import { Participant } from "./entity/Participant";
-import { Menu } from "./entity/Menu";
+import { UserEntity } from "../user/entity/user.entity";
+import { ParticipantEntity } from "./entity/participant.entity";
+import { MenuEntity } from "./entity/menu.entity";
 import { AddMenuDto } from "../user/dto/request/add-menu.dto";
 import { RoomState } from "./const/RoomState";
 import { db_test } from "../../config";
-import { RoomBlackListReason } from "./entity/RoomBlackList";
+import { RoomBlackListReason } from "./entity/room-blacklist.entity";
 import { RoomEventType } from "./const/RoomEventType";
 import AlreadyJoinedError from "../common/AlreadyJoinedError";
-import { ImageFile } from "./entity/ImageFile";
-import { RoomAccount } from "./entity/RoomAccount";
+import { ImageFileEntity } from "./entity/image-file.entity";
+import { RoomAccountEntity } from "./entity/room-account.entity";
 
 describe("생성 테스트", () => {
   let service: RoomService;
@@ -24,12 +24,12 @@ describe("생성 테스트", () => {
       imports: [
         TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
         TypeOrmModule.forFeature([
-          Room,
-          Participant,
-          Menu,
-          User,
-          ImageFile,
-          RoomAccount,
+          RoomEntity,
+          ParticipantEntity,
+          MenuEntity,
+          UserEntity,
+          ImageFileEntity,
+          RoomAccountEntity,
         ]),
       ],
       providers: [RoomService],
@@ -103,12 +103,12 @@ describe("레디 테스트", () => {
       imports: [
         TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
         TypeOrmModule.forFeature([
-          Room,
-          Participant,
-          Menu,
-          User,
-          ImageFile,
-          RoomAccount,
+          RoomEntity,
+          ParticipantEntity,
+          MenuEntity,
+          UserEntity,
+          ImageFileEntity,
+          RoomAccountEntity,
         ]),
       ],
       providers: [RoomService],
@@ -184,12 +184,12 @@ describe("참가 테스트", () => {
       imports: [
         TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
         TypeOrmModule.forFeature([
-          Room,
-          Participant,
-          Menu,
-          User,
-          ImageFile,
-          RoomAccount,
+          RoomEntity,
+          ParticipantEntity,
+          MenuEntity,
+          UserEntity,
+          ImageFileEntity,
+          RoomAccountEntity,
         ]),
       ],
       providers: [RoomService],
@@ -314,12 +314,12 @@ describe("퇴장 테스트", () => {
       imports: [
         TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
         TypeOrmModule.forFeature([
-          Room,
-          Participant,
-          Menu,
-          User,
-          ImageFile,
-          RoomAccount,
+          RoomEntity,
+          ParticipantEntity,
+          MenuEntity,
+          UserEntity,
+          ImageFileEntity,
+          RoomAccountEntity,
         ]),
       ],
       providers: [RoomService],
@@ -391,12 +391,12 @@ describe("강퇴 테스트", () => {
       imports: [
         TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
         TypeOrmModule.forFeature([
-          Room,
-          Participant,
-          Menu,
-          User,
-          ImageFile,
-          RoomAccount,
+          RoomEntity,
+          ParticipantEntity,
+          MenuEntity,
+          UserEntity,
+          ImageFileEntity,
+          RoomAccountEntity,
         ]),
       ],
       providers: [RoomService],
@@ -497,12 +497,12 @@ describe("강퇴 투표 테스트", () => {
   //     imports: [
   //       TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
   //       TypeOrmModule.forFeature([
-  //         Room,
-  //         Participant,
-  //         Menu,
+  //         RoomEntity,
+  //         ParticipantEntity,
+  //         MenuEntity,
   //         User,
-  //         ImageFile,
-  //         RoomAccount,
+  //         ImageFileEntity,
+  //         RoomAccountEntity,
   //       ]),
   //     ],
   //     providers: [RoomService],
@@ -517,12 +517,12 @@ describe("강퇴 투표 테스트", () => {
       imports: [
         TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
         TypeOrmModule.forFeature([
-          Room,
-          Participant,
-          Menu,
-          User,
-          ImageFile,
-          RoomAccount,
+          RoomEntity,
+          ParticipantEntity,
+          MenuEntity,
+          UserEntity,
+          ImageFileEntity,
+          RoomAccountEntity,
         ]),
       ],
       providers: [RoomService],
@@ -644,12 +644,12 @@ describe("리셋 투표 테스트", () => {
       imports: [
         TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
         TypeOrmModule.forFeature([
-          Room,
-          Participant,
-          Menu,
-          User,
-          ImageFile,
-          RoomAccount,
+          RoomEntity,
+          ParticipantEntity,
+          MenuEntity,
+          UserEntity,
+          ImageFileEntity,
+          RoomAccountEntity,
         ]),
       ],
       providers: [RoomService],
@@ -734,12 +734,12 @@ describe("메뉴 테스트", () => {
       imports: [
         TypeOrmModule.forRoot({ ...db_test, keepConnectionAlive: true }),
         TypeOrmModule.forFeature([
-          Room,
-          Participant,
-          Menu,
-          User,
-          ImageFile,
-          RoomAccount,
+          RoomEntity,
+          ParticipantEntity,
+          MenuEntity,
+          UserEntity,
+          ImageFileEntity,
+          RoomAccountEntity,
         ]),
       ],
       providers: [RoomService],

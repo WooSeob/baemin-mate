@@ -1,37 +1,37 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import University from "./entity/University";
+import UniversityEntity from "./entity/university.entity";
 import { Repository } from "typeorm";
-import Dormitory from "./entity/Dormitory";
+import DormitoryEntity from "./entity/dormitory.entity";
 
 @Injectable()
 export class UniversityService {
   constructor(
-    @InjectRepository(University)
-    private universityRepository: Repository<University>,
-    @InjectRepository(Dormitory)
-    private dormitoryRepository: Repository<Dormitory>
+    @InjectRepository(UniversityEntity)
+    private universityRepository: Repository<UniversityEntity>,
+    @InjectRepository(DormitoryEntity)
+    private dormitoryRepository: Repository<DormitoryEntity>
   ) {}
 
-  async getAllUniversities(): Promise<University[]> {
+  async getAllUniversities(): Promise<UniversityEntity[]> {
     return this.universityRepository.find();
   }
 
-  async getDormitoryById(id: number): Promise<Dormitory> {
+  async getDormitoryById(id: number): Promise<DormitoryEntity> {
     return this.dormitoryRepository.findOne(id);
   }
 
-  async getDormitoriesByUnivId(id: number): Promise<University> {
+  async getDormitoriesByUnivId(id: number): Promise<UniversityEntity> {
     return this.universityRepository.findOne(id, {
       relations: ["dormitories"],
     });
   }
 
-  async getUniversityById(id: number): Promise<University> {
+  async getUniversityById(id: number): Promise<UniversityEntity> {
     return this.universityRepository.findOne(id);
   }
 
-  async getUniversityByKorName(korName: string): Promise<University> {
+  async getUniversityByKorName(korName: string): Promise<UniversityEntity> {
     return this.universityRepository.findOne(
       { korName: korName },
       { relations: ["dormitories"] }

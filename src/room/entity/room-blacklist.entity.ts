@@ -5,8 +5,8 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
-import { Room } from "./Room";
-import { User } from "../../user/entity/user.entity";
+import { RoomEntity } from "./room.entity";
+import { UserEntity } from "../../user/entity/user.entity";
 
 export enum RoomBlackListReason {
   KICKED_BY_PURCHASER,
@@ -14,7 +14,7 @@ export enum RoomBlackListReason {
 }
 
 @Entity()
-export default class RoomBlackList {
+export default class RoomBlacklistEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -25,15 +25,15 @@ export default class RoomBlackList {
   @Column({ nullable: true })
   userId: string;
 
-  @ManyToOne(() => Room, (r) => r.blackList, {
+  @ManyToOne(() => RoomEntity, (r) => r.blackList, {
     onDelete: "CASCADE",
   })
-  room: Room;
+  room: RoomEntity;
 
-  @ManyToOne(() => User)
-  user: User;
+  @ManyToOne(() => UserEntity)
+  user: UserEntity;
 
-  constructor(room: Room, userId: string, reason: RoomBlackListReason) {
+  constructor(room: RoomEntity, userId: string, reason: RoomBlackListReason) {
     this.room = room;
     this.userId = userId;
     this.reason = reason;

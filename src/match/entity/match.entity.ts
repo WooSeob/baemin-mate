@@ -7,13 +7,13 @@ import {
   PrimaryGeneratedColumn,
   ValueTransformer,
 } from "typeorm";
-import { Room } from "../../room/entity/Room";
+import { RoomEntity } from "../../room/entity/room.entity";
 import { SectionType } from "../../user/interfaces/user";
 import { CategoryType } from "../interfaces/category.interface";
 import { BigIntTransformer } from "../../common/BigIntTransformer";
 
 @Entity("match_entity")
-export class Match {
+export class MatchEntity {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
@@ -66,15 +66,15 @@ export class Match {
   @Column({ nullable: true })
   roomId: string;
 
-  @ManyToOne(() => Room, { onDelete: "SET NULL" })
-  room: Room;
+  @ManyToOne(() => RoomEntity, { onDelete: "SET NULL" })
+  room: RoomEntity;
 
   //TODO 리팩토링
-  static create(room: Room, sectionName: string): Match {
-    return new Match().update(room, sectionName);
+  static create(room: RoomEntity, sectionName: string): MatchEntity {
+    return new MatchEntity().update(room, sectionName);
   }
 
-  update(room: Room, sectionName: string): Match {
+  update(room: RoomEntity, sectionName: string): MatchEntity {
     this.shopName = room.shopName;
     this.purchaserName = room.purchaser.name;
     this.category = room.category;

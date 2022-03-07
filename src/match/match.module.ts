@@ -6,7 +6,7 @@ import { MatchController } from "./match.controller";
 import { UserModule } from "../user/user.module";
 import { RoomModule } from "../room/room.module";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { Match } from "./entity/Match";
+import { MatchEntity } from "./entity/match.entity";
 import { UniversityModule } from "../university/university.module";
 
 @Module({
@@ -15,7 +15,7 @@ import { UniversityModule } from "../university/university.module";
     UserModule,
     RoomModule,
     UniversityModule,
-    TypeOrmModule.forFeature([Match]),
+    TypeOrmModule.forFeature([MatchEntity]),
   ],
   providers: [MatchService, MatchGateway],
   controllers: [MatchController],

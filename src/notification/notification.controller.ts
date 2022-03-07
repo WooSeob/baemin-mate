@@ -12,7 +12,7 @@ import { ApiBearerAuth, ApiCreatedResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { NotificationService } from "./notification.service";
 import { AddTokenDto } from "./dto/add-token.dto";
-import { User } from "../user/entity/user.entity";
+import { UserEntity } from "../user/entity/user.entity";
 import { NotificationDto } from "./dto/notification.dto";
 
 @Controller("notification")
@@ -32,7 +32,7 @@ export class NotificationController {
   ) {
     if (notificationDto.enabled !== undefined) {
       await this.notificationService.setEnabled(
-        (request.user as User).id,
+        (request.user as UserEntity).id,
         notificationDto.enabled
       );
     }
@@ -46,7 +46,7 @@ export class NotificationController {
   @Put("/token")
   async putToken(@Req() request: Request, @Body() addTokenDto: AddTokenDto) {
     return this.notificationService.put(
-      (request.user as User).id,
+      (request.user as UserEntity).id,
       addTokenDto.token
     );
   }

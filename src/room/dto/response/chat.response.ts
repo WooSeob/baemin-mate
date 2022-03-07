@@ -1,5 +1,5 @@
 import { ChatBody, Message, SystemBody } from "./message.response";
-import RoomChat from "../../entity/RoomChat";
+import RoomChatEntity from "../../entity/room-chat.entity";
 
 export class SystemMessageResponse implements Message<SystemBody> {
   at: string;
@@ -7,7 +7,7 @@ export class SystemMessageResponse implements Message<SystemBody> {
   id: string;
   idx: number;
   type: string;
-  static from(roomChat: RoomChat, body: SystemBody) {
+  static from(roomChat: RoomChatEntity, body: SystemBody) {
     const m = new SystemMessageResponse();
     m.at = String(roomChat.createdAt);
     m.body = body;
@@ -24,7 +24,7 @@ export class ChatMessageResponse implements Message<ChatBody> {
   id: string;
   idx: number;
   type: string;
-  static from(roomChat: RoomChat, body: ChatBody) {
+  static from(roomChat: RoomChatEntity, body: ChatBody) {
     const m = new ChatMessageResponse();
     m.at = String(roomChat.createdAt);
     m.body = body;

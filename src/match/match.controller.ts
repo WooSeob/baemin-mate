@@ -11,12 +11,12 @@ import { ApiBearerAuth, ApiCreatedResponse } from "@nestjs/swagger";
 
 import { MatchService } from "./match.service";
 import { Request } from "express";
-import { User } from "../user/entity/user.entity";
+import { UserEntity } from "../user/entity/user.entity";
 import MatchDetailResponseDto from "./dto/response/detail.response.dto";
 import RoomDetailForUser from "../user/dto/response/room";
 import { SECTION } from "../user/interfaces/user";
 import { RoomService } from "../room/room.service";
-import { RoomRole } from "../room/entity/Room";
+import { RoomRole } from "../room/entity/room.entity";
 import { JwtAuthGuard } from "../auth/guards/JwtAuthGuard";
 
 @Controller("match")
@@ -80,7 +80,10 @@ export class MatchController {
       throw new HttpException("match not found", HttpStatus.NOT_FOUND);
     }
 
-    await this.roomService.joinRoom(match.roomId, (request.user as User).id);
+    await this.roomService.joinRoom(
+      match.roomId,
+      (request.user as UserEntity).id
+    );
 
     const room = await this.roomService.findRoomById(match.roomId);
     return {

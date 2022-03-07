@@ -1,8 +1,8 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { User, UserBuilder } from "./entity/user.entity";
+import { UserEntity, UserBuilder } from "./entity/user.entity";
 import { Repository } from "typeorm";
-import { OAuthUser } from "./entity/OAuthUser";
+import { UserOauthEntity } from "./entity/user-oauth.entity";
 import { OAuthProvider } from "../auth/interface/OAuthProvider";
 import EventEmitter from "events";
 import { UserEvent } from "./const/UserEvent";
@@ -11,8 +11,10 @@ import { UserEvent } from "./const/UserEvent";
 export class UserService extends EventEmitter {
   private logger = new Logger("UserService");
   constructor(
-    @InjectRepository(User) private userRepository: Repository<User>,
-    @InjectRepository(OAuthUser) private oauthRepository: Repository<OAuthUser>
+    @InjectRepository(UserEntity)
+    private userRepository: Repository<UserEntity>,
+    @InjectRepository(UserOauthEntity)
+    private oauthRepository: Repository<UserOauthEntity>
   ) {
     super();
   }
@@ -26,14 +28,14 @@ export class UserService extends EventEmitter {
     id: string,
     name: string,
     univId: number
-  ): Promise<User> {
-    const newUser = new User();
+  ): Promise<UserEntity> {
+    const newUser = new UserEntity();
     newUser.name = name;
     newUser.verified = true;
     newUser.universityId = univId;
     const created = await this.userRepository.save(newUser);
 
-    const oauthUser = new OAuthUser();
+    const oauthUser = new UserOauthEntity();
     oauthUser.id = id;
     oauthUser.provider = OAuthProvider.NAVER;
     oauthUser.user = created;
@@ -65,7 +67,7 @@ export class UserService extends EventEmitter {
    * id로 유저를 찾고
    * 없으면 name이 "(알수없음)" 으로 설정된 기본 유저를 반환합니다.
    * */
-  async findUserOrUnknownIfNotExist(id: string): Promise<User> {
+  async findUserOrUnknownIfNotExist(id: string): Promise<UserEntity> {
     //TODO async 최적화?
     const user = await this.findUserById(id);
     return user
@@ -73,19 +75,23 @@ export class UserService extends EventEmitter {
       : new UserBuilder().setId(id).setName("(알수없음)").build();
   }
 
-  async findUserByOauthId(oauthId: string): Promise<User> {
+  async findUserByOauthId(oauthId: string): Promise<UserEntity> {
     const oauthUser = await this.oauthRepository.findOne(oauthId);
+
+    const asdf = await this.oauthRepository.find(undefined);
+    this.logger.log(asdf);
+
     if (!oauthUser) {
       return undefined;
     }
     return oauthUser.user;
   }
 
-  findUserById(id: string): Promise<User> {
+  findUserById(id: string): Promise<UserEntity> {
     return this.userRepository.findOne({ id: id, deletedAt: null });
   }
 
-  async verify(user: User) {
+  async verify(user: UserEntity) {
     user.verified = true;
     await this.userRepository.save(user);
   }

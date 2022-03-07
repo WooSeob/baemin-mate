@@ -1,6 +1,6 @@
 import { RoomState } from "../../../const/RoomState";
 import { NotFoundException, UnauthorizedException } from "@nestjs/common";
-import RoomVote from "../../RoomVote";
+import RoomVoteEntity from "../../room-vote.entity";
 import VoteStrategy from "../VoteStrategy";
 import {
   AlreadyDoVoteException,
@@ -8,7 +8,7 @@ import {
 } from "../../../exceptions/room.exception";
 
 export default class KickVoteStrategy implements VoteStrategy {
-  doVote(vote: RoomVote, userId: string, opinion: boolean) {
+  doVote(vote: RoomVoteEntity, userId: string, opinion: boolean) {
     // 방장이 투표가능?
     // 대상자가 투표가능?
     // 투표 생성자가 투표가능?
@@ -33,7 +33,7 @@ export default class KickVoteStrategy implements VoteStrategy {
   }
 
   //기준 만장일치
-  private checkFinished(vote: RoomVote) {
+  private checkFinished(vote: RoomVoteEntity) {
     const numAgreeSubmitter = vote.opinions
       .filter((opinion) => opinion.submitted && opinion.opinion)
       .map((opinion) => 1)

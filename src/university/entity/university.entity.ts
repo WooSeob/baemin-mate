@@ -1,8 +1,8 @@
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
-import Dormitory from "./Dormitory";
+import DormitoryEntity from "./dormitory.entity";
 
 @Entity()
-export default class University {
+export default class UniversityEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -15,6 +15,6 @@ export default class University {
   @Column({ nullable: false })
   emailDomain: string;
 
-  @OneToMany(() => Dormitory, (d) => d.university, { cascade: true })
-  dormitories: Dormitory[];
+  @OneToMany(() => DormitoryEntity, (d) => d.university, { cascade: true })
+  dormitories: DormitoryEntity[];
 }

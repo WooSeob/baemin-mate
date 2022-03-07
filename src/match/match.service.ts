@@ -1,14 +1,14 @@
 import { Inject, Injectable, Logger, UseInterceptors } from "@nestjs/common";
 import { Server, Socket } from "socket.io";
 import { SubscribeMatchDto } from "./dto/request/subscribe-match.dto";
-import { User } from "../user/entity/user.entity";
+import { UserEntity } from "../user/entity/user.entity";
 import { CategoryType } from "./interfaces/category.interface";
 import { RoomEventType } from "../room/const/RoomEventType";
 import { RoomService } from "../room/room.service";
 import { Connection, QueryRunner, Repository } from "typeorm";
-import { Match } from "./entity/Match";
+import { MatchEntity } from "./entity/match.entity";
 import MatchInfo from "./dto/response/match-info.interface";
-import { Room } from "../room/entity/Room";
+import { RoomEntity } from "../room/entity/room.entity";
 import { InjectRepository } from "@nestjs/typeorm";
 import { UniversityService } from "../university/university.service";
 
@@ -27,11 +27,12 @@ export class MatchService {
     private connection: Connection,
     private roomService: RoomService,
     private universityService: UniversityService,
-    @InjectRepository(Match) private matchRepository: Repository<Match>
+    @InjectRepository(MatchEntity)
+    private matchRepository: Repository<MatchEntity>
   ) {
     // 룸이 새로 생성되었을 때
     // 노출 가능 상태가 되었을 때(-> prepare, -> all ready)
-    roomService.on(RoomEventType.CREATE, async (room: Room) => {
+    roomService.on(RoomEventType.CREATE, async (room: RoomEntity) => {
       await this.handleCreateEvent(room);
     });
 
@@ -80,14 +81,14 @@ export class MatchService {
     });
   }
 
-  async handleCreateEvent(room: Room) {
+  async handleCreateEvent(room: RoomEntity) {
     console.log(room);
     // 매치 영속화
     const dormitory = await this.universityService.getDormitoryById(
       room.sectionId
     );
     const created = await this.matchRepository.save(
-      Match.create(room, dormitory.name)
+      MatchEntity.create(room, dormitory.name)
     );
     this.server
       .to(
@@ -148,7 +149,7 @@ export class MatchService {
   }
 
   async subscribeByCategory(
-    user: User,
+    user: UserEntity,
     subscribeMatchDto: SubscribeMatchDto,
     client: Socket
   ) {
@@ -177,7 +178,7 @@ export class MatchService {
     univId: number,
     sectionIds: number[],
     categories: CategoryType[]
-  ): Promise<Match[]> {
+  ): Promise<MatchEntity[]> {
     if (sectionIds.length == 0 || categories.length == 0) {
       return Promise.resolve([]);
     }
@@ -196,7 +197,7 @@ export class MatchService {
     return queryBuilder.getMany();
   }
 
-  findMatchById(id: string): Promise<Match> {
+  findMatchById(id: string): Promise<MatchEntity> {
     return this.matchRepository
       .createQueryBuilder("match")
       .leftJoinAndSelect("match.room", "room")

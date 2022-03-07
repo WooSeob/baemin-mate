@@ -1,9 +1,9 @@
 import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
-import { Participant } from "./Participant";
-import RoomVote from "./RoomVote";
+import { ParticipantEntity } from "./participant.entity";
+import RoomVoteEntity from "./room-vote.entity";
 
 @Entity()
-export default class VoteOpinion {
+export default class VoteOpinionEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -17,13 +17,13 @@ export default class VoteOpinion {
   participantId: string;
 
   //TODO 누군가 나가면 투표 종료기준은? -> 현재는 투표 가능 시점에 나갈 수 없음
-  @ManyToOne(() => Participant, { onDelete: "CASCADE" })
-  participant: Participant;
+  @ManyToOne(() => ParticipantEntity, { onDelete: "CASCADE" })
+  participant: ParticipantEntity;
 
-  @ManyToOne(() => RoomVote, (v) => v.opinions, { onDelete: "CASCADE" })
-  vote: RoomVote;
+  @ManyToOne(() => RoomVoteEntity, (v) => v.opinions, { onDelete: "CASCADE" })
+  vote: RoomVoteEntity;
 
-  constructor(vote: RoomVote, participant: Participant) {
+  constructor(vote: RoomVoteEntity, participant: ParticipantEntity) {
     this.vote = vote;
     this.participant = participant;
   }

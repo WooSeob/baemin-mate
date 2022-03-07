@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import RoomUserView from "../../../room/dto/response/user-view.dto";
-import { Match } from "../../entity/Match";
+import { MatchEntity } from "../../entity/match.entity";
 
 export default class MatchDetailResponseDto {
   @ApiProperty({ description: "room id" })
@@ -27,7 +27,7 @@ export default class MatchDetailResponseDto {
   @ApiProperty({ description: "참여자 수" })
   participants: number;
 
-  static from(match: Match): MatchDetailResponseDto {
+  static from(match: MatchEntity): MatchDetailResponseDto {
     const detail = new MatchDetailResponseDto();
     detail.id = match.room.id;
     detail.purchaser = RoomUserView.from(match.room.purchaser);

@@ -6,9 +6,9 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from "typeorm";
-import { Room } from "./Room";
-import VoteOpinion from "./VoteOpinion";
-import { User } from "../../user/entity/user.entity";
+import { RoomEntity } from "./room.entity";
+import VoteOpinionEntity from "./vote-opinion.entity";
+import { UserEntity } from "../../user/entity/user.entity";
 import VoteStrategyFactory from "./Vote/VoteStrategyFactory";
 
 export enum RoomVoteType {
@@ -17,7 +17,7 @@ export enum RoomVoteType {
 }
 
 @Entity()
-export default class RoomVote {
+export default class RoomVoteEntity {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
@@ -37,19 +37,19 @@ export default class RoomVote {
   roomId: string;
 
   // TODO 유저가 탈퇴해 버리면 투표가 삭제되버림
-  @ManyToOne(() => User, { onDelete: "CASCADE" })
+  @ManyToOne(() => UserEntity, { onDelete: "CASCADE" })
   @JoinColumn()
-  targetUser: User;
+  targetUser: UserEntity;
 
-  @ManyToOne(() => Room, { onDelete: "CASCADE" })
+  @ManyToOne(() => RoomEntity, { onDelete: "CASCADE" })
   @JoinColumn()
-  room: Room;
+  room: RoomEntity;
 
-  @OneToMany(() => VoteOpinion, (v) => v.vote, {
+  @OneToMany(() => VoteOpinionEntity, (v) => v.vote, {
     eager: true,
     cascade: true,
   })
-  opinions: VoteOpinion[];
+  opinions: VoteOpinionEntity[];
 
   doVote(userId: string, opinion: boolean) {
     if (this.finished) {

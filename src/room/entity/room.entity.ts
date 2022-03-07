@@ -7,16 +7,18 @@ import {
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { RoomState } from "../const/RoomState";
-import { User } from "../../user/entity/user.entity";
+import { UserEntity } from "../../user/entity/user.entity";
 import { CategoryType } from "../../match/interfaces/category.interface";
-import { Participant, ParticipantBuilder } from "./Participant";
-import { ImageFile } from "./ImageFile";
+import { ParticipantEntity, ParticipantBuilder } from "./participant.entity";
+import { ImageFileEntity } from "./image-file.entity";
 import { CreateRoomDto } from "../dto/request/create-room.dto";
 import { NotFoundException } from "@nestjs/common";
-import RoomBlackList, { RoomBlackListReason } from "./RoomBlackList";
-import University from "../../university/entity/University";
+import RoomBlacklistEntity, {
+  RoomBlackListReason,
+} from "./room-blacklist.entity";
+import UniversityEntity from "../../university/entity/university.entity";
 import { BigIntTransformer } from "../../common/BigIntTransformer";
-import Dormitory from "../../university/entity/Dormitory";
+import DormitoryEntity from "../../university/entity/dormitory.entity";
 import {
   AlreadyInProgressRoomJoinedException,
   AlreadyJoinedException,
@@ -39,7 +41,7 @@ export enum RoomRole {
 }
 
 @Entity()
-export class Room {
+export class RoomEntity {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
@@ -56,9 +58,9 @@ export class Room {
   purchaserId: string;
 
   //TODO 유저가 탈퇴해버리면?
-  @ManyToOne(() => User)
+  @ManyToOne(() => UserEntity)
   @JoinColumn()
-  purchaser: User;
+  purchaser: UserEntity;
 
   @Column({
     nullable: false,
@@ -68,9 +70,9 @@ export class Room {
   @Column()
   sectionId: number;
 
-  @ManyToOne(() => Dormitory, { eager: true })
+  @ManyToOne(() => DormitoryEntity, { eager: true })
   @JoinColumn()
-  section: Dormitory;
+  section: DormitoryEntity;
 
   @Column({
     nullable: false,
@@ -99,16 +101,16 @@ export class Room {
   @Column()
   targetUnivId: number;
 
-  @ManyToOne(() => University)
+  @ManyToOne(() => UniversityEntity)
   @JoinColumn()
-  targetUniv: University;
+  targetUniv: UniversityEntity;
 
   //TODO 유저가 탈퇴해버리면?
-  @OneToMany(() => Participant, (participant) => participant.room, {
+  @OneToMany(() => ParticipantEntity, (participant) => participant.room, {
     cascade: true,
     eager: true,
   })
-  participants: Participant[];
+  participants: ParticipantEntity[];
 
   @Column({
     nullable: false,
@@ -116,20 +118,20 @@ export class Room {
   })
   deliveryTip: number;
 
-  @OneToMany(() => ImageFile, (imageFile) => imageFile.room, {
+  @OneToMany(() => ImageFileEntity, (imageFile) => imageFile.room, {
     cascade: true,
     lazy: true,
   })
-  orderCheckScreenShots: Promise<ImageFile[]>;
+  orderCheckScreenShots: Promise<ImageFileEntity[]>;
 
-  @OneToMany(() => RoomBlackList, (b) => b.room, {
+  @OneToMany(() => RoomBlacklistEntity, (b) => b.room, {
     cascade: true,
     eager: true,
   })
-  blackList: RoomBlackList[];
+  blackList: RoomBlacklistEntity[];
 
   private static phaseGraph: Map<RoomState, Set<RoomState>> =
-    Room.createPhaseGraph();
+    RoomEntity.createPhaseGraph();
 
   private static createPhaseGraph(): Map<RoomState, Set<RoomState>> {
     const graph: Map<RoomState, Set<RoomState>> = new Map();
@@ -193,7 +195,9 @@ export class Room {
   }
 
   canTransitionTo(state: RoomState): boolean {
-    return this.phase == state || Room.phaseGraph.get(this.phase).has(state);
+    return (
+      this.phase == state || RoomEntity.phaseGraph.get(this.phase).has(state)
+    );
   }
 
   onlyAt(...phases: RoomState[]) {
@@ -285,7 +289,7 @@ export class Room {
     this.updateAllReadyState();
   }
 
-  leave(userId: string): Participant {
+  leave(userId: string): ParticipantEntity {
     this.onlyAt(
       RoomState.PREPARE,
       RoomState.ALL_READY,
@@ -317,7 +321,10 @@ export class Room {
     return target;
   }
 
-  kickUser(targetUserId: string, reason: RoomBlackListReason): Participant {
+  kickUser(
+    targetUserId: string,
+    reason: RoomBlackListReason
+  ): ParticipantEntity {
     // 방장만 수행 가능한 액션
     // 대상 유저가 참여자
     // order-fix 이전만 수행 가능
@@ -338,7 +345,7 @@ export class Room {
     }
 
     //블랙리스트 추가
-    this.blackList.push(new RoomBlackList(this, targetUserId, reason));
+    this.blackList.push(new RoomBlacklistEntity(this, targetUserId, reason));
 
     const target = this.participants.splice(idx, 1)[0];
     this.updateAllReadyState();
@@ -354,8 +361,8 @@ export class Room {
    * - 참여하려는 해당 방의 phase 가 [prepare, allReady] 사이여야 함.
    * - 참여하려는 유저는 해당 방의 블랙리스트가 아니어야 함.
    * */
-  //Room.ts
-  join(user: User) {
+  //room.entity.ts
+  join(user: UserEntity) {
     // 참여하려는 방의 상태는 PREPARE, ALL_READY 여야 함.
     try {
       this.onlyAt(RoomState.PREPARE, RoomState.ALL_READY);
@@ -374,7 +381,7 @@ export class Room {
     }
 
     // 유저 기준 조건
-    Room.validateJoin(user);
+    RoomEntity.validateJoin(user);
 
     // 같은 대학의 방에만 참가 가능
     if (this.targetUnivId !== user.universityId) {
@@ -426,7 +433,7 @@ export class Room {
     }
   }
 
-  static create(user: User, dto: CreateRoomDto): Room {
+  static create(user: UserEntity, dto: CreateRoomDto): RoomEntity {
     //사용자가 참여한 방에 OrderFix ~ OrderDone 단계의 방이 하나라도 있으면 안됨.
     //사용자가 참여한 방에 준비완료한 방이 있으면 안됨(OrderDone 제외)
     //기존 참여 방중 방장으로서 활성 상태(order done 이하)인 방도 있으면 안됨.
@@ -441,7 +448,7 @@ export class Room {
       }
     }
 
-    const room = new Room();
+    const room = new RoomEntity();
     room.purchaser = user;
     room.shopName = dto.shopName;
     room.category = dto.category;

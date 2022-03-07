@@ -1,6 +1,34 @@
 import RoomUserView from "./user-view.dto";
 import { SystemBody } from "./message.response";
-import RoomVote from "../../entity/RoomVote";
+import RoomVoteEntity, { RoomVoteType } from "../../entity/room-vote.entity";
+import { ApiProperty } from "@nestjs/swagger";
+
+export class VoteResponse {
+  @ApiProperty({ description: "room id" })
+  id: string;
+
+  @ApiProperty({ description: "room id" })
+  type: RoomVoteType;
+
+  @ApiProperty({ description: "room id" })
+  finished: boolean;
+
+  @ApiProperty({ description: "room id" })
+  result: boolean;
+
+  @ApiProperty({ description: "room id" })
+  metadataId: string;
+
+  static from(vote: RoomVoteEntity): VoteResponse {
+    const instance = new VoteResponse();
+    instance.id = vote.id;
+    instance.type = vote.voteType;
+    instance.finished = vote.finished;
+    instance.result = vote.result;
+    instance.metadataId = vote.targetUserId;
+    return instance;
+  }
+}
 
 export class KickVoteCreatedResponse implements SystemBody {
   readonly action = "vote-kick-created";
@@ -8,7 +36,7 @@ export class KickVoteCreatedResponse implements SystemBody {
     voteId: string;
     targetUser: RoomUserView;
   };
-  static from(kickVote: RoomVote) {
+  static from(kickVote: RoomVoteEntity) {
     const r = new KickVoteCreatedResponse();
     r.data = {
       voteId: kickVote.id,
@@ -25,7 +53,7 @@ export class KickVoteFinishedResponse implements SystemBody {
     target: RoomUserView;
     result: boolean;
   };
-  static from(kickVote: RoomVote) {
+  static from(kickVote: RoomVoteEntity) {
     const r = new KickVoteFinishedResponse();
     r.data = {
       voteId: kickVote.id,
@@ -41,7 +69,7 @@ export class ResetVoteCreatedResponse implements SystemBody {
   data: {
     voteId: string;
   };
-  static from(resetVote: RoomVote) {
+  static from(resetVote: RoomVoteEntity) {
     const r = new ResetVoteCreatedResponse();
     r.data = {
       voteId: resetVote.id,
@@ -56,7 +84,7 @@ export class ResetVoteFinishedResponse implements SystemBody {
     voteId: string;
     result: boolean;
   };
-  static from(resetVote: RoomVote) {
+  static from(resetVote: RoomVoteEntity) {
     const r = new ResetVoteFinishedResponse();
     r.data = {
       voteId: resetVote.id,

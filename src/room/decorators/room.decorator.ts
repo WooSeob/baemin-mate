@@ -1,6 +1,6 @@
 import { applyDecorators, UseGuards } from "@nestjs/common";
 import { RoomRoles } from "./room-roles.decorator";
-import { RoomRole } from "../entity/Room";
+import { RoomRole } from "../entity/room.entity";
 import { JwtAuthGuard } from "../../auth/guards/JwtAuthGuard";
 import { RoomRolesGuard } from "../guards/room-roles.guard";
 import { ApiBearerAuth } from "@nestjs/swagger";

@@ -4,7 +4,7 @@ import { AuthService } from "./auth.service";
 import { UserModule } from "../user/user.module";
 import { PassportModule } from "@nestjs/passport";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { UniversityEmailAuth } from "./entity/UniversityEmailAuth";
+import { UniversityEmailAuthEntity } from "./entity/university-email-auth.entity";
 import { UniversityModule } from "../university/university.module";
 import { JwtModule } from "@nestjs/jwt";
 import { NotificationModule } from "../notification/notification.module";
@@ -15,7 +15,7 @@ import { jwt as jwtConfig } from "../../config";
   imports: [
     forwardRef(() => UserModule),
     PassportModule,
-    TypeOrmModule.forFeature([UniversityEmailAuth]),
+    TypeOrmModule.forFeature([UniversityEmailAuthEntity]),
     UniversityModule,
     JwtModule.register({
       secret: jwtConfig.secret,

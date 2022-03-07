@@ -1,16 +1,16 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from "typeorm";
 import { OAuthProvider } from "../../auth/interface/OAuthProvider";
-import { User } from "./user.entity";
+import { UserEntity } from "./user.entity";
 
 @Entity()
-export class OAuthUser {
+export class UserOauthEntity {
   @PrimaryColumn()
   id: string;
 
   @Column({ nullable: false })
   provider: OAuthProvider;
 
-  @ManyToOne(() => User, { eager: true })
+  @ManyToOne(() => UserEntity, { eager: true })
   @JoinColumn()
-  user: User;
+  user: UserEntity;
 }

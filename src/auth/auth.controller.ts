@@ -22,7 +22,7 @@ import { LoginDto } from "./dto/login.dto";
 import { LogoutDto } from "./dto/logout.dto";
 import { Request, Response } from "express";
 import axios, { AxiosResponse } from "axios";
-import { User } from "../user/entity/user.entity";
+import { UserEntity } from "../user/entity/user.entity";
 import { SendCodeDto } from "./dto/send-code.dto";
 import { VerifyCodeDto } from "./dto/verify-code.dto";
 import { ApiBearerAuth, ApiCreatedResponse } from "@nestjs/swagger";
@@ -105,6 +105,7 @@ export class AuthController {
       throw new UnauthorizedException("잘못된 토큰입니다.");
     }
 
+    this.logger.log(userData);
     if (loginDto.deviceToken) {
       const user = await this.userService.findUserByOauthId(userData.id);
       if (!user) {
@@ -184,7 +185,7 @@ export class AuthController {
   @ApiBearerAuth("swagger-auth")
   @Get("/email/verified")
   async getIsEmailVerified(@Req() request: Request) {
-    const user = request.user as User;
+    const user = request.user as UserEntity;
     return user.verified;
   }
 }

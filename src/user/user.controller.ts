@@ -24,7 +24,7 @@ import { RoomService } from "../room/room.service";
 import RoomDetailForUser from "./dto/response/room";
 import RoomUserView from "../room/dto/response/user-view.dto";
 import { MenuItem } from "../match/interfaces/shop.interface";
-import { Room } from "../room/entity/Room";
+import { RoomEntity } from "../room/entity/room.entity";
 import { JwtAuthGuard } from "../auth/guards/JwtAuthGuard";
 import { OnlyForParticipant } from "../room/decorators/room.decorator";
 import { ROOM_ID } from "../room/const/Param";
@@ -78,8 +78,8 @@ export class UserController {
   }
 
   // 유저 프로필
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth("swagger-auth")
+  // @UseGuards(JwtAuthGuard)
+  // @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description: "해당 유저의 프로필 정보를 반환합니다.",
     type: RoomUserView,
@@ -117,7 +117,7 @@ export class UserController {
 
     const rids: string[] = await this.userService.getJoinedRoomIds(uid);
 
-    const promises: Promise<Room>[] = [];
+    const promises: Promise<RoomEntity>[] = [];
     for (const rid of rids) {
       promises.push(this.roomService.findRoomById(rid));
     }
