@@ -60,6 +60,25 @@ export class RoomGateway
 
   afterInit(server: Server) {
     RoomGateway._server = server;
+    server.use(async (socket, next) => {
+      let token = socket.handshake.auth.token;
+      if (token.split(" ").length > 1) {
+        token = token.split(" ")[1];
+      }
+      const user = await this.authService.validate(token);
+      //인증 실패시 강제 disconnect
+      if (!user) {
+        this.logger.log({
+          message: `[Authentication failed] #${socket.id} disconnect.`,
+          token: socket.handshake.auth.token,
+        });
+        return next(new Error("Authentication failed"));
+      }
+      // Socket id <-> user id 매핑 셋
+      // this._socketToUid.set(client, user.id);
+      this.addToLookup(socket.id, user.id);
+      next();
+    });
   }
 
   private addToLookup(clientId: string, userId: string) {
@@ -88,27 +107,10 @@ export class RoomGateway
       handshake: client.handshake,
     });
 
-    let token = client.handshake.auth.token;
-    if (token.split(" ").length > 1) {
-      token = token.split(" ")[1];
-    }
-    const user = await this.authService.validate(token);
-    //인증 실패시 강제 disconnect
-    if (!user) {
-      this.logger.log({
-        message: `[Authentication failed] #${client.id} disconnect.`,
-        token: client.handshake.auth.token,
-      });
-      client.disconnect();
-      return;
-    }
-
-    // Socket id <-> user id 매핑 셋
-    // this._socketToUid.set(client, user.id);
-    this.addToLookup(client.id, user.id);
+    const uid = this._socketIdToUserId.get(client.id);
 
     //이미 참가중인 방에 대해서 socket join 처리
-    (await this.userService.getJoinedRoomIds(user.id)).forEach((roomId) => {
+    (await this.userService.getJoinedRoomIds(uid)).forEach((roomId) => {
       client.join(roomId);
     });
   }

@@ -91,6 +91,7 @@ export class MatchController {
       purchaserId: room.purchaser.id,
       shopName: room.shopName,
       state: room.phase,
+      shopLink: room.linkFor3rdApp,
       //TODO 이거 똥임
       role: RoomRole.MEMBER,
       isReady: false,

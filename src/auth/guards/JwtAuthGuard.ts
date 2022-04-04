@@ -18,11 +18,13 @@ export class JwtAuthGuard implements CanActivate {
 
     const token = this.getBearerToken(request);
     if (!token) {
+      this.logger.error("토큰이 없습니다.", request.header);
       return false;
     }
 
     const payload = await this.authService.validate(token);
     if (!payload) {
+      this.logger.error("페이로드가 없습니다.", request.header);
       return false;
     }
 

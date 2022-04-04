@@ -55,39 +55,40 @@ export class MatchGateway
 
   afterInit(server: Server) {
     this.matchService.server = server;
+    server.use((socket, next) => {
+      let token = socket.handshake.auth.token;
+      if (token.split(" ").length > 1) {
+        token = token.split(" ")[1];
+      }
+      const foundUserPromise: Promise<AccessTokenPayload> =
+        this.authService.validate(token);
+
+      // Socket id <-> user id 매핑 셋
+      this._socketIdToUserId.set(
+        socket.id,
+        new Promise((res, rej) => {
+          foundUserPromise.then((u) => res(u.id)).catch((e) => rej(e));
+        })
+      );
+
+      foundUserPromise.then((user) => {
+        //인증 실패시 강제 disconnect
+        if (!user) {
+          this.logger.log({
+            message: `[Authentication failed] #${socket.id} disconnect.`,
+            token: socket.handshake.auth.token,
+          });
+          return next(new Error("Authentication failed"));
+        }
+        next();
+      });
+    });
   }
 
   async handleConnection(client: Socket, ...args: any[]) {
     this.logger.log({
       message: `[Client Connected] #${client.id}`,
       handshake: client.handshake,
-    });
-
-    let token = client.handshake.auth.token;
-    if (token.split(" ").length > 1) {
-      token = token.split(" ")[1];
-    }
-    const foundUserPromise: Promise<AccessTokenPayload> =
-      this.authService.validate(token);
-
-    // Socket id <-> user id 매핑 셋
-    this._socketIdToUserId.set(
-      client.id,
-      new Promise((res, rej) => {
-        foundUserPromise.then((u) => res(u.id)).catch((e) => rej(e));
-      })
-    );
-
-    foundUserPromise.then((user) => {
-      //인증 실패시 강제 disconnect
-      if (!user) {
-        this.logger.log({
-          message: `[Authentication failed] #${client.id} disconnect.`,
-          token: client.handshake.auth.token,
-        });
-        client.disconnect();
-        return;
-      }
     });
   }
 

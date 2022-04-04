@@ -11,9 +11,12 @@ export default class RoomDetailForUser {
   @ApiProperty({ description: "가게명", type: String })
   shopName: string;
 
+  @ApiProperty({ description: "가게 외부 배달앱 공유 링크", type: String })
+  shopLink: string;
+
   @ApiProperty({
     description:
-      "방 상태 정보(0: prepare, 1: orderFix, 2:orderCheck, 3:orderDone)",
+      "방 상태 정보(0: prepare, 1: allReady, 2: orderFix, 3: orderCheck, 4: orderDone, 5: orderCanceled)",
     type: Number,
   })
   state: RoomState;

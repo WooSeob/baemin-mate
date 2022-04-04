@@ -3,6 +3,7 @@ import {
   HttpStatus,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from "@nestjs/common";
@@ -34,10 +35,10 @@ interface RefreshTokenPayload {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger("AuthService");
   private readonly _mailTransporter: Transporter;
 
   constructor(
-    @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: WinstonLogger,
     public connection: Connection,
     @InjectRepository(UniversityEmailAuthEntity)
     private emailAuthRepository: Repository<UniversityEmailAuthEntity>,
@@ -51,8 +52,9 @@ export class AuthService {
     //TODO 블랙리스트에 있는 토큰인지 검사
     try {
       const payload: AccessTokenPayload = this.jwtService.verify(token);
-      return payload ? undefined : payload;
+      return payload ? payload : undefined;
     } catch (e) {
+      this.logger.error(e);
       return undefined;
     }
   }
@@ -77,6 +79,10 @@ export class AuthService {
     const userId: string = this.jwtService.decode(dto.accessToken)["id"];
 
     const user = await this.userService.findUserById(userId);
+    if (!user) {
+      throw new UnauthorizedException("존재하지 않는 회원입니다.");
+    }
+
     return this.createAccessToken(user);
   }
 

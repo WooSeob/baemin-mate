@@ -130,6 +130,7 @@ export class UserController {
         id: room.id,
         purchaserId: room.purchaserId,
         shopName: room.shopName,
+        shopLink: room.linkFor3rdApp,
         state: room.phase,
         role: room.getParticipant(uid).role,
         isReady: room.getParticipant(uid).isReady,
