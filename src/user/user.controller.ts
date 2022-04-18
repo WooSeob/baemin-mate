@@ -134,6 +134,7 @@ export class UserController {
         state: room.phase,
         role: room.getParticipant(uid).role,
         isReady: room.getParticipant(uid).isReady,
+        isReadyAvailable: room.canReady(uid),
       };
     });
   }

@@ -72,9 +72,12 @@ export class RoomService extends EventEmitter {
 
   async clear() {
     const rooms = await this.roomRepository.find();
+    const promises = [];
     for (const room of rooms) {
-      await this.roomRepository.remove(room);
+      promises.push(this.roomRepository.remove(room));
     }
+    await Promise.all(promises);
+    this.logger.warn("all rooms cleared");
   }
 
   async getRoomRole(

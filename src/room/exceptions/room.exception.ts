@@ -207,3 +207,16 @@ export class KickVoteNotAllowedUnderThreeException extends HttpException {
     );
   }
 }
+
+// ready 10
+export class EmptyMenuException extends HttpException {
+  constructor() {
+    super(
+      {
+        errorCode: "R_10_01",
+        message: "준비 완료 전 메뉴를 작성해 주세요.",
+      },
+      HttpStatus.BAD_REQUEST
+    );
+  }
+}

@@ -27,6 +27,7 @@ import {
   BannedUserJoinNotAllowedException,
   CantChangePhaseException,
   CantLeaveBcsReadyException,
+  EmptyMenuException,
   InProgressRoomJoinNotAllowedException,
   KickAtAfterFixNotAllowedException,
   KickPurchaserNotAllowedException,
@@ -271,20 +272,38 @@ export class RoomEntity {
     return participant;
   }
 
-  // 레디 하기
-  setReady(userId: string, state: boolean) {
+  private checkReadyAvailable(userId: string) {
     // 참여중인 방 중 prepare 단계의 방은 모두 나가기 처리 해줘야함.
     // 작성한 메뉴가 있어야 레디할 수 있음.
     this.onlyAt(RoomState.PREPARE, RoomState.ALL_READY);
 
-    // 멤버만 레디 / 언레디 가능
-    // prepare & allReady 상태에서만 수행가능
-    const pIdx = this.participants.findIndex((p) => p.userId === userId);
-    if (pIdx < 0) {
+    const participant = this.participants.find((p) => p.userId === userId);
+    if (!participant) {
       throw new NotFoundException("참여자를 찾을 수 없습니다.");
     }
 
-    const participant = this.participants[pIdx];
+    // 추가한 메뉴가 있어야 레디 가능
+    if (participant.menus.length == 0) {
+      throw new EmptyMenuException();
+    }
+  }
+
+  canReady(userId: string) {
+    try {
+      this.checkReadyAvailable(userId);
+    } catch (e) {
+      return false;
+    }
+
+    return true;
+  }
+
+  // 레디 하기
+  setReady(userId: string, state: boolean) {
+    this.checkReadyAvailable(userId);
+    // 멤버만 레디 / 언레디 가능
+    // prepare & allReady 상태에서만 수행가능
+    const participant = this.participants.find((p) => p.userId == userId);
     participant.isReady = state;
     this.updateAllReadyState();
   }

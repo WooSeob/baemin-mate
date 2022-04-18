@@ -86,6 +86,7 @@ export class RoomController {
       state: room.phase,
       role: participant.role,
       isReady: participant.isReady,
+      isReadyAvailable: room.canReady(user.id),
     };
   }
 

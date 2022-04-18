@@ -27,6 +27,9 @@ export default class RoomDetailForUser {
   })
   role: "purchaser" | "member";
 
+  @ApiProperty({ description: "레디 가능 여부", type: Boolean })
+  isReadyAvailable: boolean;
+
   @ApiProperty({ description: "방에서의 유저 레디 여부", type: Boolean })
   isReady: boolean;
 }

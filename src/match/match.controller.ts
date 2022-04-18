@@ -18,6 +18,7 @@ import { SECTION } from "../user/interfaces/user";
 import { RoomService } from "../room/room.service";
 import { RoomRole } from "../room/entity/room.entity";
 import { JwtAuthGuard } from "../auth/guards/JwtAuthGuard";
+import { AccessTokenPayload } from "../auth/auth.service";
 
 @Controller("match")
 export class MatchController {
@@ -74,16 +75,14 @@ export class MatchController {
     @Param("matchId") mid: string,
     @Req() request: Request
   ): Promise<RoomDetailForUser> {
-    const match = await this.matchService.findMatchById(mid);
+    const userId = (request.user as AccessTokenPayload).id;
 
+    const match = await this.matchService.findMatchById(mid);
     if (!match) {
       throw new HttpException("match not found", HttpStatus.NOT_FOUND);
     }
 
-    await this.roomService.joinRoom(
-      match.roomId,
-      (request.user as UserEntity).id
-    );
+    await this.roomService.joinRoom(match.roomId, userId);
 
     const room = await this.roomService.findRoomById(match.roomId);
     return {
@@ -95,6 +94,7 @@ export class MatchController {
       //TODO 이거 똥임
       role: RoomRole.MEMBER,
       isReady: false,
+      isReadyAvailable: room.canReady(userId),
     };
   }
 }
