@@ -7,25 +7,45 @@ export class VoteResponse {
   @ApiProperty({ description: "room id" })
   id: string;
 
-  @ApiProperty({ description: "room id" })
+  @ApiProperty({
+    description: "투표 타입 / 강퇴 : 0, 초기화 : 1",
+  })
   type: RoomVoteType;
 
-  @ApiProperty({ description: "room id" })
+  @ApiProperty({ description: "투표 종료 여부" })
   finished: boolean;
 
-  @ApiProperty({ description: "room id" })
+  @ApiProperty({ description: "투표 결과" })
   result: boolean;
 
-  @ApiProperty({ description: "room id" })
+  @ApiProperty({
+    description: "메타 데이터 id (강퇴 투표의 경우 강퇴 대상 유저 id)",
+  })
   metadataId: string;
 
-  static from(vote: RoomVoteEntity): VoteResponse {
+  @ApiProperty({
+    description: "의견 제출 대상자 여부",
+  })
+  canVote: boolean = false;
+
+  @ApiProperty({
+    description: "의견 제출 여부",
+  })
+  submitted: boolean = false;
+
+  static from(vote: RoomVoteEntity, participantId: string): VoteResponse {
     const instance = new VoteResponse();
     instance.id = vote.id;
     instance.type = vote.voteType;
     instance.finished = vote.finished;
     instance.result = vote.result;
     instance.metadataId = vote.targetUserId;
+
+    const opinion = vote.getOpinion(participantId);
+    if (opinion) {
+      instance.canVote = true;
+      instance.submitted = opinion.submitted;
+    }
     return instance;
   }
 }

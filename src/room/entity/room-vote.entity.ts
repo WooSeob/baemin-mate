@@ -57,4 +57,10 @@ export default class RoomVoteEntity {
     }
     VoteStrategyFactory.create(this.voteType).doVote(this, userId, opinion);
   }
+
+  getOpinion(participantId: string): VoteOpinionEntity {
+    return this.opinions.find(
+      (voteOpinion) => voteOpinion.participantId == participantId
+    );
+  }
 }

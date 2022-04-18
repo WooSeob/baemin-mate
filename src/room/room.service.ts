@@ -16,7 +16,7 @@ import RoomVoteEntity, { RoomVoteType } from "./entity/room-vote.entity";
 import KickVoteFactory from "./entity/Vote/KickVote/KickVoteFactory";
 import ResetVoteFactory from "./entity/Vote/ResetVote/ResetVoteFactory";
 import { RoomEventType } from "./const/RoomEventType";
-import { EventEmitter } from "stream";
+import { EventEmitter } from "events";
 import { UploadFileDto } from "../infra/s3/s3.service";
 import { ImageFileEntity } from "./entity/image-file.entity";
 import { RoomAccountEntity } from "./entity/room-account.entity";

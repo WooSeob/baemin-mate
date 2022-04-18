@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Inject,
   Logger,
+  NotFoundException,
   Param,
   ParseBoolPipe,
   Post,
@@ -16,7 +17,7 @@ import {
   UseInterceptors,
   ValidationPipe,
 } from "@nestjs/common";
-import { AuthService } from "../auth/auth.service";
+import { AccessTokenPayload, AuthService } from "../auth/auth.service";
 import { RoomService } from "./room.service";
 import RoomUserView from "./dto/response/user-view.dto";
 import { UserService } from "../user/user.service";
@@ -314,14 +315,31 @@ export class RoomController {
   @OnlyForParticipant()
   @ApiCreatedResponse({
     description: "vote에 대한 정보를 조회합니다.",
+    type: VoteResponse,
   })
   @Get(`/:${ROOM_ID}/vote/:vid`)
-  async getVote(@Param(ROOM_ID) rid: string, @Param("vid") vid: string) {
-    const vote = await this.roomService.getVoteById(vid);
+  async getVote(
+    @Param(ROOM_ID) rid: string,
+    @Param("vid") vid: string,
+    @Req() request: Request
+  ): Promise<VoteResponse> {
+    const userId = (request.user as AccessTokenPayload).id;
+
+    const [vote, room] = await Promise.all([
+      this.roomService.getVoteById(vid),
+      this.roomService.getRoomById(rid),
+    ]);
+
     if (!vote) {
-      throw new HttpException("vote not found", HttpStatus.NOT_FOUND);
+      throw new NotFoundException("존재하지 않는 투표입니다.");
     }
-    return VoteResponse.from(vote);
+
+    const participant = room.getParticipant(userId);
+    if (!participant) {
+      throw new NotFoundException("참여자가 아닙니다");
+    }
+
+    return VoteResponse.from(vote, participant.id);
   }
 
   @OnlyForParticipant()
@@ -406,6 +424,7 @@ export class RoomController {
   @OnlyForParticipant()
   @ApiCreatedResponse({
     description: `해당 room의 결제 정보 스크린샷 이미지 url 들을 반환합니다.`,
+    type: [String],
   })
   @Get(`/:${ROOM_ID}/purchase-screenshot-urls`)
   async getOrderImageUrl(@Param(ROOM_ID) rid: string) {
