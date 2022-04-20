@@ -1,6 +1,21 @@
-import { Entity, Column, ManyToOne, JoinColumn, PrimaryColumn } from "typeorm";
+import {
+  Entity,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  PrimaryColumn,
+  ValueTransformer,
+  CreateDateColumn,
+} from "typeorm";
 import UniversityEntity from "../../university/entity/university.entity";
 import { BigIntTransformer } from "../../common/BigIntTransformer";
+
+export const StringBigIntTransformer: ValueTransformer = {
+  to: (entityValue: number) => entityValue,
+  from: (databaseValue: string): number => {
+    return parseInt(databaseValue, 10);
+  },
+};
 
 @Entity()
 export class UniversityEmailAuthEntity {
@@ -22,25 +37,18 @@ export class UniversityEmailAuthEntity {
   @Column({
     nullable: false,
     type: "bigint",
-    default: Date.now(),
-    transformer: [BigIntTransformer],
+    transformer: [StringBigIntTransformer],
   })
   firstTrailAt: number;
 
   @Column({
     nullable: false,
     type: "bigint",
-    default: Date.now(),
-    transformer: [BigIntTransformer],
+    transformer: [StringBigIntTransformer],
   })
   updatedAt: number;
 
-  @Column({
-    nullable: false,
-    type: "bigint",
-    default: Date.now(),
-    transformer: [BigIntTransformer],
-  })
+  @CreateDateColumn({ transformer: [BigIntTransformer] })
   createdAt: number;
 
   @ManyToOne(() => UniversityEntity, { onDelete: "NO ACTION" })
@@ -58,6 +66,11 @@ export class UniversityEmailAuthEntity {
     instance.email = email;
     instance.tryCount = 0;
     return instance;
+  }
+
+  constructor() {
+    this.firstTrailAt = Date.now();
+    this.updatedAt = Date.now();
   }
 
   try(univId: number, email: string, authCode: string) {

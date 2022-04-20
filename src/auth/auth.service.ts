@@ -173,15 +173,18 @@ export class AuthService {
     });
     //auth info 없음
     if (!authInfo) {
-      throw new HttpException("authInfo not found", HttpStatus.NOT_FOUND);
+      throw new HttpException("인증 정보가 없습니다.", HttpStatus.NOT_FOUND);
     }
     //3분 경과
     if (Date.now() - authInfo.updatedAt > 3 * 60 * 1000) {
-      throw new HttpException("over auth timeout", HttpStatus.BAD_REQUEST);
+      throw new HttpException("만료된 인증입니다.", HttpStatus.BAD_REQUEST);
     }
     //코드 불일치
     if (authInfo.authCode != authCode) {
-      throw new HttpException("incorrect auth code", HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        "인증 번호가 일치하지 않습니다.",
+        HttpStatus.BAD_REQUEST
+      );
     }
     //TODO 리팩토링
     await this.userService.createUserByNaver(

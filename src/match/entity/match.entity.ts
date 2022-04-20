@@ -1,14 +1,11 @@
 import {
   Column,
+  CreateDateColumn,
   Entity,
-  JoinColumn,
   ManyToOne,
-  PrimaryColumn,
   PrimaryGeneratedColumn,
-  ValueTransformer,
 } from "typeorm";
 import { RoomEntity } from "../../room/entity/room.entity";
-import { SectionType } from "../../user/interfaces/user";
 import { CategoryType } from "../interfaces/category.interface";
 import { BigIntTransformer } from "../../common/BigIntTransformer";
 
@@ -52,12 +49,7 @@ export class MatchEntity {
   })
   totalPrice: number;
 
-  @Column({
-    nullable: false,
-    type: "bigint",
-    default: Date.now(),
-    transformer: [BigIntTransformer],
-  })
+  @CreateDateColumn({ transformer: [BigIntTransformer] })
   createdAt: number;
 
   @Column({ nullable: false })

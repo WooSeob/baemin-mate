@@ -1,11 +1,13 @@
 import {
   Column,
+  CreateDateColumn,
   Entity,
   ManyToOne,
   PrimaryColumn,
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { RoomEntity } from "./room.entity";
+import { BigIntTransformer } from "../../common/BigIntTransformer";
 
 @Entity()
 export class ImageFileEntity {
@@ -25,11 +27,7 @@ export class ImageFileEntity {
   })
   s3url: string;
 
-  @Column({
-    nullable: false,
-    type: "bigint",
-    default: Date.now(),
-  })
+  @CreateDateColumn({ transformer: [BigIntTransformer] })
   createdAt: number;
 
   @Column({

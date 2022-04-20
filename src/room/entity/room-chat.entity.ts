@@ -1,5 +1,6 @@
 import {
   Column,
+  CreateDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
@@ -7,17 +8,14 @@ import {
 } from "typeorm";
 import { RoomEntity } from "./room.entity";
 import { RoomEventType } from "../const/RoomEventType";
+import { BigIntTransformer } from "../../common/BigIntTransformer";
 
 @Entity()
 export default class RoomChatEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({
-    nullable: false,
-    type: "bigint",
-    default: Date.now(),
-  })
+  @CreateDateColumn({ transformer: [BigIntTransformer] })
   createdAt: number;
 
   // 공통

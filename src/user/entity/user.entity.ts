@@ -1,5 +1,6 @@
 import {
   Column,
+  CreateDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
@@ -44,12 +45,7 @@ export class UserEntity {
   })
   deletedAt: number;
 
-  @Column({
-    nullable: false,
-    type: "bigint",
-    default: Date.now(),
-    transformer: [BigIntTransformer],
-  })
+  @CreateDateColumn({ transformer: [BigIntTransformer] })
   createdAt: number;
 
   @Column()
