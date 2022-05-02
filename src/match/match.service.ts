@@ -87,9 +87,10 @@ export class MatchService {
     const dormitory = await this.universityService.getDormitoryById(
       room.sectionId
     );
-    const created = await this.matchRepository.save(
-      MatchEntity.create(room, dormitory.name)
-    );
+    //TODO try catch
+    await this.matchRepository.save(MatchEntity.create(room, dormitory.name));
+
+    const created = await this.matchRepository.findOne({ roomId: room.id });
     this.server
       .to(
         this.socketRoomStringResolver(
