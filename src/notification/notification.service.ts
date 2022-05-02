@@ -67,26 +67,35 @@ export class NotificationService {
       });
     });
 
-    roomService.on(RoomEventType.KICK_VOTE_CREATED, async (vote: RoomVoteEntity) => {
-      return this.toParticipants(vote.room, {
-        title: vote.room.shopName,
-        body: "강퇴 투표가 시작되었습니다.",
-      });
-    });
+    roomService.on(
+      RoomEventType.KICK_VOTE_CREATED,
+      async (vote: RoomVoteEntity) => {
+        return this.toParticipants(vote.room, {
+          title: vote.room.shopName,
+          body: "강퇴 투표가 시작되었습니다.",
+        });
+      }
+    );
 
-    roomService.on(RoomEventType.KICK_VOTE_FINISHED, async (vote: RoomVoteEntity) => {
-      return this.toParticipants(vote.room, {
-        title: vote.room.shopName,
-        body: "강퇴 투표가 종료되었습니다.",
-      });
-    });
+    roomService.on(
+      RoomEventType.KICK_VOTE_FINISHED,
+      async (vote: RoomVoteEntity) => {
+        return this.toParticipants(vote.room, {
+          title: vote.room.shopName,
+          body: "강퇴 투표가 종료되었습니다.",
+        });
+      }
+    );
 
-    roomService.on(RoomEventType.RESET_VOTE_CREATED, async (vote: RoomVoteEntity) => {
-      return this.toParticipants(vote.room, {
-        title: vote.room.shopName,
-        body: "진행 취소 투표가 시작되었습니다.",
-      });
-    });
+    roomService.on(
+      RoomEventType.RESET_VOTE_CREATED,
+      async (vote: RoomVoteEntity) => {
+        return this.toParticipants(vote.room, {
+          title: vote.room.shopName,
+          body: "진행 취소 투표가 시작되었습니다.",
+        });
+      }
+    );
 
     roomService.on(
       RoomEventType.RESET_VOTE_FINISHED,
@@ -142,8 +151,6 @@ export class NotificationService {
         deviceToken: token,
       });
     }
-
-    userToken.updateAt = Date.now();
 
     return this.tokenRepository.save(userToken);
   }

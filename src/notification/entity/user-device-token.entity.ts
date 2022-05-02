@@ -5,6 +5,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from "typeorm";
 import { UserEntity } from "../../user/entity/user.entity";
 import { BigIntTransformer } from "../../common/BigIntTransformer";
@@ -30,11 +31,6 @@ export class UserDeviceTokenEntity {
   @CreateDateColumn({ transformer: [BigIntTransformer] })
   createdAt: number;
 
-  @Column({
-    nullable: false,
-    type: "bigint",
-    default: Date.now(),
-    transformer: [BigIntTransformer],
-  })
+  @UpdateDateColumn({ transformer: [BigIntTransformer] })
   updateAt: number;
 }
