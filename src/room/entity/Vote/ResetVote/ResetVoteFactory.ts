@@ -12,8 +12,16 @@ export default class ResetVoteFactory {
 
     room.onlyAt(RoomState.ORDER_FIX, RoomState.ORDER_CHECK);
 
+    const requestParticipant = room.participants.find(
+      (p) => p.userId === requestUserId
+    );
+    if (!requestParticipant) {
+      throw new NotFoundException("투표 생성자를 찾을 수 없습니다.");
+    }
+
     const resetVote = new RoomVoteEntity();
     resetVote.room = room;
+    resetVote.requestUser = requestParticipant.user;
     resetVote.voteType = RoomVoteType.RESET;
     resetVote.opinions = room.participants
       .filter((p) => p.userId != requestUserId)

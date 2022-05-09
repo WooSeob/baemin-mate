@@ -33,8 +33,16 @@ export default class RoomVoteEntity {
   @Column({ nullable: true })
   targetUserId: string;
 
+  @Column({ nullable: false })
+  requestUserId: string;
+
   @Column()
   roomId: string;
+
+  // TODO 유저가 탈퇴해 버리면 투표가 삭제되버림
+  @ManyToOne(() => UserEntity, { onDelete: "CASCADE" })
+  @JoinColumn()
+  requestUser: UserEntity;
 
   // TODO 유저가 탈퇴해 버리면 투표가 삭제되버림
   @ManyToOne(() => UserEntity, { onDelete: "CASCADE" })

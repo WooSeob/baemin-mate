@@ -2,7 +2,10 @@ import { RoomEntity } from "../../room.entity";
 import { RoomState } from "../../../const/RoomState";
 import VoteOpinionEntity from "../../vote-opinion.entity";
 import RoomVoteEntity, { RoomVoteType } from "../../room-vote.entity";
-import { KickVoteNotAllowedUnderThreeException } from "../../../exceptions/room.exception";
+import {
+  KickVoteCreateOnlyPurchaserException,
+  KickVoteNotAllowedUnderThreeException,
+} from "../../../exceptions/room.exception";
 import { NotFoundException } from "@nestjs/common";
 
 export default class KickVoteFactory {
@@ -21,15 +24,29 @@ export default class KickVoteFactory {
       throw new KickVoteNotAllowedUnderThreeException();
     }
 
-    const idx = room.participants.findIndex((p) => p.userId === targetUserId);
-    if (idx < 0) {
+    const targetParticipant = room.participants.find(
+      (p) => p.userId === targetUserId
+    );
+    if (!targetParticipant) {
       throw new NotFoundException("참여자를 찾을 수 없습니다.");
     }
 
-    const targetParticipant = room.participants[idx];
+    const requestParticipant = room.participants.find(
+      (p) => p.userId === requestUserId
+    );
+    if (!requestParticipant) {
+      throw new NotFoundException("투표 생성자를 찾을 수 없습니다.");
+    }
+
+    // TODO 객체비교
+    // 강퇴 투표 생성은 방장만 할 수 있다.
+    if (room.purchaserId != requestParticipant.userId) {
+      throw new KickVoteCreateOnlyPurchaserException();
+    }
 
     const kickVote = new RoomVoteEntity();
     kickVote.room = room;
+    kickVote.requestUser = requestParticipant.user;
     kickVote.targetUser = targetParticipant.user;
     kickVote.voteType = RoomVoteType.KICK;
     // 투표 참여자 = 참여인원 - (투표 발의자, 투표 대상자)

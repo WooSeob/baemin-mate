@@ -74,7 +74,8 @@ export class ChatService {
   constructor(
     private roomService: RoomService,
     private userService: UserService,
-    @InjectRepository(RoomChatEntity) private chatRepository: Repository<RoomChatEntity>
+    @InjectRepository(RoomChatEntity)
+    private chatRepository: Repository<RoomChatEntity>
   ) {
     // 일반 채팅
     roomService.on(
@@ -289,16 +290,30 @@ export class ChatService {
     this.logger.warn("Chat Repository cleared");
   }
 
-  getAllMessagesByRoom(roomId: string) {
+  getAllMessagesByRoomForUser(roomId: string, userId: string) {
     return this.chatRepository
       .createQueryBuilder("chat")
       .where("chat.roomId = :roomId", { roomId: roomId })
+      .andWhere((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select("roomChat.id")
+          .from(RoomChatEntity, "roomChat")
+          .where("roomChat.type = :type", { type: RoomEventType.USER_ENTER })
+          .andWhere("roomChat.eventMetadataId = :eventMetadataId", {
+            eventMetadataId: userId,
+          })
+          .orderBy("roomChat.id", "DESC")
+          .limit(1)
+          .getQuery();
+        return "chat.id >= " + subQuery;
+      })
       .orderBy("chat.id", "ASC")
       .getMany();
   }
 
-  async getAllMessagesResponse(roomId: string) {
-    const roomChats = await this.getAllMessagesByRoom(roomId);
+  async getAllMessagesResponse(roomId: string, userId: string) {
+    const roomChats = await this.getAllMessagesByRoomForUser(roomId, userId);
 
     const messagesPromise = roomChats.map(async (roomChat) => {
       let user, vote;

@@ -208,6 +208,18 @@ export class KickVoteNotAllowedUnderThreeException extends HttpException {
   }
 }
 
+export class KickVoteCreateOnlyPurchaserException extends HttpException {
+  constructor() {
+    super(
+      {
+        errorCode: "R_09_04",
+        message: "강퇴 투표는 방장만 생성할 수 있습니다.",
+      },
+      HttpStatus.BAD_REQUEST
+    );
+  }
+}
+
 // ready 10
 export class EmptyMenuException extends HttpException {
   constructor() {

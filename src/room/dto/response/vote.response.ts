@@ -54,12 +54,14 @@ export class KickVoteCreatedResponse implements SystemBody {
   readonly action = "vote-kick-created";
   data: {
     voteId: string;
+    requestedUser: RoomUserView;
     targetUser: RoomUserView;
   };
   static from(kickVote: RoomVoteEntity) {
     const r = new KickVoteCreatedResponse();
     r.data = {
       voteId: kickVote.id,
+      requestedUser: RoomUserView.from(kickVote.requestUser),
       targetUser: RoomUserView.from(kickVote.targetUser),
     };
     return r;
@@ -70,14 +72,14 @@ export class KickVoteFinishedResponse implements SystemBody {
   readonly action = "vote-kick-finished";
   data: {
     voteId: string;
-    target: RoomUserView;
+    targetUser: RoomUserView;
     result: boolean;
   };
   static from(kickVote: RoomVoteEntity) {
     const r = new KickVoteFinishedResponse();
     r.data = {
       voteId: kickVote.id,
-      target: RoomUserView.from(kickVote.targetUser),
+      targetUser: RoomUserView.from(kickVote.targetUser),
       result: kickVote.result,
     };
     return r;
@@ -88,11 +90,13 @@ export class ResetVoteCreatedResponse implements SystemBody {
   readonly action = "vote-reset-created";
   data: {
     voteId: string;
+    requestedUser: RoomUserView;
   };
   static from(resetVote: RoomVoteEntity) {
     const r = new ResetVoteCreatedResponse();
     r.data = {
       voteId: resetVote.id,
+      requestedUser: RoomUserView.from(resetVote.requestUser),
     };
     return r;
   }
