@@ -7,12 +7,10 @@ import {
   SubscribeMessage,
   WebSocketGateway,
 } from "@nestjs/websockets";
-import { AuthService } from "src/auth/auth.service";
 import { RoomService } from "./room.service";
 import { Server, Socket } from "socket.io";
-import Ack from "src/common/interfaces/ack.interface";
-import None from "src/common/interfaces/none.interface";
 import {
+  Injectable,
   Logger,
   UseInterceptors,
   UsePipes,
@@ -24,9 +22,13 @@ import { ObjectPipe } from "../common/pipe/object.pipe";
 import ChatRequestDto from "./dto/request/chat-request.dto";
 import { LoggingInterceptor } from "../common/interceptors/logging.interceptor";
 import { WsEvent } from "../common/decorators/ws-event.decorator";
+import { AuthService } from "../auth/auth.service";
+import Ack from "../common/interfaces/ack.interface";
+import None from "../common/interfaces/none.interface";
 
 @UsePipes(new ObjectPipe(), new ValidationPipe({ transform: true }))
 @UseInterceptors(LoggingInterceptor)
+@Injectable()
 @WebSocketGateway({ namespace: "/room", cors: { origin: "*" } })
 export class RoomGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
@@ -36,10 +38,10 @@ export class RoomGateway
 
   private logger = new Logger("RoomGateway");
 
-  private static _server: Server;
+  private _server: Server;
 
-  static get server() {
-    return RoomGateway._server;
+  get server() {
+    return this._server;
   }
 
   constructor(
@@ -50,7 +52,7 @@ export class RoomGateway
     roomService.on(RoomEventType.USER_ENTER, (roomId, userId) => {
       const socketIds = this._userIdToSocketId.get(userId);
       socketIds.forEach(async (sid) => {
-        const sockets = await RoomGateway._server.in(sid).fetchSockets();
+        const sockets = await this._server.in(sid).fetchSockets();
         sockets.forEach((socket) => {
           socket.join(roomId);
         });
@@ -59,7 +61,7 @@ export class RoomGateway
   }
 
   afterInit(server: Server) {
-    RoomGateway._server = server;
+    this._server = server;
     server.use(async (socket, next) => {
       let token = socket.handshake.auth.token;
       if (token.split(" ").length > 1) {
@@ -123,6 +125,10 @@ export class RoomGateway
 
     //기존 매핑 삭제
     this.removeFromLookup(client.id, uid);
+  }
+
+  broadcastChat(roomId: string, msg) {
+    this.server.to(roomId).emit(RoomEventType.CHAT, msg);
   }
 
   @WsEvent("chat")

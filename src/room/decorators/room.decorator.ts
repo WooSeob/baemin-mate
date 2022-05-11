@@ -13,6 +13,14 @@ export function OnlyForPurchaser() {
   );
 }
 
+export function OnlyForParticipantAndBanned() {
+  return applyDecorators(
+    RoomRoles(RoomRole.PURCHASER, RoomRole.MEMBER, RoomRole.BANNED),
+    UseGuards(JwtAuthGuard, RoomRolesGuard),
+    ApiBearerAuth("swagger-auth")
+  );
+}
+
 export function OnlyForParticipant() {
   return applyDecorators(
     RoomRoles(RoomRole.PURCHASER, RoomRole.MEMBER),

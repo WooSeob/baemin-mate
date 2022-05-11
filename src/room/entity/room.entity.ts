@@ -10,7 +10,7 @@ import {
 import { RoomState } from "../const/RoomState";
 import { UserEntity } from "../../user/entity/user.entity";
 import { CategoryType } from "../../match/interfaces/category.interface";
-import { ParticipantEntity, ParticipantBuilder } from "./participant.entity";
+import { ParticipantBuilder, ParticipantEntity } from "./participant.entity";
 import { ImageFileEntity } from "./image-file.entity";
 import { CreateRoomDto } from "../dto/request/create-room.dto";
 import { NotFoundException } from "@nestjs/common";
@@ -40,6 +40,7 @@ import {
 export enum RoomRole {
   PURCHASER = "purchaser",
   MEMBER = "member",
+  BANNED = "banned",
 }
 
 @Entity()
@@ -127,6 +128,16 @@ export class RoomEntity {
   })
   blackList: RoomBlacklistEntity[];
 
+  get currentParticipants(): ParticipantEntity[] {
+    return this.participants.filter((p) =>
+      [RoomRole.MEMBER, RoomRole.PURCHASER].includes(p.role)
+    );
+  }
+
+  get participantsWithBlacked(): ParticipantEntity[] {
+    return this.participants;
+  }
+
   private static phaseGraph: Map<RoomState, Set<RoomState>> =
     RoomEntity.createPhaseGraph();
 
@@ -158,8 +169,8 @@ export class RoomEntity {
 
   private isAllReady(): boolean {
     return (
-      this.participants.length > 1 &&
-      this.participants
+      this.currentParticipants.length > 1 &&
+      this.currentParticipants
         .filter((participant) => {
           return this.purchaserId != participant.userId;
         })
@@ -184,7 +195,7 @@ export class RoomEntity {
   }
 
   isParticipant(userId: string) {
-    return this.participants
+    return this.currentParticipants
       .map((p) => {
         return p.userId === userId;
       })
@@ -219,7 +230,9 @@ export class RoomEntity {
   }
 
   getUserCount(): number {
-    return this.participants.length;
+    return this.participants.filter((p) =>
+      [RoomRole.MEMBER, RoomRole.PURCHASER].includes(p.role)
+    ).length;
   }
 
   fixOrder() {
@@ -362,7 +375,9 @@ export class RoomEntity {
     //블랙리스트 추가
     this.blackList.push(new RoomBlacklistEntity(this, targetUserId, reason));
 
-    const target = this.participants.splice(idx, 1)[0];
+    const target = this.participants[idx];
+    target.role = RoomRole.BANNED;
+
     this.updateAllReadyState();
     return target;
   }
@@ -442,8 +457,6 @@ export class RoomEntity {
         ) {
           throw new AlreadyReadyRoomExistException();
         }
-      } else {
-        throw new Error("잘못된 Role 입니다.");
       }
     }
   }

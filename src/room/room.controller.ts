@@ -43,6 +43,7 @@ import { ROOM_ID } from "./const/Param";
 import {
   JustLoggedIn,
   OnlyForParticipant,
+  OnlyForParticipantAndBanned,
   OnlyForPurchaser,
 } from "./decorators/room.decorator";
 import { VoteResponse } from "./dto/response/vote.response";
@@ -125,7 +126,7 @@ export class RoomController {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
 
-    return room.participants.map((p) => {
+    return room.currentParticipants.map((p) => {
       return { id: p.user.id, name: p.user.name };
     });
   }
@@ -133,7 +134,7 @@ export class RoomController {
   /**
    * rid 에 해당하는 Room의 채팅 내용을 불러옵니다.
    * */
-  @OnlyForParticipant()
+  @OnlyForParticipantAndBanned()
   @ApiCreatedResponse({
     description: "채팅 내용을 반환합니다.",
   })
@@ -143,12 +144,14 @@ export class RoomController {
     @Param(ROOM_ID) rid: string,
     @Param("idx") idx: number
   ): Promise<Message<ChatBody | SystemBody>[]> {
+    const user = request.user as AccessTokenPayload;
+
     const room = await this.roomService.findRoomById(rid);
     if (!room) {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
 
-    return this.chatService.getAllMessagesResponse(room.id);
+    return this.chatService.getAllMessagesResponse(room.id, user.id);
   }
 
   /**
@@ -236,7 +239,7 @@ export class RoomController {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
 
-    return room.participants.map((p) => {
+    return room.currentParticipants.map((p) => {
       const ret = {
         user: RoomUserView.from(p.user),
         menus: p.menus,

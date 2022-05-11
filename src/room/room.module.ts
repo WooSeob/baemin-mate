@@ -28,6 +28,6 @@ import { RoomAccountEntity } from "./entity/room-account.entity";
   ],
   providers: [RoomGateway, RoomService],
   controllers: [RoomController],
-  exports: [RoomService],
+  exports: [RoomService, RoomGateway],
 })
 export class RoomModule {}

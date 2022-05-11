@@ -399,7 +399,6 @@ export class RoomService extends EventEmitter {
 
       const targetParticipant = room.kickUser(targetId, reason);
 
-      await queryRunner.manager.remove(targetParticipant);
       await queryRunner.manager.save(room);
       await queryRunner.commitTransaction();
 

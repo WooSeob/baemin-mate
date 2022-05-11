@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { RoomService } from "../room/room.service";
 import { RoomEventType } from "../room/const/RoomEventType";
-import { Repository } from "typeorm";
+import { Between, Repository } from "typeorm";
 
 import {
   ChatBody,
@@ -39,6 +39,7 @@ import {
 } from "../room/dto/response/chat.response";
 import RoomUserView from "../room/dto/response/user-view.dto";
 import { RoomGateway } from "../room/room.gateway";
+import UserChatMetadataEntity from "./entity/user-chat-metadata.entity";
 
 @Injectable()
 export class ChatService {
@@ -74,8 +75,11 @@ export class ChatService {
   constructor(
     private roomService: RoomService,
     private userService: UserService,
+    private roomGateway: RoomGateway,
     @InjectRepository(RoomChatEntity)
-    private chatRepository: Repository<RoomChatEntity>
+    private chatRepository: Repository<RoomChatEntity>,
+    @InjectRepository(UserChatMetadataEntity)
+    private userChatMetadataRepository: Repository<UserChatMetadataEntity>
   ) {
     // 일반 채팅
     roomService.on(
@@ -92,10 +96,18 @@ export class ChatService {
         roomId,
         userId
       );
+
       this.broadcastChat(
         roomId,
         SystemMessageResponse.from(roomChat, UserJoinedResponse.from(user))
       );
+
+      const userChatMetadata = new UserChatMetadataEntity();
+      userChatMetadata.userId = userId;
+      userChatMetadata.roomId = roomId;
+      userChatMetadata.chatStartId = roomChat.id;
+      userChatMetadata.readToId = roomChat.id;
+      await this.userChatMetadataRepository.save(userChatMetadata);
     });
 
     roomService.on(RoomEventType.USER_LEAVE, async (roomId, userId) => {
@@ -121,6 +133,14 @@ export class ChatService {
         roomId,
         SystemMessageResponse.from(roomChat, UserLeaveByKickResponse.from(user))
       );
+
+      await this.userChatMetadataRepository.update(
+        {
+          roomId: roomId,
+          userId: userId,
+        },
+        { chatEndId: roomChat.id }
+      );
     });
 
     roomService.on(
@@ -138,6 +158,14 @@ export class ChatService {
             roomChat,
             UserLeaveByVoteResponse.from(user)
           )
+        );
+
+        await this.userChatMetadataRepository.update(
+          {
+            roomId: roomId,
+            userId: userId,
+          },
+          { chatEndId: roomChat.id }
         );
       }
     );
@@ -286,30 +314,32 @@ export class ChatService {
   }
 
   async clear() {
-    await this.chatRepository.clear();
+    await Promise.all([
+      this.chatRepository.clear(),
+      this.userChatMetadataRepository.clear(),
+    ]);
     this.logger.warn("Chat Repository cleared");
   }
 
-  getAllMessagesByRoomForUser(roomId: string, userId: string) {
-    return this.chatRepository
+  async getAllMessagesByRoomForUser(roomId: string, userId: string) {
+    // const role = await this.roomService.getRoomRole(roomId, userId);
+    const userChatMetadata = await this.userChatMetadataRepository.findOne({
+      roomId: roomId,
+      userId: userId,
+    });
+
+    const qb = this.chatRepository
       .createQueryBuilder("chat")
       .where("chat.roomId = :roomId", { roomId: roomId })
-      .andWhere((qb) => {
-        const subQuery = qb
-          .subQuery()
-          .select("roomChat.id")
-          .from(RoomChatEntity, "roomChat")
-          .where("roomChat.type = :type", { type: RoomEventType.USER_ENTER })
-          .andWhere("roomChat.eventMetadataId = :eventMetadataId", {
-            eventMetadataId: userId,
-          })
-          .orderBy("roomChat.id", "DESC")
-          .limit(1)
-          .getQuery();
-        return "chat.id >= " + subQuery;
-      })
-      .orderBy("chat.id", "ASC")
-      .getMany();
+      .andWhere("chat.id >= :startId", {
+        startId: userChatMetadata.chatStartId,
+      });
+
+    if (userChatMetadata.chatEndId) {
+      qb.andWhere("chat.id <= :endId", { endId: userChatMetadata.chatEndId });
+    }
+
+    return qb.orderBy("chat.id", "ASC").getMany();
   }
 
   async getAllMessagesResponse(roomId: string, userId: string) {
@@ -435,12 +465,12 @@ export class ChatService {
     );
   }
 
-  private async broadcastChat(
+  private broadcastChat(
     roomId: string,
     message: Message<ChatBody | SystemBody>
   ) {
     this.logger.log({ message: "Chat Broadcast", chatId: message.id });
-    RoomGateway.server.to(roomId).emit(RoomEventType.CHAT, {
+    this.roomGateway.broadcastChat(roomId, {
       rid: roomId,
       messages: [message],
     });
