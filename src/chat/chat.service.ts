@@ -358,7 +358,23 @@ export class ChatService {
           ) as Message<SystemBody | ChatBody>;
 
         case RoomEventType.USER_KICKED:
-        //TODO
+          user = await this.userService.findUserOrUnknownIfNotExist(
+            roomChat.eventMetadataId
+          );
+          return SystemMessageResponse.from(
+            roomChat,
+            UserLeaveByKickResponse.from(user)
+          ) as Message<SystemBody | ChatBody>;
+
+        case RoomEventType.USER_KICKED_BY_VOTE:
+          user = await this.userService.findUserOrUnknownIfNotExist(
+            roomChat.eventMetadataId
+          );
+          return SystemMessageResponse.from(
+            roomChat,
+            UserLeaveByVoteResponse.from(user)
+          ) as Message<SystemBody | ChatBody>;
+
         case RoomEventType.USER_LEAVE:
           user = await this.userService.findUserOrUnknownIfNotExist(
             roomChat.eventMetadataId
