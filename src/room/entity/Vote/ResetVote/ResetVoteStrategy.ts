@@ -29,7 +29,7 @@ export default class ResetVoteStrategy implements VoteStrategy {
     this.checkFinished(vote);
   }
 
-  //기준 과반이상
+  //기준 만장일치
   private checkFinished(vote: RoomVoteEntity) {
     const numAgreeSubmitter = vote.opinions
       .filter((opinion) => opinion.submitted && opinion.opinion)
@@ -41,9 +41,12 @@ export default class ResetVoteStrategy implements VoteStrategy {
       .map((opinion) => 1)
       .reduce((prev, current) => prev + current, 0);
 
-    if (numAgreeSubmitter + numDisAgreeSubmitter >= vote.opinions.length / 2) {
+    if (numDisAgreeSubmitter > 0) {
       vote.finished = true;
-      vote.result = numAgreeSubmitter >= vote.opinions.length / 2;
+      vote.result = false;
+    } else if (numAgreeSubmitter == vote.opinions.length) {
+      vote.finished = true;
+      vote.result = true;
     }
   }
 }
