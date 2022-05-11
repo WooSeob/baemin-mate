@@ -1,21 +1,31 @@
 import {
+  BeforeInsert,
   Column,
-  CreateDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  ValueTransformer,
 } from "typeorm";
 import { RoomEntity } from "./room.entity";
 import { RoomEventType } from "../const/RoomEventType";
-import { BigIntTransformer } from "../../common/BigIntTransformer";
+
+export const BigIntTransformer: ValueTransformer = {
+  to: (entityValue: number) => entityValue,
+  from: (databaseValue: string): number => parseInt(databaseValue, 10),
+};
 
 @Entity()
 export default class RoomChatEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @CreateDateColumn({ transformer: [BigIntTransformer] })
+  @Column({
+    type: "bigint",
+    transformer: [BigIntTransformer],
+    nullable: false,
+    update: false,
+  })
   createdAt: number;
 
   // 공통
@@ -38,6 +48,11 @@ export default class RoomChatEntity {
   @ManyToOne(() => RoomEntity, { onDelete: "CASCADE" })
   @JoinColumn()
   room: RoomEntity;
+
+  @BeforeInsert()
+  beforeInsert() {
+    this.createdAt = Date.now();
+  }
 }
 
 abstract class RoomChatBuilder {
