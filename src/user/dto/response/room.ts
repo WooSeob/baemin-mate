@@ -1,5 +1,6 @@
 import { RoomState } from "src/room/const/RoomState";
 import { ApiProperty } from "@nestjs/swagger";
+import { RoomRole } from "../../../room/entity/room.entity";
 
 export default class RoomDetailForUser {
   @ApiProperty({ description: "방 id", type: String })
@@ -25,7 +26,7 @@ export default class RoomDetailForUser {
     description: "방에서의 유저 role('purchaser' or 'member')",
     type: String,
   })
-  role: "purchaser" | "member";
+  role: RoomRole;
 
   @ApiProperty({ description: "레디 가능 여부", type: Boolean })
   isReadyAvailable: boolean;
