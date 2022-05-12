@@ -177,7 +177,7 @@ export class RoomController {
   /**
    * rid 에 해당하는 RoomEntity 에서 퇴장 합니다.
    * */
-  @OnlyForParticipant()
+  @OnlyForParticipantAndBanned()
   @ApiCreatedResponse({
     description: "rid 에 해당하는 RoomEntity 에서 퇴장 합니다.",
   })

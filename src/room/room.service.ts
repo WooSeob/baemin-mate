@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { CreateRoomDto } from "./dto/request/create-room.dto";
 import { CheckOrderDto } from "./dto/request/check-order.dto";
 import { RoomState } from "./const/RoomState";
@@ -22,7 +22,6 @@ import { ImageFileEntity } from "./entity/image-file.entity";
 import { RoomAccountEntity } from "./entity/room-account.entity";
 import { UserService } from "../user/user.service";
 import { UserEvent } from "../user/const/UserEvent";
-import { WINSTON_MODULE_PROVIDER, WinstonLogger } from "nest-winston";
 
 //StrictEventEmitter<RoomEvents, RoomEvents>
 @Injectable()
@@ -225,6 +224,12 @@ export class RoomService extends EventEmitter {
       const toRemove: ParticipantEntity = room.leave(userId);
 
       await queryRunner.manager.remove(toRemove);
+
+      if (toRemove.role == RoomRole.BANNED) {
+        await queryRunner.manager.save(room);
+        await queryRunner.commitTransaction();
+        return;
+      }
 
       // TODO 소켓 leave 처리
       if (room.getUserCount() == 0) {

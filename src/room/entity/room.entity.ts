@@ -341,7 +341,7 @@ export class RoomEntity {
         if (this.getUserCount() > 1) {
           throw new PurchaserCantLeaveException();
         }
-      } else {
+      } else if (participant.role == RoomRole.MEMBER) {
         if (participant.isReady) {
           throw new CantLeaveBcsReadyException();
         }
