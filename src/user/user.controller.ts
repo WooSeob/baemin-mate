@@ -54,7 +54,7 @@ export class UserController {
     return this.userService.deleteUser(uid);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @OnlyForParticipant()
   @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description: "해당 유저의 해당 방에 추가한 메뉴들을 반환합니다.",

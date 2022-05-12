@@ -33,6 +33,7 @@ import {
   KickAtAfterFixNotAllowedException,
   KickPurchaserNotAllowedException,
   NotAllowedPhaseException,
+  OnlyMemberCanReadyException,
   OrderCheckScreenShotNotFoundException,
   PurchaserCantLeaveException,
 } from "../exceptions/room.exception";
@@ -289,6 +290,11 @@ export class RoomEntity {
     const participant = this.participants.find((p) => p.userId === userId);
     if (!participant) {
       throw new NotFoundException("참여자를 찾을 수 없습니다.");
+    }
+
+    // 참여자만 레디 가능
+    if (participant.role != RoomRole.MEMBER) {
+      throw new OnlyMemberCanReadyException();
     }
 
     // 추가한 메뉴가 있어야 레디 가능

@@ -232,3 +232,15 @@ export class EmptyMenuException extends HttpException {
     );
   }
 }
+
+export class OnlyMemberCanReadyException extends HttpException {
+  constructor() {
+    super(
+      {
+        errorCode: "R_10_02",
+        message: "참가자만 준비완료 할 수 있습니다.",
+      },
+      HttpStatus.BAD_REQUEST
+    );
+  }
+}

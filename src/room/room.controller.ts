@@ -61,7 +61,7 @@ export class RoomController {
   ) {}
 
   //유저 in RoomEntity 상태 정보
-  @OnlyForParticipant()
+  @OnlyForParticipantAndBanned()
   @ApiCreatedResponse({
     description: "해당 방의 상태 정보를 가져옵니다.",
     type: RoomStateResponse,
