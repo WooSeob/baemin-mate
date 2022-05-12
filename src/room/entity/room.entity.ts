@@ -163,7 +163,7 @@ export class RoomEntity {
   }
 
   getTotalPrice(): number {
-    return this.participants
+    return this.currentParticipants
       .map((participant) => participant.getTotalPrice())
       .reduce((prev, current) => prev + current, 0);
   }
@@ -231,9 +231,7 @@ export class RoomEntity {
   }
 
   getUserCount(): number {
-    return this.participants.filter((p) =>
-      [RoomRole.MEMBER, RoomRole.PURCHASER].includes(p.role)
-    ).length;
+    return this.currentParticipants.length;
   }
 
   fixOrder() {
@@ -247,7 +245,7 @@ export class RoomEntity {
     }
     this.deliveryTip = deliveryTip;
 
-    for (const participant of this.participants) {
+    for (const participant of this.currentParticipants) {
       participant.deliveryTip = Math.floor(deliveryTip / this.getUserCount());
     }
 
