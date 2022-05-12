@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { RoomService } from "../room/room.service";
 import { RoomEventType } from "../room/const/RoomEventType";
-import { Between, Repository } from "typeorm";
+import { Repository } from "typeorm";
 
 import {
   ChatBody,
@@ -40,6 +40,7 @@ import {
 import RoomUserView from "../room/dto/response/user-view.dto";
 import { RoomGateway } from "../room/room.gateway";
 import UserChatMetadataEntity from "./entity/user-chat-metadata.entity";
+import { RoomRole } from "../room/entity/room.entity";
 
 @Injectable()
 export class ChatService {
@@ -457,6 +458,16 @@ export class ChatService {
   }
 
   async onChatEvent(roomId: string, userId: string, message: string) {
+    const role = await this.roomService.getRoomRole(roomId, userId);
+    if (!role || role == RoomRole.BANNED) {
+      // role 이 없거나 (참가자가 아님)
+      // 강퇴자면 채팅 브로드캐스트 실패
+      this.logger.warn({
+        message: `[onChatEvent] broadcast to #${roomId} failed. user(${userId}) role is ${role}`,
+      });
+      return;
+    }
+
     const messagePromise = this.chatRepository.save(
       new ChatMessageBuilder()
         .setRoom(roomId)
