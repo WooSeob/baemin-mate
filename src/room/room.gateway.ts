@@ -25,6 +25,7 @@ import { WsEvent } from "../common/decorators/ws-event.decorator";
 import { AuthService } from "../auth/auth.service";
 import Ack from "../common/interfaces/ack.interface";
 import None from "../common/interfaces/none.interface";
+import { RoomRole } from "./entity/room.entity";
 
 @UsePipes(new ObjectPipe(), new ValidationPipe({ transform: true }))
 @UseInterceptors(LoggingInterceptor)
@@ -56,6 +57,24 @@ export class RoomGateway
         sockets.forEach((socket) => {
           socket.join(roomId);
         });
+      });
+    });
+
+    roomService.on(RoomEventType.USER_KICKED_BY_VOTE, (roomId, userId) => {
+      this.socketRoomLeave(roomId, userId);
+    });
+
+    roomService.on(RoomEventType.USER_KICKED, (roomId, userId) => {
+      this.socketRoomLeave(roomId, userId);
+    });
+  }
+
+  private socketRoomLeave(roomId, userId) {
+    const socketIds = this._userIdToSocketId.get(userId);
+    socketIds.forEach(async (sid) => {
+      const sockets = await this._server.in(sid).fetchSockets();
+      sockets.forEach((socket) => {
+        socket.leave(roomId);
       });
     });
   }
@@ -112,9 +131,11 @@ export class RoomGateway
     const uid = this._socketIdToUserId.get(client.id);
 
     //이미 참가중인 방에 대해서 socket join 처리
-    (await this.userService.getJoinedRoomIds(uid)).forEach((roomId) => {
-      client.join(roomId);
-    });
+    (await this.userService.getParticipations(uid))
+      .filter((p) => p.role == RoomRole.MEMBER || p.role == RoomRole.PURCHASER)
+      .forEach((p) => {
+        client.join(p.roomId);
+      });
   }
 
   async handleDisconnect(client: Socket) {

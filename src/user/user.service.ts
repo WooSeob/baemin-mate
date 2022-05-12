@@ -96,9 +96,8 @@ export class UserService extends EventEmitter {
     await this.userRepository.save(user);
   }
 
-  async getJoinedRoomIds(userId: string) {
+  async getParticipations(userId: string) {
     //TODO 트랜잭션?
-
     const user = await this.userRepository
       .createQueryBuilder("user")
       .leftJoinAndSelect("user.rooms", "rooms")
@@ -109,7 +108,12 @@ export class UserService extends EventEmitter {
     if (!user) {
       throw new NotFoundException("존재하지 않는 회원입니다.");
     }
+    return user.rooms;
+  }
 
-    return user.rooms.map((participant) => participant.roomId);
+  async getJoinedRoomIds(userId: string) {
+    return (await this.getParticipations(userId)).map(
+      (participant) => participant.roomId
+    );
   }
 }
