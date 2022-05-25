@@ -47,6 +47,7 @@ import {
   OnlyForPurchaser,
 } from "./decorators/room.decorator";
 import { VoteResponse } from "./dto/response/vote.response";
+import ChatReadIdDto from "../chat/dto/response/chat-read-ids.dto";
 
 @Controller("room")
 export class RoomController {
@@ -152,6 +153,26 @@ export class RoomController {
     }
 
     return this.chatService.getAllMessagesResponse(room.id, user.id);
+  }
+
+  /**
+   * rid 에 해당하는 Room의 각 유저별 최신 읽은 메시지 id들을 반환합니다.
+   * */
+  @OnlyForParticipantAndBanned()
+  @ApiCreatedResponse({
+    description: "각 유저별 최신 읽은 메시지 id들을 반환합니다.",
+  })
+  @Get(`/:${ROOM_ID}/chat/read`)
+  async getChatReadIds(
+    @Req() request: Request,
+    @Param(ROOM_ID) rid: string
+  ): Promise<ChatReadIdDto[]> {
+    const room = await this.roomService.findRoomById(rid);
+    if (!room) {
+      throw new HttpException("room not found", HttpStatus.NOT_FOUND);
+    }
+
+    return this.chatService.getReadMessageIds(room.id);
   }
 
   /**

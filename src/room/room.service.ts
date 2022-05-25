@@ -740,10 +740,6 @@ export class RoomService extends EventEmitter {
       .getMany();
   }
 
-  async receiveChat(roomId: string, userId: string, message: string) {
-    this.emit(RoomEventType.CHAT, roomId, userId, message);
-  }
-
   /**
    * ParticipantService
    * - get menus

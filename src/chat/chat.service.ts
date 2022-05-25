@@ -1,7 +1,13 @@
-import { Injectable, Logger } from "@nestjs/common";
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import { RoomService } from "../room/room.service";
 import { RoomEventType } from "../room/const/RoomEventType";
-import { Repository } from "typeorm";
+import { IsNull, Repository } from "typeorm";
 
 import {
   ChatBody,
@@ -38,9 +44,10 @@ import {
   SystemMessageResponse,
 } from "../room/dto/response/chat.response";
 import RoomUserView from "../room/dto/response/user-view.dto";
-import { RoomGateway } from "../room/room.gateway";
+import { ChatGateway } from "./chat.gateway";
 import UserChatMetadataEntity from "./entity/user-chat-metadata.entity";
 import { RoomRole } from "../room/entity/room.entity";
+import ChatReadIdDto from "./dto/response/chat-read-ids.dto";
 
 @Injectable()
 export class ChatService {
@@ -76,20 +83,13 @@ export class ChatService {
   constructor(
     private roomService: RoomService,
     private userService: UserService,
-    private roomGateway: RoomGateway,
+    @Inject(forwardRef(() => ChatGateway))
+    private chatGateway: ChatGateway,
     @InjectRepository(RoomChatEntity)
     private chatRepository: Repository<RoomChatEntity>,
     @InjectRepository(UserChatMetadataEntity)
     private userChatMetadataRepository: Repository<UserChatMetadataEntity>
   ) {
-    // 일반 채팅
-    roomService.on(
-      RoomEventType.CHAT,
-      (roomId: string, userId: string, message: string) => {
-        return this.onChatEvent(roomId, userId, message);
-      }
-    );
-
     // 입/퇴장 관련
     roomService.on(RoomEventType.USER_ENTER, async (roomId, userId) => {
       const [roomChat, user] = await this._createUserEventData(
@@ -322,6 +322,37 @@ export class ChatService {
     this.logger.warn("Chat Repository cleared");
   }
 
+  async updateReadMessageId(roomId: string, userId: string, messageId: number) {
+    const userChatMetadata = await this.userChatMetadataRepository.findOne({
+      roomId: roomId,
+      userId: userId,
+    });
+
+    if (!userChatMetadata) {
+      throw new NotFoundException("채팅 메타데이터를 찾을 수 없습니다.");
+    }
+
+    userChatMetadata.updateReadMessageId(messageId);
+    await this.userChatMetadataRepository.save(userChatMetadata);
+
+    // 전체 read id들 브로드캐스트
+    this.chatGateway.broadcastLatestChatReadIds(
+      roomId,
+      await this.getReadMessageIds(roomId)
+    );
+  }
+
+  async getReadMessageIds(roomId: string): Promise<ChatReadIdDto[]> {
+    const userChatMetadata = await this.userChatMetadataRepository.find({
+      roomId: roomId,
+      chatEndId: IsNull(),
+    });
+
+    return userChatMetadata.map((data) =>
+      ChatReadIdDto.fromUserChatMetadata(data)
+    );
+  }
+
   async getAllMessagesByRoomForUser(roomId: string, userId: string) {
     // const role = await this.roomService.getRoomRole(roomId, userId);
     const userChatMetadata = await this.userChatMetadataRepository.findOne({
@@ -457,7 +488,12 @@ export class ChatService {
     return await Promise.all(messagesPromise);
   }
 
-  async onChatEvent(roomId: string, userId: string, message: string) {
+  // 일반 채팅
+  async onChatEvent(
+    roomId: string,
+    userId: string,
+    message: string
+  ): Promise<RoomChatEntity> {
     const role = await this.roomService.getRoomRole(roomId, userId);
     if (!role || role == RoomRole.BANNED) {
       // role 이 없거나 (참가자가 아님)
@@ -490,6 +526,9 @@ export class ChatService {
         message: message,
       })
     );
+
+    await this.updateReadMessageId(roomId, userId, roomChat.id);
+    return roomChat;
   }
 
   private broadcastChat(
@@ -497,7 +536,7 @@ export class ChatService {
     message: Message<ChatBody | SystemBody>
   ) {
     this.logger.log({ message: "Chat Broadcast", chatId: message.id });
-    this.roomGateway.broadcastChat(roomId, {
+    this.chatGateway.broadcastChat(roomId, {
       rid: roomId,
       messages: [message],
     });

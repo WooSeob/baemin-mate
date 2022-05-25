@@ -18,5 +18,7 @@ export enum RoomEventType {
   KICK_VOTE_FINISHED = "kickVoteFinished",
   RESET_VOTE_CREATED = "resetVoteCreated",
   RESET_VOTE_FINISHED = "resetVoteFinished",
+
   CHAT = "chat",
+  CHAT_READ_ID_UPDATED = "readIdUpdated",
 }

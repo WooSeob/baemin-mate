@@ -35,4 +35,8 @@ export default class UserChatMetadataEntity {
 
   @Column({ nullable: false })
   readToId: number;
+
+  updateReadMessageId(mid: number) {
+    this.readToId = mid;
+  }
 }
