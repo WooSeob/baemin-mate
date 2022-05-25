@@ -1,6 +1,6 @@
 import { forwardRef, Module } from "@nestjs/common";
 import { AuthModule } from "src/auth/auth.module";
-import { RoomGateway } from "./room.gateway";
+import { ChatGateway } from "../chat/chat.gateway";
 import { RoomService } from "./room.service";
 import { RoomController } from "./room.controller";
 import { UserModule } from "../user/user.module";
@@ -21,13 +21,13 @@ import { RoomAccountEntity } from "./entity/room-account.entity";
     TypeOrmModule.forFeature([ImageFileEntity]),
     TypeOrmModule.forFeature([RoomAccountEntity]),
 
+    forwardRef(() => ChatModule),
     forwardRef(() => AuthModule),
     forwardRef(() => UserModule),
-    forwardRef(() => ChatModule),
     S3Module,
   ],
-  providers: [RoomGateway, RoomService],
+  providers: [RoomService],
   controllers: [RoomController],
-  exports: [RoomService, RoomGateway],
+  exports: [RoomService],
 })
 export class RoomModule {}
