@@ -23,7 +23,7 @@ import UniversityEntity from "../university/entity/university.entity";
 import { UserDeviceTokenEntity } from "../notification/entity/user-device-token.entity";
 import DormitoryEntity from "../university/entity/dormitory.entity";
 import { UserOauthEntity } from "../user/entity/user-oauth.entity";
-import { RoomGateway } from "../room/room.gateway";
+import { ChatGateway } from "./chat.gateway";
 import UserChatMetadataEntity from "./entity/user-chat-metadata.entity";
 
 const createMockRoomService = () => {
@@ -55,9 +55,10 @@ const MockRoomServiceProvider = {
 };
 
 const MockRoomGatewayProvider = {
-  provide: RoomGateway,
+  provide: ChatGateway,
   useValue: {
     broadcastChat: jest.fn(),
+    broadcastLatestChatReadIds: jest.fn(),
   },
 };
 
@@ -109,13 +110,13 @@ const getTestingModule = async () => {
   }).compile();
 };
 
+const roomId = "d0e65ffd-92c7-44e6-921f-f4d225c6115f";
+const userOne = "0e7660e5-3949-4ca2-93ab-b71eca6892da";
+const userTwo = "48ce7d82-e92b-43b0-ae42-5997bdd288ab";
+
 describe("조회 테스트", () => {
   let mockRoomService: RoomService;
   let service: ChatService;
-
-  const roomId = "d0e65ffd-92c7-44e6-921f-f4d225c6115f";
-  const userOne = "0e7660e5-3949-4ca2-93ab-b71eca6892da";
-  const userTwo = "48ce7d82-e92b-43b0-ae42-5997bdd288ab";
 
   beforeAll(async () => {
     const module: TestingModule = await getTestingModule();
@@ -135,9 +136,10 @@ describe("조회 테스트", () => {
   it("입장 전의 메시지는 받아올 수 없다.", async () => {
     mockRoomService.emit(RoomEventType.USER_ENTER, roomId, userOne);
     await aFewSecondsLater(1000);
-    mockRoomService.emit(RoomEventType.CHAT, roomId, userOne, "1");
-    mockRoomService.emit(RoomEventType.CHAT, roomId, userOne, "2");
-    mockRoomService.emit(RoomEventType.CHAT, roomId, userOne, "3");
+
+    await service.onChatEvent(roomId, userOne, "1");
+    await service.onChatEvent(roomId, userOne, "2");
+    await service.onChatEvent(roomId, userOne, "3");
 
     mockRoomService.emit(RoomEventType.USER_ENTER, roomId, userTwo);
     await aFewSecondsLater(1000);
@@ -149,17 +151,19 @@ describe("조회 테스트", () => {
 
   it("강제퇴장 후 발생한 메시지는 받아올 수 없다.", async () => {
     mockRoomService.emit(RoomEventType.USER_ENTER, roomId, userOne);
-
     mockRoomService.emit(RoomEventType.USER_ENTER, roomId, userTwo);
+
     await aFewSecondsLater(1000);
-    mockRoomService.emit(RoomEventType.CHAT, roomId, userOne, "1");
-    mockRoomService.emit(RoomEventType.CHAT, roomId, userOne, "2");
-    mockRoomService.emit(RoomEventType.CHAT, roomId, userOne, "3");
+
+    await service.onChatEvent(roomId, userOne, "1");
+    await service.onChatEvent(roomId, userOne, "2");
+    await service.onChatEvent(roomId, userOne, "3");
+
     mockRoomService.emit(RoomEventType.USER_KICKED, roomId, userTwo);
 
-    mockRoomService.emit(RoomEventType.CHAT, roomId, userOne, "4");
-    mockRoomService.emit(RoomEventType.CHAT, roomId, userOne, "5");
-    mockRoomService.emit(RoomEventType.CHAT, roomId, userOne, "6");
+    await service.onChatEvent(roomId, userOne, "4");
+    await service.onChatEvent(roomId, userOne, "5");
+    await service.onChatEvent(roomId, userOne, "6");
 
     await aFewSecondsLater(1000);
 
@@ -174,6 +178,90 @@ describe("조회 테스트", () => {
       userTwo
     );
     expect(messagesForUserTwo).toHaveLength(5);
+  });
+});
+
+describe("읽음 처리 테스트", () => {
+  let mockRoomService: RoomService;
+  let service: ChatService;
+
+  beforeAll(async () => {
+    const module: TestingModule = await getTestingModule();
+    service = module.get<ChatService>(ChatService);
+    mockRoomService = module.get<RoomService>(RoomService);
+  });
+
+  beforeEach(async () => {
+    await service.clear();
+  });
+
+  it("자신이 송신한 메시지에 대해선 자동 읽음 처리 한다.", async () => {
+    mockRoomService.emit(RoomEventType.USER_ENTER, roomId, userOne);
+    mockRoomService.emit(RoomEventType.USER_ENTER, roomId, userTwo);
+    await aFewSecondsLater(1000);
+
+    await service.onChatEvent(roomId, userOne, "1");
+    await service.onChatEvent(roomId, userOne, "2");
+    await service.onChatEvent(roomId, userOne, "3");
+
+    const readIds = await service.getReadMessageIds(roomId);
+    expect(readIds).toHaveLength(2);
+
+    const readIdMap = new Map(
+      readIds.map((item) => [item.userId, item.messageId])
+    );
+
+    const messages = await service.getAllMessagesByRoomForUser(roomId, userOne);
+    expect(readIdMap.get(userOne)).toBe(messages[messages.length - 1].id);
+    expect(readIdMap.get(userTwo)).toBe(messages[1].id);
+  });
+
+  it("읽음처리 시 카운트가 변경된다.", async () => {
+    mockRoomService.emit(RoomEventType.USER_ENTER, roomId, userOne);
+    mockRoomService.emit(RoomEventType.USER_ENTER, roomId, userTwo);
+    await aFewSecondsLater(1000);
+
+    await service.onChatEvent(roomId, userOne, "1");
+    await service.onChatEvent(roomId, userOne, "2");
+    const messageTwo = await service.onChatEvent(roomId, userOne, "3");
+
+    await service.updateReadMessageId(
+      roomId,
+      userTwo,
+      messageTwo.id // userOne 의 "3" 까지 읽음
+    );
+
+    await service.onChatEvent(roomId, userOne, "4");
+    await service.onChatEvent(roomId, userOne, "5");
+    const messageOne = await service.onChatEvent(roomId, userOne, "6");
+
+    const readIds = await service.getReadMessageIds(roomId);
+
+    expect(readIds).toHaveLength(2);
+
+    const readIdMap = new Map(
+      readIds.map((item) => [item.userId, item.messageId])
+    );
+
+    expect(readIdMap.get(userOne)).toBe(messageOne.id);
+    expect(readIdMap.get(userTwo)).toBe(messageTwo.id);
+  });
+
+  it("강퇴당한 유저의 읽음 처리 정보는 가져오지 않는다.", async () => {
+    mockRoomService.emit(RoomEventType.USER_ENTER, roomId, userOne);
+    mockRoomService.emit(RoomEventType.USER_ENTER, roomId, userTwo);
+    await aFewSecondsLater(1000);
+
+    await service.onChatEvent(roomId, userOne, "1");
+    await service.onChatEvent(roomId, userOne, "2");
+
+    mockRoomService.emit(RoomEventType.USER_KICKED, roomId, userTwo);
+
+    await service.onChatEvent(roomId, userOne, "3");
+
+    const readIds = await service.getReadMessageIds(roomId);
+    console.log(readIds);
+    expect(readIds).toHaveLength(1);
   });
 });
 
