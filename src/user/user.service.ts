@@ -1,101 +1,119 @@
-import { forwardRef, Inject, Injectable } from "@nestjs/common";
-import { AddMenuDto } from "./dto/request/add-menu.dto";
-import { UpdateMenuDto } from "./dto/request/update-menu.dto";
-import { IUserContainer } from "../core/container/IUserContainer";
-import { v4 as uuidv4 } from "uuid";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { User } from "./entity/user.entity";
+import { UserEntity, UserBuilder } from "./entity/user.entity";
 import { Repository } from "typeorm";
-import { RoomService } from "../room/room.service";
-import { Room } from "../domain/room/room";
-import { MenuItem } from "../match/interfaces/shop.interface";
+import { UserOauthEntity } from "./entity/user-oauth.entity";
+import { OAuthProvider } from "../auth/interface/OAuthProvider";
+import EventEmitter from "events";
+import { UserEvent } from "./const/UserEvent";
 
 @Injectable()
-export class UserService {
+export class UserService extends EventEmitter {
+  private logger = new Logger("UserService");
   constructor(
-    @InjectRepository(User) private userRepository: Repository<User>,
-    @Inject("IUserContainer") private userContainer: IUserContainer,
-    @Inject(forwardRef(() => RoomService)) private roomService: RoomService
-  ) {}
-
-  async isParticipant(uid: string, rid: string) {
-    const room = this.roomService.findRoomById(rid);
-    const user = await this.findUserById(uid);
-    return room.users.has(user);
+    @InjectRepository(UserEntity)
+    private userRepository: Repository<UserEntity>,
+    @InjectRepository(UserOauthEntity)
+    private oauthRepository: Repository<UserOauthEntity>
+  ) {
+    super();
   }
 
-  async createUserByNaver(id: string, name: string, mobile_e164: string): Promise<User> {
-    const newUser = new User();
-    newUser.id = id;
+  override emit(eventName: string | symbol, ...args: any[]): boolean {
+    this.logger.log({ message: "[UserEvent]", event: eventName, args: args });
+    return super.emit(eventName, ...args);
+  }
+
+  async createUserByNaver(
+    id: string,
+    name: string,
+    univId: number
+  ): Promise<UserEntity> {
+    const newUser = new UserEntity();
     newUser.name = name;
-    newUser.phone = mobile_e164;
-    await this.userRepository.save(newUser);
-    return newUser;
+    newUser.verified = true;
+    newUser.universityId = univId;
+    const created = await this.userRepository.save(newUser);
+
+    const oauthUser = new UserOauthEntity();
+    oauthUser.id = id;
+    oauthUser.provider = OAuthProvider.NAVER;
+    oauthUser.user = created;
+    await this.oauthRepository.save(oauthUser);
+    this.emit(UserEvent.CREATED, created);
+    return created;
   }
 
-  async findUserById(id: string): Promise<User> {
-    //TODO anti pattern (sync-async분기에 따라 달라짐)
-    let user = this.userContainer.findById(id);
+  async deleteUser(uid: string) {
+    const user = await this.userRepository
+      .createQueryBuilder("user")
+      .leftJoinAndSelect("user.rooms", "participant")
+      .leftJoinAndSelect("participant.room", "room")
+      .where("user.id = :id", { id: uid })
+      .andWhere("user.deletedAt IS NULL")
+      .getOne();
+
     if (!user) {
-      user = await this.userRepository.findOne({ id: id });
-      if (!user) {
-        return null;
-      }
-      this.userContainer.push(user);
+      throw new NotFoundException("존재하지 않는 회원입니다.");
     }
-    return user;
+
+    user.delete();
+    await this.oauthRepository.delete({ user: user });
+    await this.userRepository.save(user);
+    this.emit(UserEvent.DELETED, user);
   }
 
-  async verify(user: User) {
+  /**
+   * id로 유저를 찾고
+   * 없으면 name이 "(알수없음)" 으로 설정된 기본 유저를 반환합니다.
+   * */
+  async findUserOrUnknownIfNotExist(id: string): Promise<UserEntity> {
+    //TODO async 최적화?
+    const user = await this.findUserById(id);
+    return user
+      ? user
+      : new UserBuilder().setId(id).setName("(알수없음)").build();
+  }
+
+  async findUserByOauthId(oauthId: string): Promise<UserEntity> {
+    const oauthUser = await this.oauthRepository.findOne(oauthId);
+
+    const asdf = await this.oauthRepository.find(undefined);
+    this.logger.log(asdf);
+
+    if (!oauthUser) {
+      return undefined;
+    }
+    return oauthUser.user;
+  }
+
+  findUserById(id: string): Promise<UserEntity> {
+    return this.userRepository.findOne({ id: id, deletedAt: null });
+  }
+
+  async verify(user: UserEntity) {
     user.verified = true;
     await this.userRepository.save(user);
   }
 
-  async getMenus(room: Room, user: User): Promise<MenuItem[]> {
-    return room.menus.getMenusByUser(user);
+  async getParticipations(userId: string) {
+    //TODO 트랜잭션?
+    const user = await this.userRepository
+      .createQueryBuilder("user")
+      .leftJoinAndSelect("user.rooms", "rooms")
+      .where("user.id = :id", { id: userId })
+      .andWhere("user.deletedAt IS NULL")
+      .getOne();
+
+    if (!user) {
+      throw new NotFoundException("존재하지 않는 회원입니다.");
+    }
+    return user.rooms;
   }
 
-  async getMenu(room: Room, user: User, menuId: string) {
-    return room.menus.getMenuMapByUser(user).get(menuId);
-  }
-
-  async addMenu(room: Room, user: User, addMenuDto: AddMenuDto): Promise<string> {
-    const menuId = uuidv4();
-    room.menus.add(user, {
-      id: menuId,
-      name: addMenuDto.name,
-      quantity: Number(addMenuDto.quantity),
-      description: addMenuDto.description,
-      price: Number(addMenuDto.price),
-    });
-    return menuId;
-  }
-
-  async updateMenu(room: Room, user: User, mid: string, updateMenuDto: UpdateMenuDto) {
-    //TODO MenuItem 객체를 먼저 찾고, menus의 key를 객체로 바꾸기. mid에 해당하는 MenuItem없을때 처리 해줘야함.
-    room.menus.update(user, mid, {
-      id: mid,
-      ...updateMenuDto,
-    });
-  }
-
-  async deleteMenu(room: Room, user: User, mid: string) {
-    room.menus.delete(user, mid);
-  }
-
-  //TODO depricated!!
-  //async toggleReady(room: Room, user: User) {
-  //   const isReady = room.users.getIsReady(user);
-  //   room.users.setReady(user, !isReady);
-  //   return !isReady;
-  // }
-
-  async setReady(room: Room, user: User, state: boolean) {
-    //TODO only in Prepare state
-    room.policy.onlyParticipant(user)
-    room.policy.onlyForMember(user)
-    room.policy.onlyForPrepare()
-    room.users.setReady(user, state);
-    return state;
+  async getJoinedRoomIds(userId: string) {
+    return (await this.getParticipations(userId)).map(
+      (participant) => participant.roomId
+    );
   }
 }

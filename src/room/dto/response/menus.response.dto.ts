@@ -6,11 +6,12 @@ export class UserMenus {
   @ApiProperty({ description: "유저 정보" })
   user: RoomUserView;
 
-  @ApiProperty({ description: "메뉴 목록", type: [MenuItem]})
+  @ApiProperty({ description: "메뉴 목록", type: [MenuItem] })
   menus: MenuItem[];
-}
 
-export default class MenusResponseDto {
-  @ApiProperty({ description: "유저별 메뉴목록의 리스트" })
-  menusByUser: UserMenus[];
+  @ApiProperty({ description: "개인 배달 팁 금액" })
+  deliveryTip: number;
+
+  @ApiProperty({ description: "개인 총합 금액" })
+  totalPrice: number;
 }

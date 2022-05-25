@@ -7,96 +7,120 @@ import {
   SubscribeMessage,
   MessageBody,
   ConnectedSocket,
+  BaseWsExceptionFilter,
 } from "@nestjs/websockets";
-import { Logger } from "@nestjs/common";
+import {
+  ArgumentMetadata,
+  Inject,
+  Injectable,
+  Logger,
+  PipeTransform,
+  UseFilters,
+  UseInterceptors,
+  UsePipes,
+  ValidationPipe,
+} from "@nestjs/common";
 import { Server, Socket } from "socket.io";
 import { MatchService } from "./match.service";
-import { AuthService } from "src/auth/auth.service";
-import { MatchSender } from "./match.sender";
+import { AuthService, AccessTokenPayload } from "src/auth/auth.service";
 import MatchInfo from "./dto/response/match-info.interface";
-import { Match } from "../domain/match/match";
 import { UserService } from "../user/user.service";
+import { MatchEntity } from "./entity/match.entity";
 import { SubscribeMatchDto } from "./dto/request/subscribe-match.dto";
-import { User } from "src/user/entity/user.entity";
+import { ObjectPipe } from "../common/pipe/object.pipe";
+import { WINSTON_MODULE_PROVIDER, WinstonLogger } from "nest-winston";
+import { LoggingInterceptor } from "../common/interceptors/logging.interceptor";
+import { WsEvent } from "../common/decorators/ws-event.decorator";
 
 const metadata = {
   namespace: "/match",
   cors: { origin: "*" },
   allowEIO3: true,
 };
+@UsePipes(new ObjectPipe(), new ValidationPipe({ transform: true }))
+@UseInterceptors(LoggingInterceptor)
 @WebSocketGateway(metadata)
-export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+export class MatchGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
+  private logger = new Logger("MatchGateway");
   private _socketIdToUserId: Map<string, Promise<string>> = new Map();
   constructor(
     private matchService: MatchService,
     private authService: AuthService,
-    private matchSender: MatchSender,
     private userService: UserService
   ) {}
 
   @WebSocketServer() public server: Server;
-  private logger: Logger = new Logger("MatchGateway");
 
   afterInit(server: Server) {
     this.matchService.server = server;
-    this.matchSender.server = server;
-  }
+    server.use((socket, next) => {
+      let token = socket.handshake.auth.token;
+      if (token.split(" ").length > 1) {
+        token = token.split(" ")[1];
+      }
+      const foundUserPromise: Promise<AccessTokenPayload> =
+        this.authService.validate(token);
 
-  async handleConnection(client: Socket, ...args: any[]) {
-    this.logger.log(`Client connected: ${client.id} (${client.handshake.auth.token})`);
-
-    const foundUserPromise: Promise<User> = this.authService.validate(
-        client.handshake.auth.token
-    );
-
-    // Socket id <-> user id 매핑 셋
-    this._socketIdToUserId.set(
-        client.id,
+      // Socket id <-> user id 매핑 셋
+      this._socketIdToUserId.set(
+        socket.id,
         new Promise((res, rej) => {
           foundUserPromise.then((u) => res(u.id)).catch((e) => rej(e));
         })
-    );
+      );
 
-    foundUserPromise.then((user) => {
-      //인증 실패시 강제 disconnect
-      if (!user) {
-        console.log("auth fail at Match gateway");
-        console.log(client.handshake.auth);
-        client.disconnect();
-        return;
-      }
+      foundUserPromise.then((user) => {
+        //인증 실패시 강제 disconnect
+        if (!user) {
+          this.logger.log({
+            message: `[Authentication failed] #${socket.id} disconnect.`,
+            token: socket.handshake.auth.token,
+          });
+          return next(new Error("Authentication failed"));
+        }
+        next();
+      });
     });
+  }
 
-    console.log(this._socketIdToUserId);
+  async handleConnection(client: Socket, ...args: any[]) {
+    this.logger.log({
+      message: `[Client Connected] #${client.id}`,
+      handshake: client.handshake,
+    });
   }
 
   async handleDisconnect(client: Socket) {
-    this.logger.log(`Client disconnected: ${client.id} (${client.handshake.auth.token})`);
+    const uid = await this._socketIdToUserId.get(client.id);
+    this.logger.log({
+      message: `[Client Disconnected] #${client.id} (${uid})`,
+    });
 
     //기존 매핑 삭제
     this._socketIdToUserId.delete(client.id);
   }
 
+  @WsEvent("subscribe")
   @SubscribeMessage("subscribe")
-  async subscribe(@MessageBody() _subscribeMatchDto: any, @ConnectedSocket() client: Socket) {
-    let subscribeMatchDto;
-    if (typeof _subscribeMatchDto === "string") {
-      subscribeMatchDto = JSON.parse(_subscribeMatchDto);
-    } else {
-      subscribeMatchDto = _subscribeMatchDto;
-    }
+  async subscribe(
+    @MessageBody()
+    subscribeDto: SubscribeMatchDto,
+    @ConnectedSocket() client: Socket
+  ) {
+    const uid = await this._socketIdToUserId.get(client.id);
+    this.logger.log({
+      message: `[subscribe] #${client.id} (${uid})`,
+      dto: subscribeDto,
+    });
 
-    console.log(typeof subscribeMatchDto);
-
-    console.log(subscribeMatchDto);
-    const user = await this.userService.findUserById(
-        await this._socketIdToUserId.get(client.id)
-    );
-    console.log(await this._socketIdToUserId.get(client.id));
-    console.log(this._socketIdToUserId);
+    const user = await this.userService.findUserById(uid);
 
     if (!user) {
-      console.log("user not found at subscribe");
+      this.logger.warn(
+        `[subscribe] User(${uid}) 를 찾을 수 없습니다. 연결을 해제합니다.`
+      );
       client.disconnect();
       return {
         status: 401,
@@ -104,20 +128,16 @@ export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
       };
     }
 
-    let matches: Match[] = this.matchService.subscribeByCategory(subscribeMatchDto, client);
-    console.log(matches);
+    let matches: MatchEntity[] = await this.matchService.subscribeByCategory(
+      user,
+      subscribeDto,
+      client
+    );
+
     return {
       status: 200,
       data: matches.map((match): MatchInfo => {
-        return {
-          id: match.id,
-          shopName: match.info.shopName,
-          section: match.info.section,
-          total: match.totalPrice,
-          priceAtLeast: match.atLeast,
-          purchaserName: match.info.purchaser.name,
-          createdAt: match.info.createdAt,
-        };
+        return MatchInfo.from(match);
       }),
     };
   }

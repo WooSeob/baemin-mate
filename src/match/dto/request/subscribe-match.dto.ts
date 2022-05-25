@@ -1,7 +1,15 @@
 import { CategoryType } from "../../interfaces/category.interface";
-import { SectionType } from "../../../user/interfaces/user";
+import { ApiProperty } from "@nestjs/swagger";
+import { IsArray, IsEnum, IsNumber } from "class-validator";
 
 export class SubscribeMatchDto {
+  @ApiProperty()
+  @IsArray()
+  @IsEnum(CategoryType, { each: true })
   category: CategoryType[];
-  section: SectionType[];
+
+  @ApiProperty()
+  @IsArray()
+  @IsNumber({}, { each: true })
+  section: number[];
 }

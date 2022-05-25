@@ -1,6 +1,6 @@
 export interface Message<T> {
   id: string;
-  idx: string;
+  idx: number;
   type: string;
   at: string;
   body: T;

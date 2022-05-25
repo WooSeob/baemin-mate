@@ -1,26 +1,26 @@
-import { Entity, Column, PrimaryGeneratedColumn, PrimaryColumn } from "typeorm";
-import { SectionType } from "../interfaces/user";
-import { Room } from "../../domain/room/room";
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn,
+} from "typeorm";
+import { ParticipantEntity } from "../../room/entity/participant.entity";
+import UniversityEntity from "../../university/entity/university.entity";
+import { RoomState } from "../../room/const/RoomState";
+import { BigIntTransformer } from "../../common/BigIntTransformer";
 
 @Entity()
-export class User {
-  @PrimaryColumn()
+export class UserEntity {
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Column({
     nullable: false,
   })
   name: string;
-
-  @Column({
-    nullable: false,
-  })
-  phone: string;
-
-  @Column({
-    nullable: true,
-  })
-  email: string;
 
   @Column({
     default: "unknown",
@@ -40,39 +40,53 @@ export class User {
 
   @Column({
     nullable: true,
+    type: "bigint",
+    transformer: [BigIntTransformer],
   })
-  currentJoinedRoom: string;
+  deletedAt: number;
 
-  //TODO DB 칼럼 추가!!!
-  private _joinRoom: Room;
-  private _joinedRooms: Room[] = [];
+  @CreateDateColumn({ transformer: [BigIntTransformer] })
+  createdAt: number;
 
-  get joinRoom(): Room {
-    return this._joinRoom;
-  }
+  @Column()
+  universityId: number;
 
-  get joinedRooms() {
-    return this._joinedRooms;
-  }
+  @OneToMany(() => ParticipantEntity, (p) => p.user)
+  rooms: ParticipantEntity[];
 
-  join(room: Room) {
-    this._joinRoom = room;
-    this._joinedRooms.push(room);
-  }
+  @ManyToOne(() => UniversityEntity, { onDelete: "NO ACTION" })
+  @JoinColumn()
+  university: UniversityEntity;
 
-  leaveRoom(roomId: string) {
-    this._joinRoom = null;
-
-    let toDeleteIdx = -1;
-    for (let i = 0; i < this._joinedRooms.length; i++) {
-      const room = this._joinedRooms[i];
-      if (room.id == roomId) {
-        toDeleteIdx = i;
-        break;
-      }
+  delete() {
+    // 참여 방 중 활성상태인 방이 있으면 탈퇴할 수 없다
+    for (const participant of this.rooms) {
+      participant.room.onlyAt(RoomState.ORDER_DONE, RoomState.ORDER_CANCELED);
     }
-    if (toDeleteIdx > -1) {
-      this._joinedRooms = this._joinedRooms.splice(toDeleteIdx, 1);
-    }
+
+    this.name = "";
+    this.deletedAt = Date.now();
+  }
+}
+
+export class UserBuilder {
+  private readonly object: UserEntity;
+
+  constructor() {
+    this.object = new UserEntity();
+  }
+
+  setId(id: string): UserBuilder {
+    this.object.id = id;
+    return this;
+  }
+
+  setName(name: string): UserBuilder {
+    this.object.name = name;
+    return this;
+  }
+
+  build(): UserEntity {
+    return this.object;
   }
 }

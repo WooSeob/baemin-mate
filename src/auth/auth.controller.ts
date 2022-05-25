@@ -1,15 +1,20 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpException,
   HttpStatus,
   Logger,
+  NotFoundException,
+  NotImplementedException,
   Param,
+  Patch,
   Post,
   Query,
   Req,
   Res,
+  UnauthorizedException,
   UseGuards,
 } from "@nestjs/common";
 import { AuthService } from "./auth.service";
@@ -17,21 +22,32 @@ import { LoginDto } from "./dto/login.dto";
 import { LogoutDto } from "./dto/logout.dto";
 import { Request, Response } from "express";
 import axios, { AxiosResponse } from "axios";
-import { NaverAuthGuard } from "./guards/naver-auth.guard";
-import { User } from "../user/entity/user.entity";
+import { UserEntity } from "../user/entity/user.entity";
 import { SendCodeDto } from "./dto/send-code.dto";
 import { VerifyCodeDto } from "./dto/verify-code.dto";
-import { ApiBearerAuth } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiCreatedResponse } from "@nestjs/swagger";
+import { UniversityService } from "../university/university.service";
+import { JwtAuthGuard } from "./guards/JwtAuthGuard";
+import { RefreshTokenDto } from "./dto/refresh-token.dto";
+import { NotificationService } from "../notification/notification.service";
+import { TokenResponseDto } from "./dto/response/token.response.dto";
+import { UserService } from "../user/user.service";
+import { NaverOAuthConfig } from "../../config";
 
-const CLIENT_ID = "qpKfX2QvHyoIFy_BPR_0";
-const CALLBACK_URL = encodeURI("http://localhost:3000/auth/naver/callback");
-const SERVICE_URL = "http://localhost:3000";
-const CLIENT_SECRET = "8eUK60rAo3";
+const CLIENT_ID = NaverOAuthConfig.CLIENT_ID;
+const CALLBACK_URL = encodeURI(NaverOAuthConfig.CALLBACK_URL);
+const SERVICE_URL = NaverOAuthConfig.SERVICE_URL;
+const CLIENT_SECRET = NaverOAuthConfig.CLIENT_SECRET;
 
 const STATE = "asdf";
 @Controller("auth")
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private userService: UserService,
+    private authService: AuthService,
+    private universityService: UniversityService,
+    private notificationService: NotificationService
+  ) {}
   @Get("/hello")
   async asdf() {
     const api_url =
@@ -67,52 +83,109 @@ export class AuthController {
     }
   }
 
-  @UseGuards(NaverAuthGuard)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth("swagger-auth")
   @Get("/user")
   async getUser(@Req() request: Request) {
-    const user = request.user as User;
-    return { name: user.name, id: user.id };
+    return request.user;
   }
 
-  @Post("/login")
-  async login(@Body() loginDto: LoginDto, @Res() res: Response) {
-    console.log(loginDto);
-    const ret = this.authService.login(loginDto);
-    this.logger.log(loginDto);
-    // if (!ret) {
-    //   //로그인 실패
-    //   return res.status(HttpStatus.UNAUTHORIZED).send();
-    // }
+  @Post("/token")
+  @ApiCreatedResponse({
+    description:
+      "oauth access token을 이용해 같이하실 토큰을 발급받습니다.\ndeviceToken 필드는 선택항목이며, 값을 포함해서 요청하면 해당 유저의 fcm device token 목록에 없으면 새로 추가합니다.",
+    type: TokenResponseDto,
+  })
+  async login(@Body() loginDto: LoginDto): Promise<TokenResponseDto> {
+    const userData = await this.authService.getUserdataFromNaver(
+      loginDto.accessToken
+    );
 
-    res.status(HttpStatus.OK).json({ sessionId: ret });
+    if (!userData) {
+      throw new UnauthorizedException("잘못된 토큰입니다.");
+    }
+
+    this.logger.log(userData);
+    if (loginDto.deviceToken) {
+      const user = await this.userService.findUserByOauthId(userData.id);
+      if (!user) {
+        throw new NotFoundException(
+          "존재하지 않는 회원입니다. 회원가입을 진행해 주세요."
+        );
+      }
+      await this.notificationService.put(user.id, loginDto.deviceToken);
+    }
+
+    return this.authService.login(userData);
   }
 
-  @Post("/logout")
-  async logout(@Body() logoutDto: LogoutDto) {
-    this.authService.logout(logoutDto);
+  @Patch("/token")
+  @ApiCreatedResponse({
+    description:
+      "발급받은 access token과 refresh token으로 새로운 토큰들을 발급받습니다.",
+    type: TokenResponseDto,
+  })
+  async refreshToken(
+    @Body() refreshTokenDto: RefreshTokenDto
+  ): Promise<TokenResponseDto> {
+    return this.authService.refreshToken(refreshTokenDto);
   }
 
-  @UseGuards(NaverAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("swagger-auth")
+  @Post("/token/blacklist")
+  async logout(@Param("id") sessionId: string) {
+    throw new NotImplementedException("구현되지 않았습니다.");
+  }
+
   @Post("/email/send")
-  async sendVerifyEmail(@Req() request: Request, @Body() sendCodeDto: SendCodeDto) {
-    const user = request.user as User;
-    await this.authService.emailAuthCreate(user, sendCodeDto.email);
+  async sendVerifyEmail(
+    @Req() request: Request,
+    @Body() sendCodeDto: SendCodeDto
+  ) {
+    const userdata = await this.authService.getUserdataFromNaver(
+      sendCodeDto.oauthAccessToken
+    );
+    if (!userdata) {
+      throw new HttpException("잘못된 토큰 입니다.", HttpStatus.UNAUTHORIZED);
+    }
+
+    const univ = await this.universityService.getUniversityById(
+      sendCodeDto.universityId
+    );
+
+    if (!univ) {
+      throw new NotFoundException("해당 대학을 찾을 수 없습니다.");
+    }
+
+    // @ 포함이면 걸러내기
+    if (sendCodeDto.email.split("@").length > 0) {
+      sendCodeDto.email = sendCodeDto.email.split("@")[0];
+    }
+    const emailAddress = `${sendCodeDto.email}@${univ.emailDomain}`;
+
+    await this.authService.emailAuthCreate(userdata.id, univ.id, emailAddress);
   }
 
-  @UseGuards(NaverAuthGuard)
-  @ApiBearerAuth("swagger-auth")
   @Post("/email/verify")
-  async verifyAuthCode(@Req() request: Request, @Body() verifyCodeDto: VerifyCodeDto) {
-    const user = request.user as User;
-    await this.authService.emailAuthVerify(user, verifyCodeDto.authCode);
+  async verifyAuthCode(
+    @Req() request: Request,
+    @Body() verifyCodeDto: VerifyCodeDto
+  ) {
+    const userdata = await this.authService.getUserdataFromNaver(
+      verifyCodeDto.oauthAccessToken
+    );
+    if (!userdata) {
+      throw new HttpException("잘못된 토큰 입니다.", HttpStatus.UNAUTHORIZED);
+    }
+    await this.authService.emailAuthVerify(userdata, verifyCodeDto.authCode);
   }
 
-  @UseGuards(NaverAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("swagger-auth")
   @Get("/email/verified")
   async getIsEmailVerified(@Req() request: Request) {
-    const user = request.user as User;
+    const user = request.user as UserEntity;
     return user.verified;
   }
 }

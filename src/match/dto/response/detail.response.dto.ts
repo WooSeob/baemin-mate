@@ -1,6 +1,6 @@
-import { Match } from "../../../domain/match/match";
 import { ApiProperty } from "@nestjs/swagger";
 import RoomUserView from "../../../room/dto/response/user-view.dto";
+import { MatchEntity } from "../../entity/match.entity";
 
 export default class MatchDetailResponseDto {
   @ApiProperty({ description: "room id" })
@@ -27,16 +27,16 @@ export default class MatchDetailResponseDto {
   @ApiProperty({ description: "참여자 수" })
   participants: number;
 
-  static from(match: Match): MatchDetailResponseDto {
+  static from(match: MatchEntity): MatchDetailResponseDto {
     const detail = new MatchDetailResponseDto();
     detail.id = match.room.id;
-    detail.purchaser = RoomUserView.from(match.info.purchaser);
-    detail.shopName = match.info.shopName;
-    detail.category = match.info.category;
-    detail.section = match.info.section;
-    detail.shopLink = match.info.linkFor3rdApp;
-    detail.atLeast = match.atLeast;
-    detail.participants = match.users;
+    detail.purchaser = RoomUserView.from(match.room.purchaser);
+    detail.shopName = match.room.shopName;
+    detail.category = match.room.category;
+    detail.section = match.sectionName;
+    detail.shopLink = match.room.linkFor3rdApp;
+    detail.atLeast = match.room.atLeastPrice;
+    detail.participants = match.room.getUserCount();
     return detail;
   }
 }
