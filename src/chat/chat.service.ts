@@ -48,6 +48,7 @@ import { ChatGateway } from "./chat.gateway";
 import UserChatMetadataEntity from "./entity/user-chat-metadata.entity";
 import { RoomRole } from "../room/entity/room.entity";
 import ChatReadIdDto from "./dto/response/chat-read-ids.dto";
+import { NotificationService } from "../notification/notification.service";
 
 @Injectable()
 export class ChatService {
@@ -88,7 +89,8 @@ export class ChatService {
     @InjectRepository(RoomChatEntity)
     private chatRepository: Repository<RoomChatEntity>,
     @InjectRepository(UserChatMetadataEntity)
-    private userChatMetadataRepository: Repository<UserChatMetadataEntity>
+    private userChatMetadataRepository: Repository<UserChatMetadataEntity>,
+    private notificationService: NotificationService
   ) {
     // 입/퇴장 관련
     roomService.on(RoomEventType.USER_ENTER, async (roomId, userId) => {
@@ -527,7 +529,11 @@ export class ChatService {
       })
     );
 
-    await this.updateReadMessageId(roomId, userId, roomChat.id);
+    await Promise.all([
+      this.notificationService.publishChatNotification(roomId, userId, message),
+      this.updateReadMessageId(roomId, userId, roomChat.id),
+    ]);
+
     return roomChat;
   }
 

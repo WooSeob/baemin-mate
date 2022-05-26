@@ -7,6 +7,7 @@ import { UserModule } from "../user/user.module";
 import UserChatMetadataEntity from "./entity/user-chat-metadata.entity";
 import { AuthModule } from "../auth/auth.module";
 import { ChatGateway } from "./chat.gateway";
+import { NotificationModule } from "../notification/notification.module";
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { ChatGateway } from "./chat.gateway";
     forwardRef(() => AuthModule),
     forwardRef(() => RoomModule),
     forwardRef(() => UserModule),
+    NotificationModule,
   ],
   providers: [ChatService, ChatGateway],
   exports: [ChatService],

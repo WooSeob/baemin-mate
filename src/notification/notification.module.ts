@@ -9,7 +9,7 @@ import { AuthModule } from "../auth/auth.module";
 
 @Module({
   imports: [
-    RoomModule,
+    forwardRef(() => RoomModule),
     TypeOrmModule.forFeature([UserDeviceTokenEntity]),
     FcmModule,
     forwardRef(() => AuthModule),

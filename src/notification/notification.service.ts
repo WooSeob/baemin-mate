@@ -16,16 +16,6 @@ export class NotificationService {
     @InjectRepository(UserDeviceTokenEntity)
     private tokenRepository: Repository<UserDeviceTokenEntity>
   ) {
-    roomService.on(
-      RoomEventType.CHAT,
-      async (roomId: string, userId: string, message: string) => {
-        const room = await roomService.findRoomById(roomId);
-        return this.toParticipants(room, {
-          title: room.shopName,
-          body: message,
-        });
-      }
-    );
 
     roomService.on(RoomEventType.ALL_READY, async (roomId: string) => {
       const room = await roomService.findRoomById(roomId);
@@ -106,6 +96,14 @@ export class NotificationService {
         });
       }
     );
+  }
+
+  async publishChatNotification(roomId: string, userId: string, message: string) {
+    const room = await this.roomService.findRoomById(roomId);
+    return this.toParticipants(room, {
+      title: room.shopName,
+      body: message,
+    });
   }
 
   private async toPurchaser(room, message) {
