@@ -1,6 +1,7 @@
 import { CategoryType } from "../../../match/interfaces/category.interface";
 import { IsEnum, IsNumber, IsString } from "class-validator";
 import { ApiProperty } from "@nestjs/swagger";
+import { IsValidShopLink } from "../../validators/IsValidShopLink";
 
 export class CreateRoomDto {
   @ApiProperty()
@@ -12,7 +13,7 @@ export class CreateRoomDto {
   deliveryPriceAtLeast: number;
 
   @ApiProperty()
-  @IsString()
+  @IsValidShopLink()
   shopLink: string;
 
   @ApiProperty()

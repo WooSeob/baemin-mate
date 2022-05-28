@@ -58,7 +58,6 @@ export class ChatGateway
     private chatService: ChatService
   ) {
     roomService.on(RoomEventType.USER_ENTER, (roomId, userId) => {
-      this.logger.log(this.server);
       const socketIds = this._userIdToSocketId.get(userId);
       socketIds.forEach(async (sid) => {
         const sockets = await this.server.in(sid).fetchSockets();
