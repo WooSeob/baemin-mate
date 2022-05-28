@@ -124,6 +124,10 @@ export class ChatService extends EventEmitter {
         roomId,
         SystemMessageResponse.from(roomChat, UserLeaveResponse.from(user))
       );
+      await this.userChatMetadataRepository.delete({
+        roomId: roomId,
+        userId: userId,
+      });
     });
 
     roomService.on(RoomEventType.USER_KICKED, async (roomId, userId) => {
