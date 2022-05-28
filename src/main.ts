@@ -20,7 +20,7 @@ async function bootstrap() {
   });
   const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
   app.useLogger(logger);
-  app.useWebSocketAdapter(new AuthenticatedSocketIoAdapter(app));
+  // app.useWebSocketAdapter(new AuthenticatedSocketIoAdapter(app));
 
   app.useGlobalPipes(
     new ValidationPipe({

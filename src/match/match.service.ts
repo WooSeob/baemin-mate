@@ -21,8 +21,11 @@ enum MatchNamespace {
 @Injectable()
 export class MatchService {
   private readonly logger = new Logger("MatchService");
-  public server: Server = null;
+  _server: Server = null;
 
+  get server() {
+    return this._server;
+  }
   constructor(
     private connection: Connection,
     private roomService: RoomService,

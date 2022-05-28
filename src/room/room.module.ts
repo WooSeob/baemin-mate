@@ -1,5 +1,5 @@
 import { forwardRef, Module } from "@nestjs/common";
-import { AuthModule } from "src/auth/auth.module";
+import { AuthModule } from "../auth/auth.module";
 import { ChatGateway } from "../chat/chat.gateway";
 import { RoomService } from "./room.service";
 import { RoomController } from "./room.controller";

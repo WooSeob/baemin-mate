@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { MenuItem } from "src/match/interfaces/shop.interface";
+import { MenuItem } from "../../../match/interfaces/shop.interface";
 
 export default class OrderReceiptResponse {
   @ApiProperty({ description: "사용자 주문 메뉴들", type: [MenuItem] })

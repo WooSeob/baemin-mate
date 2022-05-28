@@ -1,4 +1,4 @@
-import { RoomState } from "src/room/const/RoomState";
+import { RoomState } from "../../../room/const/RoomState";
 import { ApiProperty } from "@nestjs/swagger";
 import { RoomRole } from "../../../room/entity/room.entity";
 

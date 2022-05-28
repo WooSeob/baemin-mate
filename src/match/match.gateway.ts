@@ -22,7 +22,7 @@ import {
 } from "@nestjs/common";
 import { Server, Socket } from "socket.io";
 import { MatchService } from "./match.service";
-import { AuthService, AccessTokenPayload } from "src/auth/auth.service";
+import { AuthService, AccessTokenPayload } from "../auth/auth.service";
 import MatchInfo from "./dto/response/match-info.interface";
 import { UserService } from "../user/user.service";
 import { MatchEntity } from "./entity/match.entity";
@@ -39,6 +39,7 @@ const metadata = {
 };
 @UsePipes(new ObjectPipe(), new ValidationPipe({ transform: true }))
 @UseInterceptors(LoggingInterceptor)
+@Injectable()
 @WebSocketGateway(metadata)
 export class MatchGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
@@ -54,7 +55,7 @@ export class MatchGateway
   @WebSocketServer() public server: Server;
 
   afterInit(server: Server) {
-    this.matchService.server = server;
+    this.matchService._server = server;
     server.use((socket, next) => {
       let token = socket.handshake.auth.token;
       if (token.split(" ").length > 1) {
