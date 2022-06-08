@@ -207,6 +207,7 @@ export class MatchService {
       .leftJoinAndSelect("match.room", "room")
       .leftJoinAndSelect("room.purchaser", "purchaser")
       .leftJoinAndSelect("room.participants", "participant")
+      .leftJoinAndSelect("participant.menus", "menus")
       .where({ id: id })
       .getOne();
   }

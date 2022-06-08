@@ -24,6 +24,12 @@ export default class MatchDetailResponseDto {
   @ApiProperty({ description: "방장이 지정한 최소주문 금액" })
   atLeast: number;
 
+  @ApiProperty({ description: "현재 총 주문 금액" })
+  totalPrice: number;
+
+  @ApiProperty({ description: "방 생성 시각" })
+  createdAt: number;
+
   @ApiProperty({ description: "참여자 수" })
   participants: number;
 
@@ -36,6 +42,8 @@ export default class MatchDetailResponseDto {
     detail.section = match.sectionName;
     detail.shopLink = match.room.linkFor3rdApp;
     detail.atLeast = match.room.atLeastPrice;
+    detail.createdAt = match.room.createdAt;
+    detail.totalPrice = match.room.getTotalPrice();
     detail.participants = match.room.getUserCount();
     return detail;
   }
