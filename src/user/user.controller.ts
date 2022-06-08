@@ -19,7 +19,7 @@ import {
 import { UserService } from "./user.service";
 import { AddMenuDto } from "./dto/request/add-menu.dto";
 import { UpdateMenuDto } from "./dto/request/update-menu.dto";
-import { ApiBearerAuth, ApiCreatedResponse } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiCreatedResponse, ApiHeader } from "@nestjs/swagger";
 import { RoomService } from "../room/room.service";
 import RoomDetailForUser from "./dto/response/room";
 import RoomUserView from "../room/dto/response/user-view.dto";
@@ -32,7 +32,10 @@ import { Request } from "express";
 import { AccessTokenPayload } from "../auth/auth.service";
 
 // 로그인이 안되어 있으면 exception
-
+@ApiHeader({
+  name: "client-version",
+  description: "클라이언트 버전",
+})
 @Controller("user")
 export class UserController {
   constructor(
@@ -78,8 +81,8 @@ export class UserController {
   }
 
   // 유저 프로필
-  // @UseGuards(JwtAuthGuard)
-  // @ApiBearerAuth("swagger-auth")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth("swagger-auth")
   @ApiCreatedResponse({
     description: "해당 유저의 프로필 정보를 반환합니다.",
     type: RoomUserView,

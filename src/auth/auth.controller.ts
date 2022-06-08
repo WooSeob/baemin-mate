@@ -25,7 +25,7 @@ import axios, { AxiosResponse } from "axios";
 import { UserEntity } from "../user/entity/user.entity";
 import { SendCodeDto } from "./dto/send-code.dto";
 import { VerifyCodeDto } from "./dto/verify-code.dto";
-import { ApiBearerAuth, ApiCreatedResponse } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiCreatedResponse, ApiHeader } from "@nestjs/swagger";
 import { UniversityService } from "../university/university.service";
 import { JwtAuthGuard } from "./guards/JwtAuthGuard";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
@@ -40,6 +40,11 @@ const SERVICE_URL = NaverOAuthConfig.SERVICE_URL;
 const CLIENT_SECRET = NaverOAuthConfig.CLIENT_SECRET;
 
 const STATE = "asdf";
+
+@ApiHeader({
+  name: "Client-Version",
+  description: "클라이언트 버전",
+})
 @Controller("auth")
 export class AuthController {
   constructor(

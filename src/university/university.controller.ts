@@ -1,9 +1,13 @@
 import { Controller, Get, Param } from "@nestjs/common";
 import { UniversityService } from "./university.service";
-import { ApiCreatedResponse } from "@nestjs/swagger";
+import { ApiCreatedResponse, ApiHeader } from "@nestjs/swagger";
 import { UniversityResponse } from "./dto/response/university.response";
 import { DormitoryResponse } from "./dto/response/dormitory.response";
 
+@ApiHeader({
+  name: "Client-Version",
+  description: "클라이언트 버전",
+})
 @Controller("university")
 export class UniversityController {
   constructor(private universityService: UniversityService) {}

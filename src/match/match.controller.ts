@@ -7,7 +7,7 @@ import {
   Req,
   UseGuards,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiCreatedResponse } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiCreatedResponse, ApiHeader } from "@nestjs/swagger";
 
 import { MatchService } from "./match.service";
 import { Request } from "express";
@@ -20,6 +20,10 @@ import { RoomRole } from "../room/entity/room.entity";
 import { JwtAuthGuard } from "../auth/guards/JwtAuthGuard";
 import { AccessTokenPayload } from "../auth/auth.service";
 
+@ApiHeader({
+  name: "Client-Version",
+  description: "클라이언트 버전",
+})
 @Controller("match")
 export class MatchController {
   constructor(

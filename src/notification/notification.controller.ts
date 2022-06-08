@@ -8,13 +8,17 @@ import {
   ValidationPipe,
 } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/guards/JwtAuthGuard";
-import { ApiBearerAuth, ApiCreatedResponse } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiCreatedResponse, ApiHeader } from "@nestjs/swagger";
 import { Request } from "express";
 import { NotificationService } from "./notification.service";
 import { AddTokenDto } from "./dto/add-token.dto";
 import { UserEntity } from "../user/entity/user.entity";
 import { NotificationDto } from "./dto/notification.dto";
 
+@ApiHeader({
+  name: "Client-Version",
+  description: "클라이언트 버전",
+})
 @Controller("notification")
 export class NotificationController {
   constructor(private notificationService: NotificationService) {}
