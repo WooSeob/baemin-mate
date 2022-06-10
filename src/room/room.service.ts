@@ -725,6 +725,7 @@ export class RoomService extends EventEmitter {
       .leftJoinAndSelect("kickVote.room", "room")
       .leftJoinAndSelect("room.participants", "participants")
       .leftJoinAndSelect("kickVote.targetUser", "targetUser")
+      .leftJoinAndSelect("kickVote.requestUser", "requestUser")
       .leftJoinAndSelect("kickVote.opinions", "voteOpinion")
       .leftJoinAndSelect("voteOpinion.participant", "participant")
       .where("kickVote.id = :id", { id: voteId })
