@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   Injectable,
   Logger,
+  UnauthorizedException,
 } from "@nestjs/common";
 import { AuthService } from "../auth.service";
 import { Request } from "express";
@@ -19,13 +20,13 @@ export class JwtAuthGuard implements CanActivate {
     const token = this.getBearerToken(request);
     if (!token) {
       this.logger.error("토큰이 없습니다.", request.header);
-      return false;
+      throw new UnauthorizedException("인증 토큰이 없습니다.");
     }
 
     const payload = await this.authService.validate(token);
     if (!payload) {
       this.logger.error("페이로드가 없습니다.", request.header);
-      return false;
+      throw new UnauthorizedException("유효하지 않은 토큰입니다.");
     }
 
     Reflect.set(request, "user", payload);
