@@ -36,6 +36,8 @@ import ChatReadIdDto, {
 } from "./dto/response/chat-read-ids.dto";
 import { MatchService } from "../match/match.service";
 import { ChatEventType } from "./const/ChatEventType";
+import { ParticipantEntity } from "../room/entity/participant.entity";
+import ParticipantStateResponse from "../room/dto/response/participant-state.response";
 
 @UsePipes(new ObjectPipe(), new ValidationPipe({ transform: true }))
 @UseInterceptors(LoggingInterceptor)
@@ -86,6 +88,13 @@ export class ChatGateway
       const readIds = await this.chatService.getReadMessageIds(roomId);
       this.broadcastLatestChatReadIds(roomId, readIds);
     });
+
+    roomService.on(
+      RoomEventType.PARTICIPANT_STATE_CHANGED,
+      async (roomId: string, participant: ParticipantEntity) => {
+        this.broadcastChangedParticipantState(roomId, participant);
+      }
+    );
   }
 
   private socketRoomLeave(roomId, userId) {
@@ -176,6 +185,18 @@ export class ChatGateway
     response.roomId = roomId;
     response.messageIds = readIds;
     this.server.to(roomId).emit(RoomEventType.CHAT_READ_ID_UPDATED, response);
+  }
+
+  broadcastChangedParticipantState(
+    roomId: string,
+    participant: ParticipantEntity
+  ) {
+    this.server
+      .to(roomId)
+      .emit(
+        RoomEventType.PARTICIPANT_STATE_CHANGED,
+        ParticipantStateResponse.from(participant)
+      );
   }
 
   @WsEvent("read")

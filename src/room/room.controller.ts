@@ -53,6 +53,7 @@ import {
 } from "./decorators/room.decorator";
 import { VoteResponse } from "./dto/response/vote.response";
 import ChatReadIdDto from "../chat/dto/response/chat-read-ids.dto";
+import ParticipantStateResponse from "./dto/response/participant-state.response";
 
 @ApiHeader({
   name: "Client-Version",
@@ -127,18 +128,20 @@ export class RoomController {
   @OnlyForParticipant()
   @ApiCreatedResponse({
     description: "현재 참여자 정보를 불러옵니다.",
-    type: [RoomUser],
+    type: [ParticipantStateResponse],
   })
   @Get(`/:${ROOM_ID}/participants`)
-  async getParticipants(@Param(ROOM_ID) rid: string): Promise<RoomUser[]> {
+  async getParticipants(
+    @Param(ROOM_ID) rid: string
+  ): Promise<ParticipantStateResponse[]> {
     const room = await this.roomService.findRoomById(rid);
     if (!room) {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
 
-    return room.currentParticipants.map((p) => {
-      return { id: p.user.id, name: p.user.name };
-    });
+    return room.currentParticipants.map((p) =>
+      ParticipantStateResponse.from(p)
+    );
   }
 
   /**

@@ -440,6 +440,12 @@ export class RoomService extends EventEmitter {
 
       await queryRunner.commitTransaction();
       this.checkAllReadyOrCanceled(prevState, room.phase, roomId);
+
+      this.emit(
+        RoomEventType.PARTICIPANT_STATE_CHANGED,
+        roomId,
+        room.getParticipant(userId)
+      );
     } catch (err) {
       await queryRunner.rollbackTransaction();
       throw err;
