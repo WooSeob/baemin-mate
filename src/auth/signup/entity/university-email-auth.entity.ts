@@ -78,7 +78,7 @@ export class UniversityEmailAuthEntity {
   @JoinColumn()
   university: UniversityEntity;
 
-  @Column()
+  @Column({ nullable: true })
   nickname: string;
 
   constructor() {
