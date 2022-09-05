@@ -1,15 +1,14 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsEnum, IsString } from "class-validator";
-import { OAuthProvider } from "../interface/OAuthProvider";
+import { IsEnum, IsObject, IsString, ValidateNested } from "class-validator";
+import { OAuthInfo } from "../interface/OAuthInfo";
+import { Type } from "class-transformer";
 
 export class LoginDto {
-  @ApiProperty({ enum: OAuthProvider })
-  @IsEnum(OAuthProvider)
-  type: OAuthProvider;
-
   @ApiProperty()
-  @IsString()
-  accessToken: string;
+  @IsObject()
+  @ValidateNested()
+  @Type(() => OAuthInfo)
+  oauthInfo: OAuthInfo;
 
   @ApiProperty({ required: false })
   @IsString()
