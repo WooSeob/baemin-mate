@@ -49,9 +49,11 @@ import UserChatMetadataEntity from "./entity/user-chat-metadata.entity";
 import { RoomRole } from "../room/entity/room.entity";
 import ChatReadIdDto from "./dto/response/chat-read-ids.dto";
 import { NotificationService } from "../notification/notification.service";
+import { EventEmitter } from "events";
+import { ChatEventType } from "./const/ChatEventType";
 
 @Injectable()
-export class ChatService {
+export class ChatService extends EventEmitter {
   private readonly logger = new Logger("ChatService");
 
   private _createUserEventData(
@@ -84,14 +86,13 @@ export class ChatService {
   constructor(
     private roomService: RoomService,
     private userService: UserService,
-    @Inject(forwardRef(() => ChatGateway))
-    private chatGateway: ChatGateway,
     @InjectRepository(RoomChatEntity)
     private chatRepository: Repository<RoomChatEntity>,
     @InjectRepository(UserChatMetadataEntity)
     private userChatMetadataRepository: Repository<UserChatMetadataEntity>,
     private notificationService: NotificationService
   ) {
+    super();
     // 입/퇴장 관련
     roomService.on(RoomEventType.USER_ENTER, async (roomId, userId) => {
       const [roomChat, user] = await this._createUserEventData(
@@ -123,6 +124,10 @@ export class ChatService {
         roomId,
         SystemMessageResponse.from(roomChat, UserLeaveResponse.from(user))
       );
+      await this.userChatMetadataRepository.delete({
+        roomId: roomId,
+        userId: userId,
+      });
     });
 
     roomService.on(RoomEventType.USER_KICKED, async (roomId, userId) => {
@@ -338,10 +343,11 @@ export class ChatService {
     await this.userChatMetadataRepository.save(userChatMetadata);
 
     // 전체 read id들 브로드캐스트
-    this.chatGateway.broadcastLatestChatReadIds(
-      roomId,
-      await this.getReadMessageIds(roomId)
-    );
+    this.emit(ChatEventType.READ_IDS_UPDATED, roomId);
+    // this.chatGateway.broadcastLatestChatReadIds(
+    //   roomId,
+    //   await this.getReadMessageIds(roomId)
+    // );
   }
 
   async getReadMessageIds(roomId: string): Promise<ChatReadIdDto[]> {
@@ -542,10 +548,14 @@ export class ChatService {
     message: Message<ChatBody | SystemBody>
   ) {
     this.logger.log({ message: "Chat Broadcast", chatId: message.id });
-    this.chatGateway.broadcastChat(roomId, {
+    this.emit(ChatEventType.BROAD_CAST_RECEIVED, roomId, {
       rid: roomId,
       messages: [message],
     });
+    // this.chatGateway.broadcastChat(roomId, {
+    //   rid: roomId,
+    //   messages: [message],
+    // });
   }
 }
 // interface ChatResponse {

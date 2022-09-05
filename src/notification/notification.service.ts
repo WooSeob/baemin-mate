@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { RoomService } from "../room/room.service";
 import { RoomEventType } from "../room/const/RoomEventType";
 import { FcmService } from "../infra/fcm/fcm.service";
@@ -7,6 +12,8 @@ import { Repository } from "typeorm";
 import { UserDeviceTokenEntity } from "./entity/user-device-token.entity";
 import { RoomEntity } from "../room/entity/room.entity";
 import RoomVoteEntity from "../room/entity/room-vote.entity";
+import { NotificationEntity } from "./entity/notification.entity";
+import { NotificationType } from "./const/NotificationType";
 
 @Injectable()
 export class NotificationService {
@@ -14,9 +21,10 @@ export class NotificationService {
     private roomService: RoomService,
     private fcmService: FcmService,
     @InjectRepository(UserDeviceTokenEntity)
-    private tokenRepository: Repository<UserDeviceTokenEntity>
+    private tokenRepository: Repository<UserDeviceTokenEntity>,
+    @InjectRepository(NotificationEntity)
+    private notificationRepository: Repository<NotificationEntity>
   ) {
-
     roomService.on(RoomEventType.ALL_READY, async (roomId: string) => {
       const room = await roomService.findRoomById(roomId);
       return this.toPurchaser(room, {
@@ -27,26 +35,80 @@ export class NotificationService {
 
     roomService.on(RoomEventType.ORDER_FIXED, async (roomId: string) => {
       const room = await roomService.findRoomById(roomId);
-      return this.toParticipants(room, {
+
+      const notificationMsg = {
         title: room.shopName,
         body: "방장이 진행을 확정했습니다!",
-      });
+      };
+
+      const notifications: NotificationEntity[] = room.currentParticipants.map(
+        (p) => {
+          return new NotificationEntity(
+            p.user,
+            NotificationType.RoomEvent,
+            roomId,
+            notificationMsg.title,
+            notificationMsg.body
+          );
+        }
+      );
+
+      await Promise.all([
+        this.toParticipants(room, notificationMsg),
+        this.notificationRepository.save(notifications),
+      ]);
     });
 
     roomService.on(RoomEventType.ORDER_CHECKED, async (roomId: string) => {
       const room = await roomService.findRoomById(roomId);
-      return this.toParticipants(room, {
+
+      const notificationMsg = {
         title: room.shopName,
         body: "주문내역과 금액을 확인해보세요",
-      });
+      };
+
+      const notifications: NotificationEntity[] = room.currentParticipants.map(
+        (p) => {
+          return new NotificationEntity(
+            p.user,
+            NotificationType.RoomEvent,
+            roomId,
+            notificationMsg.title,
+            notificationMsg.body
+          );
+        }
+      );
+
+      await Promise.all([
+        this.toParticipants(room, notificationMsg),
+        this.notificationRepository.save(notifications),
+      ]);
     });
 
     roomService.on(RoomEventType.ORDER_DONE, async (roomId: string) => {
       const room = await roomService.findRoomById(roomId);
-      return this.toParticipants(room, {
+
+      const notificationMsg = {
         title: room.shopName,
         body: "방장이 주문을 완료했습니다!",
-      });
+      };
+
+      const notifications: NotificationEntity[] = room.currentParticipants.map(
+        (p) => {
+          return new NotificationEntity(
+            p.user,
+            NotificationType.RoomEvent,
+            roomId,
+            notificationMsg.title,
+            notificationMsg.body
+          );
+        }
+      );
+
+      await Promise.all([
+        this.toParticipants(room, notificationMsg),
+        this.notificationRepository.save(notifications),
+      ]);
     });
 
     roomService.on(RoomEventType.ORDER_CANCELED, async (roomId: string) => {
@@ -98,7 +160,37 @@ export class NotificationService {
     );
   }
 
-  async publishChatNotification(roomId: string, userId: string, message: string) {
+  async findNotificationsByUserId(userId: string) {
+    return this.notificationRepository.find({ userId: userId });
+  }
+
+  async findNotificationById(notificationId: number) {
+    return this.notificationRepository.findOne(notificationId);
+  }
+
+  // TODO Guard로 접근제어 하기
+  async setReadFlagOnNotification(notificationId: number, userId: string) {
+    const notification = await this.findNotificationById(notificationId);
+
+    if (!notification) {
+      throw new NotFoundException("존재하지 않는 알림입니다.");
+    }
+
+    if (notification.userId != userId) {
+      throw new ForbiddenException(
+        "다른 유저의 알림 상태를 수정할 수 없습니다."
+      );
+    }
+
+    notification.isRead = true;
+    await this.notificationRepository.save(notification);
+  }
+
+  async publishChatNotification(
+    roomId: string,
+    userId: string,
+    message: string
+  ) {
     const room = await this.roomService.findRoomById(roomId);
     return this.toParticipants(room, {
       title: room.shopName,
@@ -134,7 +226,9 @@ export class NotificationService {
     return this.tokenRepository
       .createQueryBuilder("token")
       .leftJoinAndSelect("token.user", "user")
-      .where("userId IN (:id)", { id: room.participants.map((p) => p.userId) })
+      .where("userId IN (:id)", {
+        id: room.currentParticipants.map((p) => p.userId),
+      })
       .andWhere("enabled = :state", { state: true })
       .andWhere("user.deletedAt IS NULL")
       .getMany();

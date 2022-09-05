@@ -6,6 +6,7 @@ import {
   OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
+  WebSocketServer,
 } from "@nestjs/websockets";
 import { RoomService } from "../room/room.service";
 import { Server, Socket } from "socket.io";
@@ -33,6 +34,10 @@ import ChatReadDto from "./dto/request/chat-read.dto";
 import ChatReadIdDto, {
   ChatReadsIdDto,
 } from "./dto/response/chat-read-ids.dto";
+import { MatchService } from "../match/match.service";
+import { ChatEventType } from "./const/ChatEventType";
+import { ParticipantEntity } from "../room/entity/participant.entity";
+import ParticipantStateResponse from "../room/dto/response/participant-state.response";
 
 @UsePipes(new ObjectPipe(), new ValidationPipe({ transform: true }))
 @UseInterceptors(LoggingInterceptor)
@@ -46,23 +51,18 @@ export class ChatGateway
 
   private logger = new Logger("ChatGateway");
 
-  private _server: Server;
-
-  get server() {
-    return this._server;
-  }
+  server: Server;
 
   constructor(
     private roomService: RoomService,
     private authService: AuthService,
     private userService: UserService,
-    @Inject(forwardRef(() => ChatService))
     private chatService: ChatService
   ) {
     roomService.on(RoomEventType.USER_ENTER, (roomId, userId) => {
       const socketIds = this._userIdToSocketId.get(userId);
       socketIds.forEach(async (sid) => {
-        const sockets = await this._server.in(sid).fetchSockets();
+        const sockets = await this.server.in(sid).fetchSockets();
         sockets.forEach((socket) => {
           socket.join(roomId);
         });
@@ -76,12 +76,31 @@ export class ChatGateway
     roomService.on(RoomEventType.USER_KICKED, (roomId, userId) => {
       this.socketRoomLeave(roomId, userId);
     });
+
+    chatService.on(
+      ChatEventType.BROAD_CAST_RECEIVED,
+      (roomId: string, message) => {
+        this.broadcastChat(roomId, message);
+      }
+    );
+
+    chatService.on(ChatEventType.READ_IDS_UPDATED, async (roomId: string) => {
+      const readIds = await this.chatService.getReadMessageIds(roomId);
+      this.broadcastLatestChatReadIds(roomId, readIds);
+    });
+
+    roomService.on(
+      RoomEventType.PARTICIPANT_STATE_CHANGED,
+      async (roomId: string, participant: ParticipantEntity) => {
+        this.broadcastChangedParticipantState(roomId, participant);
+      }
+    );
   }
 
   private socketRoomLeave(roomId, userId) {
     const socketIds = this._userIdToSocketId.get(userId);
     socketIds.forEach(async (sid) => {
-      const sockets = await this._server.in(sid).fetchSockets();
+      const sockets = await this.server.in(sid).fetchSockets();
       sockets.forEach((socket) => {
         socket.leave(roomId);
       });
@@ -89,7 +108,7 @@ export class ChatGateway
   }
 
   afterInit(server: Server) {
-    this._server = server;
+    this.server = server;
     server.use(async (socket, next) => {
       let token = socket.handshake.auth.token;
       if (token.split(" ").length > 1) {
@@ -166,6 +185,18 @@ export class ChatGateway
     response.roomId = roomId;
     response.messageIds = readIds;
     this.server.to(roomId).emit(RoomEventType.CHAT_READ_ID_UPDATED, response);
+  }
+
+  broadcastChangedParticipantState(
+    roomId: string,
+    participant: ParticipantEntity
+  ) {
+    this.server
+      .to(roomId)
+      .emit(
+        RoomEventType.PARTICIPANT_STATE_CHANGED,
+        ParticipantStateResponse.from(participant)
+      );
   }
 
   @WsEvent("read")

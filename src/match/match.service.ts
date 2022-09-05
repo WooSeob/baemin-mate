@@ -21,8 +21,11 @@ enum MatchNamespace {
 @Injectable()
 export class MatchService {
   private readonly logger = new Logger("MatchService");
-  public server: Server = null;
+  _server: Server = null;
 
+  get server() {
+    return this._server;
+  }
   constructor(
     private connection: Connection,
     private roomService: RoomService,
@@ -204,6 +207,7 @@ export class MatchService {
       .leftJoinAndSelect("match.room", "room")
       .leftJoinAndSelect("room.purchaser", "purchaser")
       .leftJoinAndSelect("room.participants", "participant")
+      .leftJoinAndSelect("participant.menus", "menus")
       .where({ id: id })
       .getOne();
   }

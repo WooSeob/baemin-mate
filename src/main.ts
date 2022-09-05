@@ -13,6 +13,7 @@ import { AllExceptionsFilter } from "./common/exceptionfilter/all-exceptions.fil
 import { WINSTON_MODULE_NEST_PROVIDER } from "nest-winston";
 import { LoggingInterceptor } from "./common/interceptors/logging.interceptor";
 import { AuthenticatedSocketIoAdapter } from "./common/adaptor/AuthenticatedSocketIoAdapter";
+import { VersionCheckInterceptor } from "./common/interceptors/version-check.interceptor";
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -20,7 +21,7 @@ async function bootstrap() {
   });
   const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
   app.useLogger(logger);
-  app.useWebSocketAdapter(new AuthenticatedSocketIoAdapter(app));
+  // app.useWebSocketAdapter(new AuthenticatedSocketIoAdapter(app));
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -32,6 +33,7 @@ async function bootstrap() {
 
   const { httpAdapter } = app.get(HttpAdapterHost);
   app.useGlobalFilters(new AllExceptionsFilter(httpAdapter));
+  app.useGlobalInterceptors(app.get(VersionCheckInterceptor));
   app.useGlobalInterceptors(app.get(LoggingInterceptor));
 
   const config = new DocumentBuilder()

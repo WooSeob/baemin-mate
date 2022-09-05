@@ -23,7 +23,12 @@ import RoomUserView from "./dto/response/user-view.dto";
 import { UserService } from "../user/user.service";
 import RoomView from "./dto/response/room-view.dto";
 import { Request } from "express";
-import { ApiBody, ApiConsumes, ApiCreatedResponse } from "@nestjs/swagger";
+import {
+  ApiBody,
+  ApiConsumes,
+  ApiCreatedResponse,
+  ApiHeader,
+} from "@nestjs/swagger";
 import { CreateRoomDto } from "./dto/request/create-room.dto";
 import { UserEntity } from "../user/entity/user.entity";
 import { UserMenus } from "./dto/response/menus.response.dto";
@@ -48,7 +53,12 @@ import {
 } from "./decorators/room.decorator";
 import { VoteResponse } from "./dto/response/vote.response";
 import ChatReadIdDto from "../chat/dto/response/chat-read-ids.dto";
+import ParticipantStateResponse from "./dto/response/participant-state.response";
 
+@ApiHeader({
+  name: "Client-Version",
+  description: "클라이언트 버전",
+})
 @Controller("room")
 export class RoomController {
   private readonly logger = new Logger("RoomController");
@@ -118,18 +128,40 @@ export class RoomController {
   @OnlyForParticipant()
   @ApiCreatedResponse({
     description: "현재 참여자 정보를 불러옵니다.",
-    type: [RoomUser],
+    type: [ParticipantStateResponse],
   })
   @Get(`/:${ROOM_ID}/participants`)
-  async getParticipants(@Param(ROOM_ID) rid: string): Promise<RoomUser[]> {
+  async getParticipants(
+    @Param(ROOM_ID) rid: string
+  ): Promise<ParticipantStateResponse[]> {
     const room = await this.roomService.findRoomById(rid);
     if (!room) {
       throw new HttpException("room not found", HttpStatus.NOT_FOUND);
     }
 
-    return room.currentParticipants.map((p) => {
-      return { id: p.user.id, name: p.user.name };
-    });
+    return room.currentParticipants.map((p) =>
+      ParticipantStateResponse.from(p)
+    );
+  }
+
+  /**
+   * rid 에 해당하는 Room의 각 유저별 최신 읽은 메시지 id들을 반환합니다.
+   * */
+  @OnlyForParticipantAndBanned()
+  @ApiCreatedResponse({
+    description: "각 유저별 최신 읽은 메시지 id들을 반환합니다.",
+  })
+  @Get(`/:${ROOM_ID}/chat/read`)
+  async getChatReadIds(
+    @Req() request: Request,
+    @Param(ROOM_ID) rid: string
+  ): Promise<ChatReadIdDto[]> {
+    const room = await this.roomService.findRoomById(rid);
+    if (!room) {
+      throw new HttpException("room not found", HttpStatus.NOT_FOUND);
+    }
+
+    return this.chatService.getReadMessageIds(room.id);
   }
 
   /**
@@ -153,26 +185,6 @@ export class RoomController {
     }
 
     return this.chatService.getAllMessagesResponse(room.id, user.id);
-  }
-
-  /**
-   * rid 에 해당하는 Room의 각 유저별 최신 읽은 메시지 id들을 반환합니다.
-   * */
-  @OnlyForParticipantAndBanned()
-  @ApiCreatedResponse({
-    description: "각 유저별 최신 읽은 메시지 id들을 반환합니다.",
-  })
-  @Get(`/:${ROOM_ID}/chat/read`)
-  async getChatReadIds(
-    @Req() request: Request,
-    @Param(ROOM_ID) rid: string
-  ): Promise<ChatReadIdDto[]> {
-    const room = await this.roomService.findRoomById(rid);
-    if (!room) {
-      throw new HttpException("room not found", HttpStatus.NOT_FOUND);
-    }
-
-    return this.chatService.getReadMessageIds(room.id);
   }
 
   /**

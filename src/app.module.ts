@@ -15,6 +15,7 @@ import {
 } from "nest-winston";
 import winston from "winston";
 import DailyRotateFile from "winston-daily-rotate-file";
+import { VersionCheckInterceptor } from "./common/interceptors/version-check.interceptor";
 
 @Module({
   imports: [
@@ -55,6 +56,6 @@ import DailyRotateFile from "winston-daily-rotate-file";
     }),
   ],
   controllers: [],
-  providers: [],
+  providers: [VersionCheckInterceptor],
 })
 export class AppModule {}

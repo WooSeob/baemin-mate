@@ -8,6 +8,8 @@ export enum RoomEventType {
   USER_KICKED = "userKicked",
   USER_KICKED_BY_VOTE = "userKickedByVote",
 
+  PARTICIPANT_STATE_CHANGED = "participantStateChanged", //participant 정보 (isReady, role 등이 변경되었을 때)
+
   ALL_READY = "allReady",
   ALL_READY_CANCELED = "allReadyCanceled",
   ORDER_FIXED = "orderFix",

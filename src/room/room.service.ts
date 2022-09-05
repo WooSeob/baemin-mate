@@ -440,6 +440,12 @@ export class RoomService extends EventEmitter {
 
       await queryRunner.commitTransaction();
       this.checkAllReadyOrCanceled(prevState, room.phase, roomId);
+
+      this.emit(
+        RoomEventType.PARTICIPANT_STATE_CHANGED,
+        roomId,
+        room.getParticipant(userId)
+      );
     } catch (err) {
       await queryRunner.rollbackTransaction();
       throw err;
@@ -725,6 +731,7 @@ export class RoomService extends EventEmitter {
       .leftJoinAndSelect("kickVote.room", "room")
       .leftJoinAndSelect("room.participants", "participants")
       .leftJoinAndSelect("kickVote.targetUser", "targetUser")
+      .leftJoinAndSelect("kickVote.requestUser", "requestUser")
       .leftJoinAndSelect("kickVote.opinions", "voteOpinion")
       .leftJoinAndSelect("voteOpinion.participant", "participant")
       .where("kickVote.id = :id", { id: voteId })

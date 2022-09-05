@@ -45,7 +45,7 @@ export class AuthService {
     private userService: UserService, //@Inject(forwardRef(() => UserService))
     private jwtService: JwtService
   ) {
-    this._mailTransporter = createTransport(EmailAuthConfig.account);
+    this._mailTransporter = createTransport(EmailAuthConfig.getAccount());
   }
 
   async validate(token: string): Promise<AccessTokenPayload> {
