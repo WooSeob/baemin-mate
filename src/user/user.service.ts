@@ -6,6 +6,7 @@ import { UserOauthEntity } from "./entity/user-oauth.entity";
 import { OAuthProvider } from "../auth/interface/OAuthProvider";
 import EventEmitter from "events";
 import { UserEvent } from "./const/UserEvent";
+import { Builder } from "builder-pattern";
 
 @Injectable()
 export class UserService extends EventEmitter {
@@ -24,22 +25,24 @@ export class UserService extends EventEmitter {
     return super.emit(eventName, ...args);
   }
 
-  async createUserByNaver(
+  async createUser(
     id: string,
     name: string,
-    univId: number
+    univId: number,
+    oauthProvider: OAuthProvider
   ): Promise<UserEntity> {
-    const newUser = new UserEntity();
-    newUser.name = name;
-    newUser.verified = true;
-    newUser.universityId = univId;
-    const created = await this.userRepository.save(newUser);
+    const created = await this.userRepository.save(
+      Builder(UserEntity).name(name).verified(true).universityId(univId).build()
+    );
 
-    const oauthUser = new UserOauthEntity();
-    oauthUser.id = id;
-    oauthUser.provider = OAuthProvider.NAVER;
-    oauthUser.user = created;
-    await this.oauthRepository.save(oauthUser);
+    await this.oauthRepository.save(
+      Builder(UserOauthEntity)
+        .id(id)
+        .provider(oauthProvider)
+        .user(created)
+        .build()
+    );
+
     this.emit(UserEvent.CREATED, created);
     return created;
   }
