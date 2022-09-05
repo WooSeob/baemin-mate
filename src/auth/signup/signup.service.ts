@@ -41,7 +41,7 @@ export class SignupService {
       state: SignUpState.TRIAL_OVER,
     });
 
-    if (authEntities) {
+    if (authEntities.length > 0) {
       throw new BadRequestException(
         "일일 인증 시도 횟수를 초과했습니다. 다음에 시도해 주세요."
       );
