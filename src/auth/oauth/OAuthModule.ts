@@ -11,7 +11,7 @@ import { AppleOAuthConfig } from "../../../config";
       secret: AppleOAuthConfig.JwtConfig.getSecret(),
       signOptions: {
         expiresIn: AppleOAuthConfig.JwtConfig.defaultExpIn,
-        algorithm: "ES256",
+        algorithm: "RS256",
         keyid: AppleOAuthConfig.JwtConfig.keyid,
         issuer: AppleOAuthConfig.TEAM_ID,
         audience: AppleOAuthConfig.DOMAIN,
