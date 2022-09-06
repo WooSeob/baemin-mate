@@ -53,7 +53,9 @@ export class AppleOAuthProviderService implements OAuthProviderService {
   private async getClaimFromIdentityToken(
     payload: AppleAuthorizationCredential
   ): Promise<AppleIdentityTokenClaim> {
-    const token = this.jwtService.decode(payload.identityToken);
+    const token = this.jwtService.decode(payload.identityToken, {
+      complete: true,
+    });
     const kid = token["header"]["kid"];
 
     const signingKey = await new JwksClient({
