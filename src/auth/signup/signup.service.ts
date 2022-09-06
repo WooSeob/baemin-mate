@@ -149,7 +149,7 @@ export class SignupService {
       );
     }
 
-    if (entity.expiresIn > Date.now()) {
+    if (entity.expiresIn < Date.now()) {
       throw new BadRequestException("만료된 인증입니다.");
     }
 
