@@ -16,6 +16,8 @@ import { v4 as uuid } from "uuid";
 import { CreateSessionWithEmailDTO } from "./dto/CreateSessionWithEmailDTO";
 import { Builder } from "builder-pattern";
 import SubmitUserInfoRequestV1 from "./dto/request/SubmitUserInfoRequestV1";
+import { UserEntity } from "../../user/entity/user.entity";
+import { UserOauthEntity } from "../../user/entity/user-oauth.entity";
 
 @Injectable()
 export class SignupService {
@@ -127,6 +129,23 @@ export class SignupService {
 
       authEntity.nickname = userInfo.nickname;
       authEntity.state = SignUpState.USER_INFO_SUBMITTED;
+
+      //TODO TypeORM의 nested transaction에 대한 정보가 아직 부족해서.. user repo까지 해당 메소드에서 처리..
+      const user = await queryRunner.manager.save<UserEntity>(
+        Builder(UserEntity)
+          .name(authEntity.nickname)
+          .verified(true)
+          .universityId(authEntity.universityId)
+          .build()
+      );
+
+      await queryRunner.manager.save<UserOauthEntity>(
+        Builder(UserOauthEntity)
+          .id(authEntity.oauthId)
+          .provider(authEntity.oauthProvider)
+          .user(user)
+          .build()
+      );
 
       await queryRunner.manager.save(authEntity);
       await queryRunner.commitTransaction();
