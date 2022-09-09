@@ -7,6 +7,7 @@ import { JwtService } from "@nestjs/jwt";
 
 import { JwksClient } from "jwks-rsa";
 import { AppleOAuthConfig } from "../../../../../config";
+import { Algorithm } from "jsonwebtoken";
 
 @Injectable()
 export class AppleOAuthProviderService implements OAuthProviderService {
@@ -66,6 +67,7 @@ export class AppleOAuthProviderService implements OAuthProviderService {
       payload.identityToken,
       {
         publicKey: signingKey.getPublicKey(),
+        algorithms: [signingKey.alg as Algorithm],
       }
     );
   }
