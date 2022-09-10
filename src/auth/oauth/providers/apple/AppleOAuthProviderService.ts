@@ -3,11 +3,10 @@ import { OAuthProviderService } from "../../interface/OAuthProviderService";
 import { OAuthProvider } from "../../../interface/OAuthProvider";
 import { OAuthInfo } from "../../../interface/OAuthInfo";
 import { plainToClass } from "class-transformer";
-import { JwtService } from "@nestjs/jwt";
+import * as jwt from "jsonwebtoken";
 
 import { JwksClient } from "jwks-rsa";
 import { AppleOAuthConfig } from "../../../../../config";
-import { Algorithm } from "jsonwebtoken";
 
 @Injectable()
 export class AppleOAuthProviderService implements OAuthProviderService {
@@ -16,7 +15,7 @@ export class AppleOAuthProviderService implements OAuthProviderService {
   private RETRIEVE_PUBLIC_KEY_URL = "https://appleid.apple.com/auth/keys";
   private RETRIEVE_AUTH_TOKEN_URL = "https://appleid.apple.com/auth/token";
 
-  constructor(private jwtService: JwtService) {}
+  constructor() {}
 
   getProvider(): OAuthProvider {
     return OAuthProvider.APPLE;
@@ -51,10 +50,10 @@ export class AppleOAuthProviderService implements OAuthProviderService {
     return true;
   }
 
-  private async getClaimFromIdentityToken(
+  public async getClaimFromIdentityToken(
     payload: AppleAuthorizationCredential
   ): Promise<AppleIdentityTokenClaim> {
-    const token = this.jwtService.decode(payload.identityToken, {
+    const token = jwt.decode(payload.identityToken, {
       complete: true,
     });
     const kid = token["header"]["kid"];
@@ -63,13 +62,10 @@ export class AppleOAuthProviderService implements OAuthProviderService {
       jwksUri: this.RETRIEVE_PUBLIC_KEY_URL,
     }).getSigningKey(kid);
 
-    return this.jwtService.verify<AppleIdentityTokenClaim>(
+    return jwt.verify(
       payload.identityToken,
-      {
-        publicKey: signingKey.getPublicKey(),
-        algorithms: [signingKey.alg as Algorithm],
-      }
-    );
+      signingKey.getPublicKey()
+    ) as AppleIdentityTokenClaim;
   }
 }
 
@@ -80,7 +76,7 @@ class AppleAuthTokenRequest {
   code: string;
 }
 
-class AppleAuthorizationCredential {
+export class AppleAuthorizationCredential {
   identityToken: string;
   authorizationCode: string;
   state: string;
