@@ -95,7 +95,7 @@ export class UniversityEmailAuthEntity {
     this.tryCount++;
     this.updatedAt = Date.now();
 
-    if (this.tryCount > 5) {
+    if (this.tryCount > 4) {
       this.state = SignUpState.TRIAL_OVER;
     }
   }
