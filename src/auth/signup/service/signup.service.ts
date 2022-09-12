@@ -4,9 +4,7 @@ import {
   SignUpState,
   UniversityEmailAuthEntity,
 } from "../entity/university-email-auth.entity";
-import { randomInt } from "crypto";
 import { InjectRepository } from "@nestjs/typeorm";
-import { v4 as uuid } from "uuid";
 import { CreateSessionWithEmailDTO } from "../dto/CreateSessionWithEmailDTO";
 import { Builder } from "builder-pattern";
 import SubmitUserInfoRequestV1 from "../dto/request/SubmitUserInfoRequestV1";
@@ -19,6 +17,7 @@ import {
   VerifyTrialOverException,
 } from "../../exceptions/auth.exception";
 import { MailService } from "../../../infra/mail/mail.service";
+import { GenerationService } from "./generation.service";
 
 @Injectable()
 export class SignupService {
@@ -30,7 +29,8 @@ export class SignupService {
     public connection: Connection,
     @InjectRepository(UniversityEmailAuthEntity)
     private emailAuthRepository: Repository<UniversityEmailAuthEntity>,
-    private mailService: MailService
+    private mailService: MailService,
+    private generationService: GenerationService
   ) {}
 
   async createEmailAuthSession(
@@ -51,7 +51,7 @@ export class SignupService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
     try {
-      const authCode = SignupService._generateAuthCode();
+      const authCode = this.generationService.createAuthCode();
 
       const emailAuth = Builder(UniversityEmailAuthEntity)
         .oauthId(createSessionDto.oauthIdentifier)
@@ -59,7 +59,7 @@ export class SignupService {
         .universityId(createSessionDto.univId)
         .email(createSessionDto.email)
         .authCode(authCode)
-        .sessionId(uuid())
+        .sessionId(this.generationService.createSessionKey())
         .expiresIn(Date.now() + SignupService.CODE_VERIFY_TIMEOUT)
         .build();
 
@@ -208,9 +208,5 @@ export class SignupService {
 
       throw new InvalidStateException();
     }
-  }
-
-  private static _generateAuthCode(): string {
-    return String(randomInt(10000, 100000));
   }
 }
