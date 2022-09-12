@@ -1,37 +1,37 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { Connection, QueryRunner, Repository } from "typeorm";
 import {
   SignUpState,
   UniversityEmailAuthEntity,
 } from "./entity/university-email-auth.entity";
 import { randomInt } from "crypto";
-import { EmailAuthConfig } from "../../../config";
 import { InjectRepository } from "@nestjs/typeorm";
-import { createTransport, Transporter } from "nodemailer";
 import { v4 as uuid } from "uuid";
 import { CreateSessionWithEmailDTO } from "./dto/CreateSessionWithEmailDTO";
 import { Builder } from "builder-pattern";
 import SubmitUserInfoRequestV1 from "./dto/request/SubmitUserInfoRequestV1";
 import { UserEntity } from "../../user/entity/user.entity";
 import { UserOauthEntity } from "../../user/entity/user-oauth.entity";
+import {
+  DuplicatedEmailException,
+  InvalidStateException,
+  SessionExpiredException,
+  VerifyTrialOverException,
+} from "../exceptions/auth.exception";
+import { MailService } from "../../infra/mail/mail.service";
 
 @Injectable()
 export class SignupService {
-  private readonly _mailTransporter: Transporter;
+  private readonly logger = new Logger("AuthService");
 
   private static CODE_VERIFY_TIMEOUT = 1000 * 60 * 5;
 
   constructor(
     public connection: Connection,
     @InjectRepository(UniversityEmailAuthEntity)
-    private emailAuthRepository: Repository<UniversityEmailAuthEntity>
-  ) {
-    this._mailTransporter = createTransport(EmailAuthConfig.getAccount());
-  }
+    private emailAuthRepository: Repository<UniversityEmailAuthEntity>,
+    private mailService: MailService
+  ) {}
 
   async createEmailAuthSession(
     createSessionDto: CreateSessionWithEmailDTO
@@ -44,9 +44,7 @@ export class SignupService {
     });
 
     if (authEntities.length > 0) {
-      throw new BadRequestException(
-        "일일 인증 시도 횟수를 초과했습니다. 다음에 시도해 주세요."
-      );
+      throw new VerifyTrialOverException();
     }
 
     const queryRunner: QueryRunner = this.connection.createQueryRunner();
@@ -65,8 +63,9 @@ export class SignupService {
         .expiresIn(Date.now() + SignupService.CODE_VERIFY_TIMEOUT)
         .build();
 
-      await this._mailTransporter.sendMail(
-        SignupService._createEmailMessage(createSessionDto.email, authCode)
+      await this.mailService.sendSignupVerifyEmail(
+        createSessionDto.email,
+        authCode
       );
 
       await queryRunner.manager.save(emailAuth);
@@ -86,8 +85,9 @@ export class SignupService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
+    let authEntity: UniversityEmailAuthEntity;
     try {
-      const authEntity = await queryRunner.manager.findOne(
+      authEntity = await queryRunner.manager.findOne(
         UniversityEmailAuthEntity,
         {
           sessionId: sessionId,
@@ -104,6 +104,10 @@ export class SignupService {
       throw err;
     } finally {
       await queryRunner.release();
+    }
+
+    if (authEntity) {
+      authEntity.checkPassed();
     }
   }
 
@@ -125,6 +129,18 @@ export class SignupService {
 
       this.preValidate(authEntity, sessionId, SignUpState.VERIFIED);
 
+      const existingSubmittedEmailAuths = await queryRunner.manager.find(
+        UniversityEmailAuthEntity,
+        {
+          email: authEntity.email,
+          state: SignUpState.USER_INFO_SUBMITTED,
+        }
+      );
+
+      this.checkDuplicateEmailExist(
+        existingSubmittedEmailAuths,
+        authEntity.email
+      );
       //TODO 해당 학교 email로 현재 활성 유저 존재하는지 검증
 
       authEntity.nickname = userInfo.nickname;
@@ -157,6 +173,15 @@ export class SignupService {
     }
   }
 
+  private checkDuplicateEmailExist(
+    emailAuths: UniversityEmailAuthEntity[],
+    email: string
+  ) {
+    if (emailAuths.length > 0) {
+      throw new DuplicatedEmailException(email);
+    }
+  }
+
   private preValidate(
     entity: UniversityEmailAuthEntity,
     sessionId: string,
@@ -169,31 +194,23 @@ export class SignupService {
     }
 
     if (entity.expiresIn < Date.now()) {
-      throw new BadRequestException("만료된 인증입니다.");
+      throw new SessionExpiredException();
     }
 
-    if (entity.state != requiredState) {
-      throw new BadRequestException(
-        `잘못된 작업입니다. current state: ${entity.state}`
+    if (entity.state !== requiredState) {
+      this.logger.warn(
+        `잘못된 작업입니다. authEntity: ${entity} requiredState: ${requiredState}`
       );
+
+      if (entity.state === SignUpState.TRIAL_OVER) {
+        throw new VerifyTrialOverException();
+      }
+
+      throw new InvalidStateException();
     }
   }
 
   private static _generateAuthCode(): string {
     return String(randomInt(10000, 100000));
-  }
-
-  private static _createEmailMessage(to: string, authCode: string) {
-    return {
-      // 보내는 곳의 이름과, 메일 주소를 입력
-      from: EmailAuthConfig.content.from,
-      // 받는 곳의 메일 주소를 입력
-      to: to,
-      // 보내는 메일의 제목을 입력
-      subject: EmailAuthConfig.content.subject,
-      // 보내는 메일의 내용을 입력
-      text: authCode,
-      html: `<h1>${authCode}</h1>`,
-    };
   }
 }

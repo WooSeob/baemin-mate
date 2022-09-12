@@ -3,7 +3,6 @@ import {
   Column,
   ManyToOne,
   JoinColumn,
-  PrimaryColumn,
   ValueTransformer,
   CreateDateColumn,
   PrimaryGeneratedColumn,
@@ -11,7 +10,7 @@ import {
 import UniversityEntity from "../../../university/entity/university.entity";
 import { BigIntTransformer } from "../../../common/BigIntTransformer";
 import { OAuthProvider } from "../../interface/OAuthProvider";
-import { BadRequestException } from "@nestjs/common";
+import { WrongVerifyCodeException } from "../../exceptions/auth.exception";
 
 export const StringBigIntTransformer: ValueTransformer = {
   to: (entityValue: number) => entityValue,
@@ -87,19 +86,23 @@ export class UniversityEmailAuthEntity {
   }
 
   try(authCode: string) {
-    if (this.tryCount > 5) {
-      throw new BadRequestException(
-        "시도횟수를 초과했습니다. 다음에 시도해 주세요."
-      );
-    }
-
     if (this.authCode === authCode) {
       this.state = SignUpState.VERIFIED;
-      this.expiresIn = Date.now() + 1000 * 60 * 15;
-    } else {
-      this.tryCount++;
+      // 다음단계(닉네임 제출) 세션 유지시간은 30분
+      this.expiresIn = Date.now() + 1000 * 60 * 30;
     }
 
+    this.tryCount++;
     this.updatedAt = Date.now();
+
+    if (this.tryCount > 5) {
+      this.state = SignUpState.TRIAL_OVER;
+    }
+  }
+
+  checkPassed() {
+    if (this.state !== SignUpState.VERIFIED) {
+      throw new WrongVerifyCodeException(this.tryCount);
+    }
   }
 }
