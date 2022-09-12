@@ -3,22 +3,22 @@ import { Connection, QueryRunner, Repository } from "typeorm";
 import {
   SignUpState,
   UniversityEmailAuthEntity,
-} from "./entity/university-email-auth.entity";
+} from "../entity/university-email-auth.entity";
 import { randomInt } from "crypto";
 import { InjectRepository } from "@nestjs/typeorm";
 import { v4 as uuid } from "uuid";
-import { CreateSessionWithEmailDTO } from "./dto/CreateSessionWithEmailDTO";
+import { CreateSessionWithEmailDTO } from "../dto/CreateSessionWithEmailDTO";
 import { Builder } from "builder-pattern";
-import SubmitUserInfoRequestV1 from "./dto/request/SubmitUserInfoRequestV1";
-import { UserEntity } from "../../user/entity/user.entity";
-import { UserOauthEntity } from "../../user/entity/user-oauth.entity";
+import SubmitUserInfoRequestV1 from "../dto/request/SubmitUserInfoRequestV1";
+import { UserEntity } from "../../../user/entity/user.entity";
+import { UserOauthEntity } from "../../../user/entity/user-oauth.entity";
 import {
   DuplicatedEmailException,
   InvalidStateException,
   SessionExpiredException,
   VerifyTrialOverException,
-} from "../exceptions/auth.exception";
-import { MailService } from "../../infra/mail/mail.service";
+} from "../../exceptions/auth.exception";
+import { MailService } from "../../../infra/mail/mail.service";
 
 @Injectable()
 export class SignupService {

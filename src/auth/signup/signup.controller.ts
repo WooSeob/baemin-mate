@@ -8,7 +8,7 @@ import {
 import CreateSignupSessionRequestV1 from "./dto/request/CreateSignupSessionRequestV1";
 import { CreateSignupSessionResponseV1 } from "./dto/response/CreateSignupSessionResponseV1";
 import { ApiHeader } from "@nestjs/swagger";
-import { SignupService } from "./signup.service";
+import { SignupService } from "./service/signup.service";
 import VerifyCodeRequestV1 from "./dto/request/VerifyCodeRequestV1";
 import { VerifyCodeResponseV1 } from "./dto/response/VerifyCodeResponseV1";
 import SubmitUserInfoRequestV1 from "./dto/request/SubmitUserInfoRequestV1";
