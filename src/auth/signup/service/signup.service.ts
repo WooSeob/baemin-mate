@@ -33,6 +33,11 @@ export class SignupService {
     private generationService: GenerationService
   ) {}
 
+  async clear() {
+    await Promise.all([this.emailAuthRepository.clear()]);
+    this.logger.warn("UniversityEmailAuth Repository cleared");
+  }
+
   async createEmailAuthSession(
     createSessionDto: CreateSessionWithEmailDTO
   ): Promise<UniversityEmailAuthEntity> {
@@ -109,6 +114,8 @@ export class SignupService {
     if (authEntity) {
       authEntity.checkPassed();
     }
+
+    return authEntity;
   }
 
   async createUserWithInfo(
@@ -165,6 +172,7 @@ export class SignupService {
 
       await queryRunner.manager.save(authEntity);
       await queryRunner.commitTransaction();
+      return authEntity;
     } catch (err) {
       await queryRunner.rollbackTransaction();
       throw err;
