@@ -80,6 +80,9 @@ export class UniversityEmailAuthEntity {
   @Column({ nullable: true })
   nickname: string;
 
+  @Column({ nullable: true })
+  userId: string;
+
   constructor() {
     this.updatedAt = Date.now();
     this.tryCount = 0;

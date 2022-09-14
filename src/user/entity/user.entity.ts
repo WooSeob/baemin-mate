@@ -67,6 +67,10 @@ export class UserEntity {
     this.name = "";
     this.deletedAt = Date.now();
   }
+
+  isDeleted(): boolean {
+    return this.deletedAt !== null;
+  }
 }
 
 export class UserBuilder {

@@ -43,12 +43,15 @@ export class SignupService {
   ): Promise<UniversityEmailAuthEntity> {
     //TODO + 탈퇴후 재가입 처리
     //TODO + 재발급 요청 횟수 제한, 동시 요청 처리
-    const authEntities = await this.emailAuthRepository.find({
-      email: createSessionDto.email,
-      state: SignUpState.TRIAL_OVER,
-    });
+    const ONE_DAY = 1000 * 60 * 60 * 24;
+    const trialOverSessions = (
+      await this.emailAuthRepository.find({
+        email: createSessionDto.email,
+        state: SignUpState.TRIAL_OVER,
+      })
+    ).filter((e) => e.createdAt + ONE_DAY < Date.now());
 
-    if (authEntities.length > 0) {
+    if (trialOverSessions.length > 0) {
       throw new VerifyTrialOverException();
     }
 
@@ -144,7 +147,8 @@ export class SignupService {
         }
       );
 
-      this.checkDuplicateEmailExist(
+      await this.checkDuplicateEmailExist(
+        queryRunner,
         existingSubmittedEmailAuths,
         authEntity.email
       );
@@ -169,6 +173,7 @@ export class SignupService {
           .user(user)
           .build()
       );
+      authEntity.userId = user.id;
 
       await queryRunner.manager.save(authEntity);
       await queryRunner.commitTransaction();
@@ -181,13 +186,28 @@ export class SignupService {
     }
   }
 
-  private checkDuplicateEmailExist(
+  private async checkDuplicateEmailExist(
+    queryRunner: QueryRunner,
     emailAuths: UniversityEmailAuthEntity[],
     email: string
   ) {
-    if (emailAuths.length > 0) {
-      throw new DuplicatedEmailException(email);
+    if (emailAuths.length == 0) {
+      return;
     }
+
+    const existUsers = await Promise.all(
+      emailAuths.map((authEntity) =>
+        queryRunner.manager.findOne(UserEntity, authEntity.userId)
+      )
+    );
+
+    existUsers
+      .filter((user) => user !== undefined)
+      .forEach((u) => {
+        if (!u.isDeleted()) {
+          throw new DuplicatedEmailException(email);
+        }
+      });
   }
 
   private preValidate(
