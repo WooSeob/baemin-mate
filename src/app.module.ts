@@ -16,7 +16,8 @@ import {
 import winston from "winston";
 import DailyRotateFile from "winston-daily-rotate-file";
 import { VersionCheckInterceptor } from "./common/interceptors/version-check.interceptor";
-import { MailModule } from './infra/mail/mail.module';
+import { MailModule } from "./infra/mail/mail.module";
+import { ReportModule } from "./report/report.module";
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { MailModule } from './infra/mail/mail.module';
       ],
     }),
     MailModule,
+    ReportModule,
   ],
   controllers: [],
   providers: [VersionCheckInterceptor],
