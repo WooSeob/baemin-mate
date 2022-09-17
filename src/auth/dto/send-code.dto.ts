@@ -1,7 +1,8 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsNumber, IsString } from "class-validator";
+import { IsNumber, IsString, ValidateNested } from "class-validator";
+import { OAuthInfo } from "../interface/OAuthInfo";
 
-export class SendCodeDto {
+export default class SendCodeDto {
   @ApiProperty()
   @IsNumber()
   universityId: number;
@@ -11,6 +12,6 @@ export class SendCodeDto {
   email: string;
 
   @ApiProperty()
-  @IsString()
-  oauthAccessToken: string;
+  @ValidateNested()
+  oauthInfo: OAuthInfo;
 }

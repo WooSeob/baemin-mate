@@ -19,12 +19,9 @@ import {
 } from "@nestjs/common";
 import { AuthService } from "./auth.service";
 import { LoginDto } from "./dto/login.dto";
-import { LogoutDto } from "./dto/logout.dto";
 import { Request, Response } from "express";
 import axios, { AxiosResponse } from "axios";
 import { UserEntity } from "../user/entity/user.entity";
-import { SendCodeDto } from "./dto/send-code.dto";
-import { VerifyCodeDto } from "./dto/verify-code.dto";
 import { ApiBearerAuth, ApiCreatedResponse, ApiHeader } from "@nestjs/swagger";
 import { UniversityService } from "../university/university.service";
 import { JwtAuthGuard } from "./guards/JwtAuthGuard";
@@ -33,6 +30,7 @@ import { NotificationService } from "../notification/notification.service";
 import { TokenResponseDto } from "./dto/response/token.response.dto";
 import { UserService } from "../user/user.service";
 import { NaverOAuthConfig } from "../../config";
+import { OAuthService } from "./oauth/o-auth.service";
 
 const CLIENT_ID = NaverOAuthConfig.CLIENT_ID;
 const CALLBACK_URL = encodeURI(NaverOAuthConfig.CALLBACK_URL);
@@ -51,7 +49,8 @@ export class AuthController {
     private userService: UserService,
     private authService: AuthService,
     private universityService: UniversityService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private oauthService: OAuthService
   ) {}
   @Get("/hello")
   async asdf() {
@@ -102,17 +101,18 @@ export class AuthController {
     type: TokenResponseDto,
   })
   async login(@Body() loginDto: LoginDto): Promise<TokenResponseDto> {
-    const userData = await this.authService.getUserdataFromNaver(
-      loginDto.accessToken
+    const identifier = await this.oauthService.getProviderSideIdentifier(
+      loginDto.oauthInfo
     );
 
-    if (!userData) {
+    if (!identifier) {
       throw new UnauthorizedException("잘못된 토큰입니다.");
     }
 
-    this.logger.log(userData);
+    this.logger.log(identifier, loginDto);
+
     if (loginDto.deviceToken) {
-      const user = await this.userService.findUserByOauthId(userData.id);
+      const user = await this.userService.findUserByOauthId(identifier);
       if (!user) {
         throw new NotFoundException(
           "존재하지 않는 회원입니다. 회원가입을 진행해 주세요."
@@ -121,7 +121,7 @@ export class AuthController {
       await this.notificationService.put(user.id, loginDto.deviceToken);
     }
 
-    return this.authService.login(userData);
+    return this.authService.login(identifier);
   }
 
   @Patch("/token")
@@ -143,48 +143,45 @@ export class AuthController {
     throw new NotImplementedException("구현되지 않았습니다.");
   }
 
-  @Post("/email/send")
-  async sendVerifyEmail(
-    @Req() request: Request,
-    @Body() sendCodeDto: SendCodeDto
-  ) {
-    const userdata = await this.authService.getUserdataFromNaver(
-      sendCodeDto.oauthAccessToken
-    );
-    if (!userdata) {
-      throw new HttpException("잘못된 토큰 입니다.", HttpStatus.UNAUTHORIZED);
-    }
+  // @Post("/email/send")
+  // async sendVerifyEmail(
+  //   @Req() request: Request,
+  //   @Body() sendCodeDto: SendCodeDto
+  // ) {
+  //   if (await this.authService.isAuthenticated(sendCodeDto.oauthInfo)) {
+  //     throw new HttpException("잘못된 토큰 입니다.", HttpStatus.UNAUTHORIZED);
+  //   }
+  //
+  //   const univ = await this.universityService.getUniversityById(
+  //     sendCodeDto.universityId
+  //   );
+  //
+  //   if (!univ) {
+  //     throw new NotFoundException("해당 대학을 찾을 수 없습니다.");
+  //   }
+  //
+  //   // @ 포함이면 걸러내기
+  //   if (sendCodeDto.email.split("@").length > 0) {
+  //     sendCodeDto.email = sendCodeDto.email.split("@")[0];
+  //   }
+  //   const emailAddress = `${sendCodeDto.email}@${univ.emailDomain}`;
+  //
+  //   await this.authService.emailAuthCreate("", univ.id, emailAddress);
+  // }
 
-    const univ = await this.universityService.getUniversityById(
-      sendCodeDto.universityId
-    );
-
-    if (!univ) {
-      throw new NotFoundException("해당 대학을 찾을 수 없습니다.");
-    }
-
-    // @ 포함이면 걸러내기
-    if (sendCodeDto.email.split("@").length > 0) {
-      sendCodeDto.email = sendCodeDto.email.split("@")[0];
-    }
-    const emailAddress = `${sendCodeDto.email}@${univ.emailDomain}`;
-
-    await this.authService.emailAuthCreate(userdata.id, univ.id, emailAddress);
-  }
-
-  @Post("/email/verify")
-  async verifyAuthCode(
-    @Req() request: Request,
-    @Body() verifyCodeDto: VerifyCodeDto
-  ) {
-    const userdata = await this.authService.getUserdataFromNaver(
-      verifyCodeDto.oauthAccessToken
-    );
-    if (!userdata) {
-      throw new HttpException("잘못된 토큰 입니다.", HttpStatus.UNAUTHORIZED);
-    }
-    await this.authService.emailAuthVerify(userdata, verifyCodeDto.authCode);
-  }
+  // @Post("/email/verify")
+  // async verifyAuthCode(
+  //   @Req() request: Request,
+  //   @Body() verifyCodeDto: VerifyCodeDto
+  // ) {
+  //   const userdata = await this.authService.getUserdataFromNaver(
+  //     verifyCodeDto.oauthAccessToken
+  //   );
+  //   if (!userdata) {
+  //     throw new HttpException("잘못된 토큰 입니다.", HttpStatus.UNAUTHORIZED);
+  //   }
+  //   await this.authService.emailAuthVerify(userdata, verifyCodeDto.authCode);
+  // }
 
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("swagger-auth")

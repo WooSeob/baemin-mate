@@ -24,7 +24,7 @@ import { MatchEntity } from "../match/entity/match.entity";
 import { UserDeviceTokenEntity } from "../notification/entity/user-device-token.entity";
 import DormitoryEntity from "../university/entity/dormitory.entity";
 import { UserOauthEntity } from "../user/entity/user-oauth.entity";
-import { UniversityEmailAuthEntity } from "../auth/entity/university-email-auth.entity";
+import { UniversityEmailAuthEntity } from "../auth/signup/entity/university-email-auth.entity";
 import RoomChatEntity from "./entity/room-chat.entity";
 import RoomVoteEntity, { RoomVoteType } from "./entity/room-vote.entity";
 import VoteOpinionEntity from "./entity/vote-opinion.entity";
