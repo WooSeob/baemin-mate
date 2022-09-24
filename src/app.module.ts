@@ -19,6 +19,7 @@ import { VersionCheckInterceptor } from "./common/interceptors/version-check.int
 import { MailModule } from "./infra/mail/mail.module";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { APP_GUARD } from "@nestjs/core";
+import { ReportModule } from "./report/report.module";
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { APP_GUARD } from "@nestjs/core";
       ttl: 10,
       limit: 50,
     }),
+    ReportModule,
   ],
   controllers: [],
   providers: [
