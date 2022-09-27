@@ -22,6 +22,7 @@ import { ImageFileEntity } from "./entity/image-file.entity";
 import { RoomAccountEntity } from "./entity/room-account.entity";
 import { UserService } from "../user/user.service";
 import { UserEvent } from "../user/const/UserEvent";
+import { UnfinishedVoteException } from "./exceptions/room.exception";
 
 //StrictEventEmitter<RoomEvents, RoomEvents>
 @Injectable()
@@ -615,9 +616,13 @@ export class RoomService extends EventEmitter {
           finished: false}
       );
 
+      if (unfinishedVotes.length != 0) {
+        throw new UnfinishedVoteException()
+      }
+
       // 강퇴 투표 생성
       const created = await queryRunner.manager.save(
-        KickVoteFactory.create(room, requestUserId, targetUserId, unfinishedVotes)
+        KickVoteFactory.create(room, requestUserId, targetUserId)
       );
 
       // 강퇴 투표 생성 이벤트 발생
@@ -654,9 +659,13 @@ export class RoomService extends EventEmitter {
           finished: false}
       );
 
+      if (unfinishedVotes.length != 0) {
+        throw new UnfinishedVoteException()
+      }
+
       // 리셋 투표 생성
       const created = await queryRunner.manager.save(
-        ResetVoteFactory.create(room, requestUserId, unfinishedVotes)
+        ResetVoteFactory.create(room, requestUserId)
       );
 
       // 리셋 투표 생성 이벤트 발생

@@ -5,7 +5,6 @@ import RoomVoteEntity, { RoomVoteType } from "../../room-vote.entity";
 import {
   KickVoteCreateOnlyPurchaserException,
   KickVoteNotAllowedUnderThreeException,
-  UnfinishedVote
 } from "../../../exceptions/room.exception";
 import { NotFoundException } from "@nestjs/common";
 
@@ -14,7 +13,6 @@ export default class KickVoteFactory {
     room: RoomEntity,
     requestUserId: string,
     targetUserId: string,
-    unfinishedVotes: Array<RoomVoteEntity >
   ): RoomVoteEntity {
     if (!room) {
       throw new NotFoundException("존재하지 않는 방입니다.");
@@ -38,10 +36,6 @@ export default class KickVoteFactory {
     );
     if (!requestParticipant) {
       throw new NotFoundException("투표 생성자를 찾을 수 없습니다.");
-    }
-
-    if (unfinishedVotes.length != 0) {
-      throw new UnfinishedVote()
     }
 
     // TODO 객체비교

@@ -193,7 +193,7 @@ export class OnlyMemberCanReadyException extends BusinessException {
   }
 }
 
-export class UnfinishedVote extends BusinessException {
+export class UnfinishedVoteException extends BusinessException {
   constructor() {
     super({
       errorCode: "A_09_02",
