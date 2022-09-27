@@ -22,6 +22,7 @@ import { ImageFileEntity } from "./entity/image-file.entity";
 import { RoomAccountEntity } from "./entity/room-account.entity";
 import { UserService } from "../user/user.service";
 import { UserEvent } from "../user/const/UserEvent";
+import { UnfinishedVoteException } from "./exceptions/room.exception";
 
 //StrictEventEmitter<RoomEvents, RoomEvents>
 @Injectable()
@@ -604,6 +605,21 @@ export class RoomService extends EventEmitter {
         roomId
       );
 
+      const unfinishedVotes = await queryRunner.manager.find<RoomVoteEntity>(
+        RoomVoteEntity, {
+          room: room,
+          // 타겟 유저 마다 중복이 불가능 하게할까 했는데
+          // 그냥 방 하나에 진행 가능한 투표 1개만 있는게 보기에 좋을 것 같아서
+          // 리셋과 강퇴 투표 전부 함쳐서 계산함
+          
+          // voteType: RoomVoteType.KICK
+          finished: false}
+      );
+
+      if (unfinishedVotes.length != 0) {
+        throw new UnfinishedVoteException()
+      }
+
       // 강퇴 투표 생성
       const created = await queryRunner.manager.save(
         KickVoteFactory.create(room, requestUserId, targetUserId)
@@ -635,6 +651,17 @@ export class RoomService extends EventEmitter {
         RoomEntity,
         roomId
       );
+      
+      const unfinishedVotes = await queryRunner.manager.find<RoomVoteEntity>(
+        RoomVoteEntity, {
+          room: room,
+          // voteType: RoomVoteType.RESET,
+          finished: false}
+      );
+
+      if (unfinishedVotes.length != 0) {
+        throw new UnfinishedVoteException()
+      }
 
       // 리셋 투표 생성
       const created = await queryRunner.manager.save(
