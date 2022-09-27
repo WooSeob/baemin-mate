@@ -192,3 +192,12 @@ export class OnlyMemberCanReadyException extends BusinessException {
     });
   }
 }
+
+export class UnfinishedVote extends BusinessException {
+  constructor() {
+    super({
+      errorCode: "A_09_02",
+      message: [`해당 투표가 아직 진행중입니다.`],
+    });
+  }
+}

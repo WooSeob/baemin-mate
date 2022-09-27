@@ -3,9 +3,9 @@ import { RoomState } from "../../../const/RoomState";
 import VoteOpinionEntity from "../../vote-opinion.entity";
 import RoomVoteEntity, { RoomVoteType } from "../../room-vote.entity";
 import { NotFoundException } from "@nestjs/common";
-
+import { UnfinishedVote } from "../../../exceptions/room.exception";
 export default class ResetVoteFactory {
-  static create(room: RoomEntity, requestUserId: string): RoomVoteEntity {
+  static create(room: RoomEntity, requestUserId: string, unfinishedVotes: Array<RoomVoteEntity>): RoomVoteEntity {
     if (!room) {
       throw new NotFoundException("존재하지 않는 방입니다.");
     }
@@ -17,6 +17,10 @@ export default class ResetVoteFactory {
     );
     if (!requestParticipant) {
       throw new NotFoundException("투표 생성자를 찾을 수 없습니다.");
+    }
+
+    if (unfinishedVotes.length != 0) {
+      throw new UnfinishedVote()
     }
 
     const resetVote = new RoomVoteEntity();
