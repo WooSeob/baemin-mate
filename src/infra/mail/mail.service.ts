@@ -20,7 +20,14 @@ export class MailService {
       subject: EmailAuthConfig.content.subject,
       // 보내는 메일의 내용을 입력
       text: authCode,
-      html: `<h1>${authCode}</h1>`,
+
+      html: `
+<h1>이메일 인증</h1>
+<p>안녕하세요.</P>
+<p>같이하실에 회원가입을 해주셔서 감사합니다.</P>
+<p>아래의 인증코드를 입력하여 회원가입을 완료해주세요.</P>
+<div style="background-color:rgba(128, 128, 128, 0.3); border-radius: 8px; text-align: center; width: 300px;  padding: 20px 0"> <h1>${authCode}</h1> </div>`,
+      
     });
   }
 }

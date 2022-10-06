@@ -16,7 +16,10 @@ import {
 import winston from "winston";
 import DailyRotateFile from "winston-daily-rotate-file";
 import { VersionCheckInterceptor } from "./common/interceptors/version-check.interceptor";
-import { MailModule } from './infra/mail/mail.module';
+import { MailModule } from "./infra/mail/mail.module";
+import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { APP_GUARD } from "@nestjs/core";
+import { ReportModule } from "./report/report.module";
 
 @Module({
   imports: [
@@ -56,8 +59,19 @@ import { MailModule } from './infra/mail/mail.module';
       ],
     }),
     MailModule,
+    ThrottlerModule.forRoot({
+      ttl: 10,
+      limit: 50,
+    }),
+    ReportModule,
   ],
   controllers: [],
-  providers: [VersionCheckInterceptor],
+  providers: [
+    VersionCheckInterceptor,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

@@ -12,7 +12,7 @@ export default class KickVoteFactory {
   static create(
     room: RoomEntity,
     requestUserId: string,
-    targetUserId: string
+    targetUserId: string,
   ): RoomVoteEntity {
     if (!room) {
       throw new NotFoundException("존재하지 않는 방입니다.");
