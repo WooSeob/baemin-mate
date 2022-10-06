@@ -1,6 +1,7 @@
 import {
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from "@nestjs/common";
@@ -14,12 +15,18 @@ import { RoomEntity } from "../room/entity/room.entity";
 import RoomVoteEntity from "../room/entity/room-vote.entity";
 import { NotificationEntity } from "./entity/notification.entity";
 import { NotificationType } from "./const/NotificationType";
+import { UserService } from "../user/user.service";
+import { UserEvent } from "../user/const/UserEvent";
+import { UserEntity } from "../user/entity/user.entity";
 
 @Injectable()
 export class NotificationService {
+  private readonly logger = new Logger("NotificationService");
+
   constructor(
     private roomService: RoomService,
     private fcmService: FcmService,
+    private userService: UserService,
     @InjectRepository(UserDeviceTokenEntity)
     private tokenRepository: Repository<UserDeviceTokenEntity>,
     @InjectRepository(NotificationEntity)
@@ -158,6 +165,10 @@ export class NotificationService {
         });
       }
     );
+
+    userService.on(UserEvent.DELETED, async (user: UserEntity) => {
+      await this.deleteDeviceTokenByUser(user.id);
+    });
   }
 
   async findNotificationsByUserId(userId: string) {
@@ -232,6 +243,12 @@ export class NotificationService {
       .andWhere("enabled = :state", { state: true })
       .andWhere("user.deletedAt IS NULL")
       .getMany();
+  }
+
+  async deleteDeviceTokenByUser(userId: string) {
+    await this.tokenRepository.delete({
+      userId: userId,
+    });
   }
 
   async put(uid: string, token: string) {
