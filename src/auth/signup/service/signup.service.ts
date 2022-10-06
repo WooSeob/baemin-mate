@@ -49,7 +49,7 @@ export class SignupService {
         email: createSessionDto.email,
         state: SignUpState.TRIAL_OVER,
       })
-    ).filter((e) => e.createdAt + ONE_DAY < Date.now());
+    ).filter((e) => e.createdAt + ONE_DAY > Date.now());
 
     if (trialOverSessions.length > 0) {
       throw new VerifyTrialOverException();
