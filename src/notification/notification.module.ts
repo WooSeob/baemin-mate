@@ -7,6 +7,7 @@ import { FcmModule } from "../infra/fcm/fcm.module";
 import { NotificationController } from "./notification.controller";
 import { AuthModule } from "../auth/auth.module";
 import { NotificationEntity } from "./entity/notification.entity";
+import { UserModule } from "../user/user.module";
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { NotificationEntity } from "./entity/notification.entity";
     TypeOrmModule.forFeature([NotificationEntity]),
     FcmModule,
     forwardRef(() => AuthModule),
+    forwardRef(() => UserModule),
   ],
   providers: [NotificationService],
   controllers: [NotificationController],
