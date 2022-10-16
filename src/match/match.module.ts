@@ -8,6 +8,9 @@ import { RoomModule } from "../room/room.module";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { MatchEntity } from "./entity/match.entity";
 import { UniversityModule } from "../university/university.module";
+import { RecommendService } from "./recommend.service";
+import { SubscribeCategoryEntity } from "./entity/subscribe-category.entity";
+import { NotificationModule } from "../notification/notification.module";
 
 @Module({
   imports: [
@@ -15,9 +18,10 @@ import { UniversityModule } from "../university/university.module";
     UserModule,
     RoomModule,
     UniversityModule,
-    TypeOrmModule.forFeature([MatchEntity]),
+    TypeOrmModule.forFeature([MatchEntity, SubscribeCategoryEntity]),
+    NotificationModule,
   ],
-  providers: [MatchService, MatchGateway],
+  providers: [MatchService, MatchGateway, RecommendService],
   controllers: [MatchController],
 })
 export class MatchModule {}
