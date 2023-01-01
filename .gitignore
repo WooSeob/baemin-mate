@@ -33,5 +33,14 @@ yarn-error.log
 /coverage
 /.nyc_output
 /packages/graphql
-/benchmarks/memory
 build/config\.gypi
+
+## pnp ZeroInstall
+## https://next.yarnpkg.com/getting-started/qa#which-files-should-be-gitignored
+.yarn/*
+!.yarn/cache
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
