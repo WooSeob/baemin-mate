@@ -7,6 +7,7 @@ import { OAuthProvider } from "../auth/interface/OAuthProvider";
 import EventEmitter from "events";
 import { UserEvent } from "./const/UserEvent";
 import { Builder } from "builder-pattern";
+import { State } from "../room/entity/participant.entity";
 
 @Injectable()
 export class UserService extends EventEmitter {
@@ -115,8 +116,8 @@ export class UserService extends EventEmitter {
   }
 
   async getJoinedRoomIds(userId: string) {
-    return (await this.getParticipations(userId)).map(
-      (participant) => participant.roomId
-    );
+    return (await this.getParticipations(userId))
+      .filter((p) => p.state === State.JOINED)
+      .map((participant) => participant.roomId);
   }
 }

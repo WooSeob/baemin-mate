@@ -18,6 +18,8 @@ import { NotificationType } from "./const/NotificationType";
 import { UserService } from "../user/user.service";
 import { UserEvent } from "../user/const/UserEvent";
 import { UserEntity } from "../user/entity/user.entity";
+import { NotificationMessage } from "./dto/NotificationMessage";
+import { Builder } from "builder-pattern";
 
 @Injectable()
 export class NotificationService {
@@ -209,6 +211,36 @@ export class NotificationService {
     });
   }
 
+  async publishPushAndNotification(
+    userIds: string[],
+    message: NotificationMessage
+  ) {
+    const tokens = (await this.getDeviceTokens(userIds)).map(
+      (t) => t.deviceToken
+    );
+
+    if (tokens.length == 0) {
+      return;
+    }
+
+    if (message.createNotification) {
+      const notificationEntities: NotificationEntity[] = userIds.map((uid) => {
+        return Builder<NotificationEntity>()
+          .userId(uid)
+          .type(message.type)
+          .metadata(message.metadata)
+          .title(message.title)
+          .body(message.body)
+          .build();
+      });
+      this.notificationRepository.save(notificationEntities);
+    }
+    this.fcmService.multicastNotification(tokens, {
+      title: message.title,
+      body: message.body,
+    });
+  }
+
   private async toPurchaser(room, message) {
     const deviceTokens = (await this.getDeviceTokensOfPurchaser(room)).map(
       (deviceToken) => deviceToken.deviceToken
@@ -233,16 +265,16 @@ export class NotificationService {
     return this.tokenRepository.find({ user: room.purchaser, enabled: true });
   }
 
-  getDeviceTokensOfParticipants(room: RoomEntity) {
+  getDeviceTokens(userIds: string[]) {
     return this.tokenRepository
       .createQueryBuilder("token")
-      .leftJoinAndSelect("token.user", "user")
-      .where("userId IN (:id)", {
-        id: room.currentParticipants.map((p) => p.userId),
-      })
+      .where("userId IN (:ids)", { ids: userIds })
       .andWhere("enabled = :state", { state: true })
-      .andWhere("user.deletedAt IS NULL")
       .getMany();
+  }
+
+  getDeviceTokensOfParticipants(room: RoomEntity) {
+    return this.getDeviceTokens(room.currentParticipants.map((p) => p.userId));
   }
 
   async deleteDeviceTokenByUser(userId: string) {

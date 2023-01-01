@@ -1,16 +1,17 @@
-import { Inject, Injectable, Logger, UseInterceptors } from "@nestjs/common";
+import { Injectable, Logger, UseInterceptors } from "@nestjs/common";
 import { Server, Socket } from "socket.io";
 import { SubscribeMatchDto } from "./dto/request/subscribe-match.dto";
 import { UserEntity } from "../user/entity/user.entity";
 import { CategoryType } from "./interfaces/category.interface";
 import { RoomEventType } from "../room/const/RoomEventType";
 import { RoomService } from "../room/room.service";
-import { Connection, QueryRunner, Repository } from "typeorm";
+import { Connection, Repository } from "typeorm";
 import { MatchEntity } from "./entity/match.entity";
 import MatchInfo from "./dto/response/match-info.interface";
 import { RoomEntity } from "../room/entity/room.entity";
 import { InjectRepository } from "@nestjs/typeorm";
 import { UniversityService } from "../university/university.service";
+import { MatchType } from "./interfaces/MatchType";
 
 enum MatchNamespace {
   CREATE = "new-arrive",
@@ -64,18 +65,23 @@ export class MatchService {
     // 룸 자체가 삭제 되었을 때
     // 비 노출 상태가 되었을 때 (-> orderfix )
     roomService.on(RoomEventType.DELETED, async (roomId) => {
-      const matches = await this.matchRepository.find({ roomId: null });
-      matches.forEach((match) => {
-        this.server
-          .to(
-            this.socketRoomStringResolver(
-              match.targetUnivId,
-              match.category,
-              match.sectionId
-            )
-          )
-          .emit(MatchNamespace.DELETE, MatchInfo.from(match));
+      const matches = await this.matchRepository.find({
+        roomId: null,
       });
+
+      matches
+        .filter((match) => match.matchType === MatchType.HomeFeed)
+        .forEach((match) => {
+          this.server
+            .to(
+              this.socketRoomStringResolver(
+                match.targetUnivId,
+                match.category,
+                match.sectionId
+              )
+            )
+            .emit(MatchNamespace.DELETE, MatchInfo.from(match));
+        });
 
       await this.matchRepository.remove(matches);
     });
@@ -91,9 +97,12 @@ export class MatchService {
       room.sectionId
     );
     //TODO try catch
-    await this.matchRepository.save(MatchEntity.create(room, dormitory.name));
 
-    const created = await this.matchRepository.findOne({ roomId: room.id });
+    const created_ = await this.matchRepository.save(
+      MatchEntity.fromFeed(room, dormitory.name)
+    );
+
+    const created = await this.matchRepository.findOne({ id: created_.id });
     this.server
       .to(
         this.socketRoomStringResolver(
@@ -106,19 +115,23 @@ export class MatchService {
   }
 
   async handleDeleteEvent(roomId: string) {
-    const matches = await this.matchRepository.find({ roomId: roomId });
-
-    matches.forEach((match) => {
-      this.server
-        .to(
-          this.socketRoomStringResolver(
-            match.targetUnivId,
-            match.category,
-            match.sectionId
-          )
-        )
-        .emit(MatchNamespace.DELETE, MatchInfo.from(match));
+    const matches = await this.matchRepository.find({
+      roomId: roomId,
     });
+
+    matches
+      .filter((match) => match.matchType === MatchType.HomeFeed)
+      .forEach((match) => {
+        this.server
+          .to(
+            this.socketRoomStringResolver(
+              match.targetUnivId,
+              match.category,
+              match.sectionId
+            )
+          )
+          .emit(MatchNamespace.DELETE, MatchInfo.from(match));
+      });
 
     await this.matchRepository.remove(matches);
   }
@@ -126,7 +139,10 @@ export class MatchService {
   async handleUpdateEvent(roomId: string) {
     const room = await this.roomService.findRoomById(roomId);
 
-    const matches = await this.matchRepository.find({ roomId: roomId });
+    const matches = await this.matchRepository.find({
+      roomId: roomId,
+      matchType: MatchType.HomeFeed,
+    });
     const updatedMatches = await this.matchRepository.save(
       matches.map((match) => match.update(room, match.sectionName))
     );
@@ -195,6 +211,9 @@ export class MatchService {
     });
     queryBuilder.andWhere("match.category IN (:...categories)", {
       categories: categories,
+    });
+    queryBuilder.andWhere("match.matchType = :matchType", {
+      matchType: MatchType.HomeFeed,
     });
     queryBuilder.andWhere("match.roomId IS NOT NULL");
 
