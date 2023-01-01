@@ -10,7 +10,11 @@ import {
 import { RoomState } from "../const/RoomState";
 import { UserEntity } from "../../user/entity/user.entity";
 import { CategoryType } from "../../match/interfaces/category.interface";
-import { ParticipantBuilder, ParticipantEntity } from "./participant.entity";
+import {
+  ParticipantBuilder,
+  ParticipantEntity,
+  State,
+} from "./participant.entity";
 import { ImageFileEntity } from "./image-file.entity";
 import { CreateRoomDto } from "../dto/request/create-room.dto";
 import { NotFoundException } from "@nestjs/common";
@@ -130,9 +134,17 @@ export class RoomEntity {
   blackList: RoomBlacklistEntity[];
 
   get currentParticipants(): ParticipantEntity[] {
-    return this.participants.filter((p) =>
-      [RoomRole.MEMBER, RoomRole.PURCHASER].includes(p.role)
+    return this.participants.filter(
+      (p) =>
+        [RoomRole.MEMBER, RoomRole.PURCHASER].includes(p.role) &&
+        p.state === State.JOINED
     );
+  }
+
+  get leftParticipants(): ParticipantEntity[] {
+    return this.participants.filter((p) => {
+      return p.state === State.LEFT;
+    });
   }
 
   get participantsWithBlacked(): ParticipantEntity[] {
@@ -333,7 +345,6 @@ export class RoomEntity {
     if (pIdx < 0) {
       throw new NotFoundException("참여자를 찾을 수 없습니다.");
     }
-
     const participant = this.participants[pIdx];
 
     if (this.phase == RoomState.PREPARE || this.phase == RoomState.ALL_READY) {
@@ -348,9 +359,9 @@ export class RoomEntity {
       }
     }
 
-    const target = this.participants.splice(pIdx, 1)[0];
+    participant.state = State.LEFT;
     this.updateAllReadyState();
-    return target;
+    return participant;
   }
 
   kickUser(
@@ -381,6 +392,7 @@ export class RoomEntity {
 
     const target = this.participants[idx];
     target.role = RoomRole.BANNED;
+    target.state = State.KICKED;
 
     this.updateAllReadyState();
     return target;
@@ -410,7 +422,7 @@ export class RoomEntity {
       throw new BannedUserJoinNotAllowedException();
     }
 
-    if (this.participants.findIndex((p) => p.userId === user.id) > -1) {
+    if (this.currentParticipants.findIndex((p) => p.userId === user.id) > -1) {
       throw new AlreadyJoinedException();
     }
 
@@ -422,6 +434,15 @@ export class RoomEntity {
       throw new AnotherUnivJoinNotAllowedException();
     }
 
+    const existingParticipant = this.leftParticipants.find(
+      (p) => p.userId === user.id
+    );
+    if (existingParticipant) {
+      existingParticipant.state = State.JOINED;
+      existingParticipant.role = RoomRole.MEMBER;
+      this.updateAllReadyState();
+      return;
+    }
     // 참가자 추가
     this.participants.push(
       new ParticipantBuilder()

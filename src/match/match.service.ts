@@ -98,9 +98,11 @@ export class MatchService {
     );
     //TODO try catch
 
-    const created = await this.matchRepository.save(
+    const created_ = await this.matchRepository.save(
       MatchEntity.fromFeed(room, dormitory.name)
     );
+
+    const created = await this.matchRepository.findOne({ id: created_.id });
     this.server
       .to(
         this.socketRoomStringResolver(

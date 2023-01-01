@@ -145,6 +145,35 @@ export class RoomController {
   }
 
   /**
+   * rid 에 해당하는 Room의 특정 참여 유저 정보를 불러옵니다.
+   * */
+  @OnlyForParticipant()
+  @ApiCreatedResponse({
+    description: "특정 참여자 정보를 불러옵니다.",
+    type: ParticipantStateResponse,
+  })
+  @Get(`/:${ROOM_ID}/participants/:uId`)
+  async getParticipant(
+    @Param(ROOM_ID) rid: string,
+    @Param("uId") uId: string
+  ): Promise<ParticipantStateResponse> {
+    const room = await this.roomService.findRoomById(rid);
+    if (!room) {
+      throw new HttpException("room not found", HttpStatus.NOT_FOUND);
+    }
+
+    this.logger.log(room.currentParticipants);
+
+    const target = room.participantsWithBlacked.find((p) => p.userId === uId);
+
+    if (!target) {
+      throw new HttpException("user not found", HttpStatus.NOT_FOUND);
+    }
+
+    return ParticipantStateResponse.from(target);
+  }
+
+  /**
    * rid 에 해당하는 Room의 각 유저별 최신 읽은 메시지 id들을 반환합니다.
    * */
   @OnlyForParticipantAndBanned()

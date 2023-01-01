@@ -224,7 +224,7 @@ export class RoomService extends EventEmitter {
 
       const toRemove: ParticipantEntity = room.leave(userId);
 
-      await queryRunner.manager.remove(toRemove);
+      // await queryRunner.manager.remove(toRemove);
 
       if (toRemove.role == RoomRole.BANNED) {
         await queryRunner.manager.save(room);
@@ -606,18 +606,20 @@ export class RoomService extends EventEmitter {
       );
 
       const unfinishedVotes = await queryRunner.manager.find<RoomVoteEntity>(
-        RoomVoteEntity, {
+        RoomVoteEntity,
+        {
           room: room,
           // 타겟 유저 마다 중복이 불가능 하게할까 했는데
           // 그냥 방 하나에 진행 가능한 투표 1개만 있는게 보기에 좋을 것 같아서
           // 리셋과 강퇴 투표 전부 함쳐서 계산함
-          
+
           // voteType: RoomVoteType.KICK
-          finished: false}
+          finished: false,
+        }
       );
 
       if (unfinishedVotes.length != 0) {
-        throw new UnfinishedVoteException()
+        throw new UnfinishedVoteException();
       }
 
       // 강퇴 투표 생성
@@ -651,16 +653,18 @@ export class RoomService extends EventEmitter {
         RoomEntity,
         roomId
       );
-      
+
       const unfinishedVotes = await queryRunner.manager.find<RoomVoteEntity>(
-        RoomVoteEntity, {
+        RoomVoteEntity,
+        {
           room: room,
           // voteType: RoomVoteType.RESET,
-          finished: false}
+          finished: false,
+        }
       );
 
       if (unfinishedVotes.length != 0) {
-        throw new UnfinishedVoteException()
+        throw new UnfinishedVoteException();
       }
 
       // 리셋 투표 생성

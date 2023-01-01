@@ -9,7 +9,6 @@ import { Connection } from "typeorm";
 import { UserService } from "../user/user.service";
 import { createTransport, Transporter } from "nodemailer";
 import { EmailAuthConfig, jwt as jwtConfig } from "../../config";
-import { NaverAuthResponse } from "./interface/NaverAuthResponse";
 import { JwtService } from "@nestjs/jwt";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
 
@@ -53,9 +52,15 @@ export class AuthService {
   }
   async refreshToken(dto: RefreshTokenDto) {
     //TODO 블랙리스트에 있는 토큰인지 검사
-    const refreshTokenPayload = this.jwtService.verify<RefreshTokenPayload>(
-      dto.refreshToken
-    );
+    let refreshTokenPayload;
+    try {
+      refreshTokenPayload = this.jwtService.verify<RefreshTokenPayload>(
+        dto.refreshToken
+      );
+    } catch (e) {
+      this.logger.error(e);
+    }
+
     if (!refreshTokenPayload) {
       throw new UnauthorizedException("만료된 refresh token 입니다.");
     }

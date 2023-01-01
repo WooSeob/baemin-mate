@@ -10,6 +10,12 @@ import { MenuEntity } from "./menu.entity";
 import { RoomEntity, RoomRole } from "./room.entity";
 import { RoomState } from "../const/RoomState";
 
+export enum State {
+  JOINED = "joined",
+  LEFT = "left",
+  KICKED = "kicked",
+}
+
 @Entity()
 export class ParticipantEntity {
   @PrimaryGeneratedColumn()
@@ -40,6 +46,12 @@ export class ParticipantEntity {
     default: 1,
   })
   role!: RoomRole;
+
+  @Column({
+    nullable: false,
+    default: State.JOINED,
+  })
+  state!: State;
 
   @Column({
     nullable: false,
